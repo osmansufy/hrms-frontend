@@ -1,0 +1,147 @@
+import {
+  LayoutDashboard,
+  Settings,
+  ShieldCheck,
+  Clock,
+  Plane,
+  User,
+  Users,
+} from "lucide-react";
+import type { ComponentType } from "react";
+
+import type { PermissionKey, Role } from "@/lib/auth/types";
+
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  roles?: Role[];
+  permissions?: PermissionKey[];
+};
+
+const EMPLOYEE_NAV: NavItem[] = [
+  {
+    href: "/dashboard/employee",
+    label: "Overview",
+    icon: LayoutDashboard,
+    roles: ["employee", "admin", "super-admin"],
+    permissions: ["dashboard.view"],
+  },
+  {
+    href: "/dashboard/employee/directory",
+    label: "Directory",
+    icon: Users,
+    roles: ["employee", "admin", "super-admin"],
+    permissions: ["directory.view"],
+  },
+  {
+    href: "/dashboard/employee/profile",
+    label: "Profile",
+    icon: User,
+    roles: ["employee", "admin", "super-admin"],
+    permissions: ["profile.view"],
+  },
+  {
+    href: "/dashboard/employee/attendance",
+    label: "Attendance",
+    icon: Clock,
+    roles: ["employee", "admin", "super-admin"],
+    permissions: ["attendance.view"],
+  },
+  {
+    href: "/dashboard/employee/leave",
+    label: "Leave",
+    icon: Plane,
+    roles: ["employee", "admin", "super-admin"],
+    permissions: ["leave.request"],
+  },
+];
+
+const ADMIN_NAV: NavItem[] = [
+  {
+    href: "/dashboard/admin",
+    label: "Overview",
+    icon: LayoutDashboard,
+    roles: ["admin", "super-admin"],
+    permissions: ["dashboard.view"],
+  },
+  {
+    href: "/dashboard/admin/employees",
+    label: "Employees",
+    icon: Users,
+    roles: ["admin", "super-admin"],
+    permissions: ["employees.manage"],
+  },
+  {
+    href: "/dashboard/admin/departments",
+    label: "Departments",
+    icon: Users,
+    roles: ["admin", "super-admin"],
+    permissions: ["employees.manage"],
+  },
+  {
+    href: "/dashboard/admin/designations",
+    label: "Designations",
+    icon: Users,
+    roles: ["admin", "super-admin"],
+    permissions: ["employees.manage"],
+  },
+  {
+    href: "/dashboard/admin/users",
+    label: "Users",
+    icon: Users,
+    roles: ["admin", "super-admin"],
+    permissions: ["employees.manage"],
+  },
+  {
+    href: "/dashboard/admin/approvals",
+    label: "Approvals",
+    icon: ShieldCheck,
+    roles: ["admin", "super-admin"],
+    permissions: ["leave.approve"],
+  },
+  {
+    href: "/dashboard/admin/settings",
+    label: "Settings",
+    icon: Settings,
+    roles: ["admin", "super-admin"],
+    permissions: ["settings.manage"],
+  },
+];
+
+const SUPER_ADMIN_NAV: NavItem[] = [
+  {
+    href: "/dashboard/super-admin",
+    label: "Overview",
+    icon: LayoutDashboard,
+    roles: ["super-admin"],
+    permissions: ["dashboard.view"],
+  },
+  ...ADMIN_NAV,
+];
+
+export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
+  employee: EMPLOYEE_NAV,
+  admin: ADMIN_NAV,
+  "super-admin": SUPER_ADMIN_NAV,
+};
+
+export function getPrimaryRole(roles: Role[]): Role {
+  const priority: Role[] = ["super-admin", "admin", "employee"];
+  return priority.find((role) => roles.includes(role)) ?? "employee";
+}
+
+export function filterNav(
+  items: NavItem[],
+  roles: Role[],
+  permissions: PermissionKey[]
+) {
+  return items.filter((item) => {
+    const roleAllowed =
+      !item.roles || item.roles.some((role) => roles.includes(role));
+    const permAllowed =
+      !item.permissions ||
+      item.permissions.every((perm) => permissions.includes(perm));
+    return roleAllowed && permAllowed;
+  });
+}
