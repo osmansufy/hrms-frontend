@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
+import { extractErrorMessage } from "@/lib/utils/error-handler";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee } from "@/lib/queries/employees";
+import { AssignManagerDialog } from "@/components/assign-manager-dialog";
 
 const schema = z.object({
   phone: z.string().optional(),
@@ -89,13 +91,13 @@ export default function AdminEmployeeDetailPage() {
     },
     values: data
       ? {
-          phone: data.phone || "",
-          employmentType: (data.employmentType as FormValues["employmentType"]) || undefined,
-          joiningDate: data.joiningDate?.slice(0, 10) || "",
-          departmentId: data.departmentId || "",
-          designationId: data.designationId || "",
-          reportingManagerId: data.reportingManagerId || "",
-        }
+        phone: data.phone || "",
+        employmentType: (data.employmentType as FormValues["employmentType"]) || undefined,
+        joiningDate: data.joiningDate?.slice(0, 10) || "",
+        departmentId: data.departmentId || "",
+        designationId: data.designationId || "",
+        reportingManagerId: data.reportingManagerId || "",
+      }
       : undefined,
   });
 
@@ -113,10 +115,7 @@ export default function AdminEmployeeDetailPage() {
       });
       toast.success("Employee updated");
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Unable to update employee";
+      const message = extractErrorMessage(error, "Unable to update employee");
       toast.error(message);
     }
   };
@@ -131,10 +130,7 @@ export default function AdminEmployeeDetailPage() {
       toast.success("Employee deleted");
       router.push("/dashboard/admin/employees");
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Unable to delete employee";
+      const message = extractErrorMessage(error, "Unable to delete employee");
       toast.error(message);
     }
   };
@@ -187,8 +183,17 @@ export default function AdminEmployeeDetailPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Core employee and user details.</CardDescription>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>Profile</CardTitle>
+                <CardDescription>Core employee and user details.</CardDescription>
+              </div>
+              <AssignManagerDialog
+                employeeId={id || ""}
+                employeeName={fullName}
+                currentManager={data.reportingManager}
+              />
+            </div>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Info label="Email" value={data.user?.email} icon={<Mail className="size-4" />} />

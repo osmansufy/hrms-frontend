@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { extractErrorMessage } from "@/lib/utils/error-handler";
 import {
   Card,
   CardContent,
@@ -95,10 +96,7 @@ export default function CreateEmployeePage() {
       toast.success("Employee created");
       router.push(`/dashboard/admin/employees/${created.id}`);
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Unable to create employee";
+      const message = extractErrorMessage(error, "Unable to create employee");
       toast.error(message);
     }
   };

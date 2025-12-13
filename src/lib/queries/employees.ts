@@ -7,9 +7,11 @@ import {
   listEmployees,
   searchManagers,
   updateEmployeeApi,
+  assignManager,
   type ApiEmployee,
   type ListEmployeesParams,
   type UpdateEmployeePayload,
+  type AssignManagerPayload,
 } from "@/lib/api/employees";
 import type { Employee } from "@/lib/data/employees";
 import { listDepartments } from "@/lib/api/departments";
@@ -44,19 +46,27 @@ const statusLabel = (status?: string): Employee["status"] => {
 };
 
 const formatEmploymentType = (type?: string | null) =>
-  type ? type.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : "—";
+  type
+    ? type
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/(^|\s)\S/g, (c) => c.toUpperCase())
+    : "—";
 
 const toEmployee = (apiEmp: ApiEmployeeShape): Employee => ({
   id: apiEmp.id,
   employeeCode: apiEmp.employeeCode,
-  name: [apiEmp.firstName, apiEmp.lastName].filter(Boolean).join(" ") || "Unknown",
+  name:
+    [apiEmp.firstName, apiEmp.lastName].filter(Boolean).join(" ") || "Unknown",
   email: apiEmp.personalEmail || apiEmp.user?.email || "unknown@company.com",
   title: apiEmp.designation?.name || apiEmp.designation?.title || "—",
   department: apiEmp.department?.name || "—",
   location: formatEmploymentType(apiEmp.employmentType),
   status: statusLabel(apiEmp.user?.status),
   manager: apiEmp.reportingManager
-    ? `${apiEmp.reportingManager.firstName ?? ""} ${apiEmp.reportingManager.lastName ?? ""}`.trim()
+    ? `${apiEmp.reportingManager.firstName ?? ""} ${
+        apiEmp.reportingManager.lastName ?? ""
+      }`.trim()
     : undefined,
   phone: apiEmp.phone || undefined,
   startDate: apiEmp.joiningDate || "",
@@ -64,7 +74,8 @@ const toEmployee = (apiEmp: ApiEmployeeShape): Employee => ({
 
 export const employeeKeys = {
   all: ["employees"] as const,
-  list: (params?: ListEmployeesParams) => [...employeeKeys.all, "list", params ?? {}] as const,
+  list: (params?: ListEmployeesParams) =>
+    [...employeeKeys.all, "list", params ?? {}] as const,
   detail: (id: string) => [...employeeKeys.all, "detail", id] as const,
   detailRaw: (id: string) => [...employeeKeys.all, "detail-raw", id] as const,
 };
@@ -112,7 +123,8 @@ export function useUpdateEmployee(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: UpdateEmployeePayload) => updateEmployeeApi(id, payload),
+    mutationFn: (payload: UpdateEmployeePayload) =>
+      updateEmployeeApi(id, payload),
     onSuccess: (data) => {
       if (!data) return;
       queryClient.setQueryData(employeeKeys.detail(id), toEmployee(data));
@@ -158,22 +170,33 @@ export function useManagers(search?: string) {
     queryKey: optionKeys.managers(search),
     queryFn: async () => {
       const data = await searchManagers(search);
-      const managersOnly = data.filter((emp) => {
-        const roles =
-          emp.user?.roleAssignments?.map((r) => r.role.code) ||
-          emp.user?.roles ||
-          [];
-        const normalized = roles.map((r) => r.toUpperCase());
-        return normalized.some((r) =>
-          ["TEAM_LEAD", "DEPARTMENT_HEAD", "HR_MANAGER", "ADMIN"].includes(r),
-        );
-      });
-      return managersOnly.map((emp) => ({
+      return data.map((emp) => ({
         id: emp.id,
         name: [emp.firstName, emp.lastName].filter(Boolean).join(" "),
         employeeCode: emp.employeeCode,
       }));
     },
     staleTime: 30_000,
+  });
+}
+
+export function useAssignManager(employeeId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: AssignManagerPayload) =>
+      assignManager(employeeId, payload),
+    onSuccess: (data) => {
+      if (!data?.employee) return;
+      queryClient.setQueryData(
+        employeeKeys.detail(employeeId),
+        toEmployee(data.employee)
+      );
+      queryClient.setQueryData(
+        employeeKeys.detailRaw(employeeId),
+        data.employee
+      );
+      queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
+    },
   });
 }

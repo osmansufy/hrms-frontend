@@ -6,6 +6,7 @@ import {
   Plane,
   User,
   Users,
+  CalendarCheck,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -55,6 +56,13 @@ const EMPLOYEE_NAV: NavItem[] = [
     roles: ["employee", "admin", "super-admin"],
     permissions: ["leave.request"],
   },
+  {
+    href: "/dashboard/employee/leave-manager",
+    label: "Team Leave",
+    icon: Users,
+    roles: ["employee", "admin", "super-admin"],
+    permissions: ["leave.request"], // Show to all employees; page will check if they have subordinates
+  },
 ];
 
 const ADMIN_NAV: NavItem[] = [
@@ -97,6 +105,20 @@ const ADMIN_NAV: NavItem[] = [
     href: "/dashboard/admin/approvals",
     label: "Approvals",
     icon: ShieldCheck,
+    roles: ["admin", "super-admin"],
+    permissions: ["leave.approve"],
+  },
+  {
+    href: "/dashboard/admin/leave",
+    label: "Leave Management",
+    icon: CalendarCheck,
+    roles: ["admin", "super-admin"],
+    permissions: ["leave.approve"],
+  },
+  {
+    href: "/dashboard/admin/leave-balance",
+    label: "Leave Balances",
+    icon: CalendarCheck,
     roles: ["admin", "super-admin"],
     permissions: ["leave.approve"],
   },

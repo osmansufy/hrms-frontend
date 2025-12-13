@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Search, UserCog } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEmployees } from "@/lib/queries/employees";
+import { AssignManagerDialog } from "@/components/assign-manager-dialog";
 
 export default function AdminEmployeesPage() {
   const [search, setSearch] = useState("");
@@ -105,7 +106,7 @@ export default function AdminEmployeesPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Designation</TableHead>
-                  <TableHead>Employment</TableHead>
+                  <TableHead>Manager</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -124,7 +125,15 @@ export default function AdminEmployeesPage() {
                     </TableCell>
                     <TableCell>{emp.department}</TableCell>
                     <TableCell>{emp.title}</TableCell>
-                    <TableCell>{emp.location}</TableCell>
+                    <TableCell>
+                      {emp.manager ? (
+                        <span className="text-sm">{emp.manager}</span>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          Not Assigned
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -139,9 +148,24 @@ export default function AdminEmployeesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/dashboard/admin/employees/${emp.id}`}>View</Link>
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <AssignManagerDialog
+                          employeeId={emp.id}
+                          employeeName={emp.name}
+                          currentManager={
+                            emp.manager
+                              ? {
+                                id: emp.id,
+                                firstName: emp.manager.split(" ")[0] || "",
+                                lastName: emp.manager.split(" ")[1] || "",
+                              }
+                              : null
+                          }
+                        />
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/dashboard/admin/employees/${emp.id}`}>View</Link>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

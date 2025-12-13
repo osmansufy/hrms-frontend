@@ -23,7 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useApplyLeave, useLeaveTypes, useMyLeaves } from "@/lib/queries/leave";
+import { useApplyLeave, useLeaveTypes, useMyLeaves, useUserBalances } from "@/lib/queries/leave";
+import { LeaveBalanceCard } from "@/components/leave/leave-balance-card";
 
 const schema = z.object({
   leaveTypeId: z.string().min(1, "Choose a leave type"),
@@ -58,6 +59,7 @@ export default function LeavePage() {
 
   const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes();
   const { data: leaves, isLoading: leavesLoading } = useMyLeaves(userId);
+  const { data: balances, isLoading: balancesLoading } = useUserBalances();
   const applyMutation = useApplyLeave(userId);
 
   const form = useForm<FormValues>({
@@ -101,6 +103,28 @@ export default function LeavePage() {
           <CalendarDays className="mr-2 size-4" />
           Request and track your leave
         </Badge>
+      </div>
+
+      {/* Leave Balance Section */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Your Leave Balances</h2>
+        {balancesLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : balances && balances.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {balances.map((balance) => (
+              <LeaveBalanceCard key={balance.id} balance={balance} />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              No leave balances found. Contact HR to initialize your leave balances.
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -177,8 +201,8 @@ export default function LeavePage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={applyMutation.isLoading}>
-                  {applyMutation.isLoading ? (
+                <Button type="submit" className="w-full" disabled={applyMutation.isPending}>
+                  {applyMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
                       Submitting...

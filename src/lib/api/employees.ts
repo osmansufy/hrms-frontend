@@ -163,3 +163,31 @@ export async function searchManagers(search?: string) {
   });
   return response.data;
 }
+
+// Line Manager Assignment API
+export type AssignManagerPayload = {
+  reportingManagerId: string | null;
+  skipRoleValidation?: boolean;
+  requireSameDepartment?: boolean;
+};
+
+export type AssignManagerResponse = {
+  message: string;
+  employee: ApiEmployee;
+  previousManager?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+  } | null;
+};
+
+export async function assignManager(
+  employeeId: string,
+  payload: AssignManagerPayload
+) {
+  const response = await apiClient.patch<AssignManagerResponse>(
+    `/employees/${employeeId}/manager`,
+    payload
+  );
+  return response.data;
+}
