@@ -42,10 +42,27 @@ export function AmendmentApprovalsTab() {
     const handleApprove = async (id: string) => {
         try {
             await approveMutation.mutateAsync(id);
-            toast.success("Amendment approved successfully");
+            toast.success("Amendment approved successfully", {
+                description: "The leave has been updated and balance adjusted if needed."
+            });
             setSelectedAmendment(null);
         } catch (error: any) {
-            toast.error(error?.response?.data?.message || "Failed to approve amendment");
+            const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve amendment";
+            const errorString = typeof errorMessage === 'string' ? errorMessage : String(errorMessage);
+
+            if (error?.response?.status === 403) {
+                toast.error("Permission Denied", {
+                    description: "You don't have permission to approve this amendment. Only the reporting manager or HR can approve."
+                });
+            } else if (error?.response?.status === 404) {
+                toast.error("Not Found", {
+                    description: "The amendment or original leave could not be found."
+                });
+            } else {
+                toast.error("Approval Failed", {
+                    description: errorString
+                });
+            }
         }
     };
 
@@ -55,7 +72,10 @@ export function AmendmentApprovalsTab() {
             toast.success("Amendment rejected successfully");
             setSelectedAmendment(null);
         } catch (error: any) {
-            toast.error(error?.response?.data?.message || "Failed to reject amendment");
+            const errorMessage = error?.response?.data?.message || error?.message || "Failed to reject amendment";
+            toast.error("Rejection Failed", {
+                description: typeof errorMessage === 'string' ? errorMessage : String(errorMessage)
+            });
         }
     };
 

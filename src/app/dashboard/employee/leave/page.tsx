@@ -25,6 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useApplyLeave, useLeaveTypes, useMyLeaves, useUserBalances } from "@/lib/queries/leave";
 import { LeaveBalanceCard } from "@/components/leave/leave-balance-card";
+import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 
 const schema = z.object({
   leaveTypeId: z.string().min(1, "Choose a leave type"),
@@ -34,12 +35,6 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-
-const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  APPROVED: "default",
-  PENDING: "secondary",
-  REJECTED: "destructive",
-};
 
 function formatRange(start: string, end: string) {
   const startDate = new Date(start);
@@ -255,9 +250,7 @@ export default function LeavePage() {
                         {formatRange(leave.startDate, leave.endDate)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant[leave.status] ?? "outline"}>
-                          {leave.status}
-                        </Badge>
+                        <LeaveStatusBadge status={leave.status} />
                       </TableCell>
                       <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
                     </TableRow>

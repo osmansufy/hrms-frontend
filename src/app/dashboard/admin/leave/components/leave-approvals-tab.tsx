@@ -41,10 +41,34 @@ export function LeaveApprovalsTab() {
     const handleApprove = async (id: string) => {
         try {
             await approveMutation.mutateAsync(id);
-            toast.success("Leave approved successfully");
+            toast.success("Leave approved successfully", {
+                description: "Status changed to APPROVED. Employee's leave balance has been deducted."
+            });
             setSelectedLeave(null);
         } catch (error: any) {
-            toast.error(error?.response?.data?.message || "Failed to approve leave");
+            const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve leave";
+            const errorString = typeof errorMessage === 'string' ? errorMessage : String(errorMessage);
+
+            // Check for specific error types
+            if (error?.response?.status === 400) {
+                if (errorString.toLowerCase().includes("processing") || errorString.toLowerCase().includes("line manager")) {
+                    toast.error("Cannot Approve", {
+                        description: "Only leave requests with PROCESSING status (approved by Line Manager) can be processed by HR. This leave may still be PENDING or already processed."
+                    });
+                } else {
+                    toast.error("Invalid Request", {
+                        description: errorString
+                    });
+                }
+            } else if (error?.response?.status === 403) {
+                toast.error("Permission Denied", {
+                    description: errorString
+                });
+            } else {
+                toast.error("Approval Failed", {
+                    description: errorString
+                });
+            }
         }
     };
 
@@ -84,8 +108,9 @@ export function LeaveApprovalsTab() {
                 <CardHeader>
                     <CardTitle>Leave Approvals (Step 2 - HR)</CardTitle>
                     <CardDescription>
-                        Approve or reject leave requests that have been approved by line managers. These leaves have{" "}
-                        <Badge variant="secondary">PROCESSING</Badge> status.
+                        Final approval for leave requests. Only leaves with{" "}
+                        <Badge variant="secondary">PROCESSING</Badge> status (already approved by Line Manager at Step 1) can be processed here.
+                        Your approval will change status to APPROVED and deduct the leave balance.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

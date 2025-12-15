@@ -41,16 +41,39 @@ export function PendingApprovalsTab() {
     const handleApprove = async (id: string) => {
         try {
             await approveMutation.mutateAsync(id);
-            toast.success("Leave approved successfully. It will now move to HR for final approval.");
+            toast.success("Leave approved successfully", {
+                description: "Status changed to PROCESSING. The leave will now move to HR for final approval."
+            });
             setSelectedLeave(null);
         } catch (error: any) {
             const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve leave";
             const errorString = typeof errorMessage === 'string' ? errorMessage : String(errorMessage);
-            toast.error(errorString);
 
-            // Check if it's a reporting manager validation error
-            if (errorString.toLowerCase().includes("reporting manager")) {
-                toast.error("You are not the assigned reporting manager for this employee.");
+            // Check for specific error types
+            if (error?.response?.status === 403) {
+                if (errorString.toLowerCase().includes("reporting manager")) {
+                    toast.error("Not Authorized", {
+                        description: "You are not the assigned reporting manager for this employee. Only the assigned reporting manager can approve this request."
+                    });
+                } else {
+                    toast.error("Permission Denied", {
+                        description: errorString
+                    });
+                }
+            } else if (error?.response?.status === 400) {
+                if (errorString.toLowerCase().includes("reporting manager")) {
+                    toast.error("No Reporting Manager", {
+                        description: "This employee does not have a reporting manager assigned. Please contact HR to assign a reporting manager first."
+                    });
+                } else {
+                    toast.error("Invalid Request", {
+                        description: errorString
+                    });
+                }
+            } else {
+                toast.error("Approval Failed", {
+                    description: errorString
+                });
             }
         }
     };
