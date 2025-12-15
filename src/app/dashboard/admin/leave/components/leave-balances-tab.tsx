@@ -129,9 +129,9 @@ export function LeaveBalancesTab() {
 
                             {/* Status Filter */}
                             <Select
-                                value={status}
+                                value={status || "all"}
                                 onValueChange={(value) => {
-                                    setStatus(value as typeof status);
+                                    setStatus(value === "all" ? "" : (value as typeof status));
                                     setPage(1);
                                 }}
                             >
@@ -139,7 +139,7 @@ export function LeaveBalancesTab() {
                                     <SelectValue placeholder="All Statuses" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">All Statuses</SelectItem>
+                                    <SelectItem value="all">All Statuses</SelectItem>
                                     <SelectItem value="normal">Normal</SelectItem>
                                     <SelectItem value="low">Low</SelectItem>
                                     <SelectItem value="negative">Negative</SelectItem>
