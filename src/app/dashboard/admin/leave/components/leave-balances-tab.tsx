@@ -91,20 +91,7 @@ export function LeaveBalancesTab() {
         );
     }
 
-    if (!data || data.data.length === 0) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>No Balances Found</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                        No leave balances match your current filters.
-                    </p>
-                </CardContent>
-            </Card>
-        );
-    }
+
 
     return (
         <div className="space-y-4">
@@ -169,7 +156,7 @@ export function LeaveBalancesTab() {
                             {/* Export Button */}
                             <Button
                                 onClick={handleExport}
-                                disabled={exportMutation.isPending}
+                                disabled={exportMutation.isPending || !data || data.data.length === 0}
                                 variant="outline"
                             >
                                 <Download className="mr-2 h-4 w-4" />
@@ -180,15 +167,15 @@ export function LeaveBalancesTab() {
                         {/* Statistics */}
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <span>
-                                <strong>{data.statistics.totalEmployees}</strong> employees
+                                <strong>{data?.statistics.totalEmployees}</strong> employees
                             </span>
                             <span>•</span>
                             <span>
-                                <strong>{data.statistics.negativeBalances}</strong> negative balances
+                                <strong>{data?.statistics.negativeBalances}</strong> negative balances
                             </span>
                             <span>•</span>
                             <span>
-                                <strong>{data.statistics.lowBalances}</strong> low balances
+                                <strong>{data?.statistics.lowBalances}</strong> low balances
                             </span>
                         </div>
                     </div>
@@ -212,106 +199,121 @@ export function LeaveBalancesTab() {
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody>
-                                {data.data.map((balance) => (
-                                    <TableRow key={balance.id}>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="font-medium">
-                                                    {balance.employee.name}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {balance.employee.email}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {balance.employee.department.name}
-                                                </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-mono text-sm">
-                                            {balance.employee.employeeCode}
-                                        </TableCell>
-                                        <TableCell>{balance.leaveType.name}</TableCell>
-                                        <TableCell className="text-right">
-                                            <span className="font-semibold text-base">
-                                                {balance.balances.available}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {balance.balances.used}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {balance.balances.openingBalance +
-                                                balance.balances.accrued +
-                                                balance.balances.carried +
-                                                balance.balances.adjusted}
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Badge
-                                                variant={
-                                                    balance.status === "NEGATIVE"
-                                                        ? "destructive"
-                                                        : balance.status === "LOW"
-                                                            ? "secondary"
-                                                            : "default"
-                                                }
-                                                className={
-                                                    balance.status === "LOW"
-                                                        ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-                                                        : balance.status === "NORMAL"
-                                                            ? "bg-green-100 text-green-800 hover:bg-green-200"
-                                                            : ""
-                                                }
-                                            >
-                                                {balance.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Link
-                                                href={`/dashboard/admin/leave-balance?userId=${balance.userId}&leaveTypeId=${balance.leaveType.id}`}
-                                            >
-                                                <Button size="sm" variant="ghost">
-                                                    Adjust
-                                                </Button>
-                                            </Link>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
+                            {
+                                !data || data.data.length === 0 ? (
+                                    <TableBody>
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="text-center py-8">
+                                                No leave balances found.
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                ) : (
+                                    <TableBody>
+                                        {data.data.map((balance) => (
+                                            <TableRow key={balance.id}>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium">
+                                                            {balance.employee.name}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {balance.employee.email}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {balance.employee.department.name}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-mono text-sm">
+                                                    {balance.employee.employeeCode}
+                                                </TableCell>
+                                                <TableCell>{balance.leaveType.name}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <span className="font-semibold text-base">
+                                                        {balance.balances.available}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {balance.balances.used}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {balance.balances.openingBalance +
+                                                        balance.balances.accrued +
+                                                        balance.balances.carried +
+                                                        balance.balances.adjusted}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge
+                                                        variant={
+                                                            balance.status === "NEGATIVE"
+                                                                ? "destructive"
+                                                                : balance.status === "LOW"
+                                                                    ? "secondary"
+                                                                    : "default"
+                                                        }
+                                                        className={
+                                                            balance.status === "LOW"
+                                                                ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                                                                : balance.status === "NORMAL"
+                                                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                                                    : ""
+                                                        }
+                                                    >
+                                                        {balance.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Link
+                                                        href={`/dashboard/admin/leave-balance?userId=${balance.userId}&leaveTypeId=${balance.leaveType.id}`}
+                                                    >
+                                                        <Button size="sm" variant="ghost">
+                                                            Adjust
+                                                        </Button>
+                                                    </Link>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                )}
+
                         </Table>
                     </div>
 
                     {/* Pagination */}
-                    <div className="flex items-center justify-between border-t px-6 py-4">
-                        <div className="text-sm text-muted-foreground">
-                            Showing {(page - 1) * pageSize + 1} to{" "}
-                            {Math.min(page * pageSize, data.pagination.totalCount)} of{" "}
-                            {data.pagination.totalCount} results
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                            >
-                                <ChevronLeft className="h-4 w-4 mr-1" />
-                                Previous
-                            </Button>
-                            <div className="text-sm">
-                                Page {page} of {data.pagination.totalPages}
+                    {
+                        data && data.pagination.totalPages > 1 && (<div className="flex items-center justify-between border-t px-6 py-4">
+                            <div className="text-sm text-muted-foreground">
+                                Showing {(page - 1) * pageSize + 1} to{" "}
+                                {Math.min(page * pageSize, data.pagination.totalCount)} of{" "}
+                                {data.pagination.totalCount} results
                             </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage((p) => p + 1)}
-                                disabled={page >= data.pagination.totalPages}
-                            >
-                                Next
-                                <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Previous
+                                </Button>
+                                <div className="text-sm">
+                                    Page {page} of {data.pagination.totalPages}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage((p) => p + 1)}
+                                    disabled={page >= data.pagination.totalPages}
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </div>
                         </div>
-                    </div>
+                        )
+                    }
                 </CardContent>
             </Card>
         </div>

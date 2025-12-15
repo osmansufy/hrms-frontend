@@ -284,7 +284,9 @@ export default function LeaveBalanceManagementPage() {
                                         const employeeName =
                                             `${balance.user.employee?.firstName || ""} ${balance.user.employee?.lastName || ""}`.trim() ||
                                             balance.user.email;
-                                        const totalAvailable = balance.balance + balance.carryForward;
+                                        const balanceValue = Number(balance.balance) || 0;
+                                        const carryForwardValue = Number(balance.carryForward) || 0;
+                                        const totalAvailable = balanceValue + carryForwardValue;
 
                                         return (
                                             <TableRow key={balance.id}>
@@ -310,12 +312,12 @@ export default function LeaveBalanceManagementPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right font-medium">
-                                                    {balance.balance}
+                                                    {balanceValue}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {balance.carryForward > 0 ? (
+                                                    {carryForwardValue > 0 ? (
                                                         <Badge variant="secondary">
-                                                            {balance.carryForward}
+                                                            {carryForwardValue}
                                                         </Badge>
                                                     ) : (
                                                         "—"

@@ -46,7 +46,7 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background" suppressHydrationWarning>
       <aside className="hidden w-64 border-r lg:block">
         <div className="flex h-16 items-center gap-3 px-6">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-semibold">
@@ -89,13 +89,16 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
 }
 
 function Header({ pathname, title }: { pathname: string; title: string }) {
-  const subtitle =
-    pathname === "/"
-      ? title
-      : pathname
-        .replace("/dashboard/", "")
-        .replaceAll("-", " ")
-        .replaceAll("/", " · ");
+  const subtitle = useMemo(() => {
+    if (pathname === "/") {
+      return title;
+    }
+    return pathname
+      .replace("/dashboard/", "")
+      .replaceAll("-", " ")
+      .replaceAll("/", " · ");
+  }, [pathname, title]);
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur lg:px-6">
       <div className="flex items-center gap-3">
