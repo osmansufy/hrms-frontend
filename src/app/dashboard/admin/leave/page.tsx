@@ -1,12 +1,23 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarCheck, FileEdit, Settings, ShieldCheck } from "lucide-react";
+import {
+    CalendarCheck,
+    FileEdit,
+    Settings,
+    ShieldCheck,
+    LayoutDashboard,
+    Wallet,
+    FileText,
+} from "lucide-react";
 import {
     LeaveApprovalsTab,
     AmendmentApprovalsTab,
     LeavePoliciesTab,
-    AccrualRulesTab
+    AccrualRulesTab,
+    LeaveDashboardTab,
+    LeaveBalancesTab,
+    AuditTrailTab,
 } from "./components";
 
 export default function AdminLeavePage() {
@@ -14,16 +25,30 @@ export default function AdminLeavePage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold tracking-tight">Leave Management</h1>
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Leave Management
+                    </h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage leave approvals, policies, and accrual rules
+                        Manage leave approvals, policies, balances, and analytics
                     </p>
                 </div>
                 <CalendarCheck className="size-8 text-primary" />
             </div>
 
-            <Tabs defaultValue="approvals" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4">
+            <Tabs defaultValue="dashboard" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-7">
+                    <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                        <LayoutDashboard className="size-4" />
+                        Dashboard
+                    </TabsTrigger>
+                    <TabsTrigger value="balances" className="flex items-center gap-2">
+                        <Wallet className="size-4" />
+                        Balances
+                    </TabsTrigger>
+                    <TabsTrigger value="audit" className="flex items-center gap-2">
+                        <FileText className="size-4" />
+                        Audit
+                    </TabsTrigger>
                     <TabsTrigger value="approvals" className="flex items-center gap-2">
                         <ShieldCheck className="size-4" />
                         Approvals
@@ -41,6 +66,18 @@ export default function AdminLeavePage() {
                         Accrual Rules
                     </TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="dashboard" className="space-y-4">
+                    <LeaveDashboardTab />
+                </TabsContent>
+
+                <TabsContent value="balances" className="space-y-4">
+                    <LeaveBalancesTab />
+                </TabsContent>
+
+                <TabsContent value="audit" className="space-y-4">
+                    <AuditTrailTab />
+                </TabsContent>
 
                 <TabsContent value="approvals" className="space-y-4">
                     <LeaveApprovalsTab />

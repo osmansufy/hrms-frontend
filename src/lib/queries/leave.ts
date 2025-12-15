@@ -351,3 +351,16 @@ export function useInitializeBalance() {
     },
   });
 }
+
+// Admin Dashboard Hooks - Import from admin-leave-balances.ts
+export {
+  adminBalanceKeys,
+  useAdminLeaveBalances,
+  useAdminBalanceSummary,
+  useAdminBalanceAlerts,
+  useAdminAdjustmentHistory,
+  useBulkInitializeBalances,
+  useBulkAdjustBalances,
+  useExportBalances,
+  downloadCSV,
+} from "./admin-leave-balances";
