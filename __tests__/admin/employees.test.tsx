@@ -8,6 +8,8 @@ import * as employeeQueries from "@/lib/queries/employees";
 // Mock employee queries
 jest.mock("@/lib/queries/employees", () => ({
     useEmployees: jest.fn(),
+    useManagers: jest.fn(),
+    useAssignManager: jest.fn(),
 }));
 
 const createQueryClient = () =>
@@ -61,6 +63,16 @@ const mockEmployees = [
 describe("AdminEmployeesPage", () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Mock useManagers
+        (employeeQueries.useManagers as jest.Mock).mockReturnValue({
+            data: [],
+            isLoading: false,
+        });
+        // Mock useAssignManager
+        (employeeQueries.useAssignManager as jest.Mock).mockReturnValue({
+            mutate: jest.fn(),
+            isPending: false,
+        });
     });
 
     it("renders the page header", () => {
@@ -165,7 +177,7 @@ describe("AdminEmployeesPage", () => {
         // "Name" appears multiple times, so we check for the table content
         expect(screen.getByText("Department")).toBeInTheDocument();
         expect(screen.getByText("Designation")).toBeInTheDocument();
-        expect(screen.getByText("Employment")).toBeInTheDocument();
+        expect(screen.getByText("Manager")).toBeInTheDocument();
         expect(screen.getByText("Actions")).toBeInTheDocument();
     });
 

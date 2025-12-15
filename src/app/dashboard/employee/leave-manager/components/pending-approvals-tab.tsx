@@ -17,10 +17,13 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useManagerPendingLeaves, useManagerApproveLeave, useManagerRejectLeave } from "@/lib/queries/leave";
-import { AlertCircle, Check, Loader2, X, User } from "lucide-react";
+import { AlertCircle, Check, Loader2, X, User, CheckSquare } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { bulkApproveLeaves, bulkRejectLeaves } from "@/lib/api/leave";
 
 // Helper function to format dates
 function formatDate(dateString: string) {
@@ -33,10 +36,72 @@ function formatDate(dateString: string) {
 }
 
 export function PendingApprovalsTab() {
+    const queryClient = useQueryClient();
     const { data: pendingLeaves, isLoading } = useManagerPendingLeaves();
     const approveMutation = useManagerApproveLeave();
     const rejectMutation = useManagerRejectLeave();
     const [selectedLeave, setSelectedLeave] = useState<{ id: string; action: "approve" | "reject"; employeeName: string } | null>(null);
+    const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
+    const [showBulkConfirm, setShowBulkConfirm] = useState<{ action: "approve" | "reject" } | null>(null);
+
+    const bulkApproveMutation = useMutation({
+        mutationFn: (leaveIds: string[]) => bulkApproveLeaves(leaveIds),
+        onSuccess: (data, variables) => {
+            toast.success(`${variables.length} leave requests approved`, {
+                description: "All selected leaves have been approved and moved to HR"
+            });
+            setSelectedLeaveIds([]);
+            setShowBulkConfirm(null);
+            queryClient.invalidateQueries({ queryKey: ["manager-pending-leaves"] });
+        },
+        onError: (error: any) => {
+            const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve leaves";
+            toast.error("Bulk Approval Failed", { description: errorMessage });
+        }
+    });
+
+    const bulkRejectMutation = useMutation({
+        mutationFn: ({ leaveIds, comment }: { leaveIds: string[]; comment: string }) =>
+            bulkRejectLeaves(leaveIds, comment),
+        onSuccess: (data, variables) => {
+            toast.success(`${variables.leaveIds.length} leave requests rejected`);
+            setSelectedLeaveIds([]);
+            setShowBulkConfirm(null);
+            queryClient.invalidateQueries({ queryKey: ["manager-pending-leaves"] });
+        },
+        onError: (error: any) => {
+            const errorMessage = error?.response?.data?.message || error?.message || "Failed to reject leaves";
+            toast.error("Bulk Rejection Failed", { description: errorMessage });
+        }
+    });
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            const allIds = leavesInPending.map(leave => leave.id);
+            setSelectedLeaveIds(allIds);
+        } else {
+            setSelectedLeaveIds([]);
+        }
+    };
+
+    const handleSelectLeave = (leaveId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedLeaveIds(prev => [...prev, leaveId]);
+        } else {
+            setSelectedLeaveIds(prev => prev.filter(id => id !== leaveId));
+        }
+    };
+
+    const handleBulkApprove = () => {
+        bulkApproveMutation.mutate(selectedLeaveIds);
+    };
+
+    const handleBulkReject = () => {
+        bulkRejectMutation.mutate({
+            leaveIds: selectedLeaveIds,
+            comment: "Bulk rejected by manager"
+        });
+    };
 
     const handleApprove = async (id: string) => {
         try {
@@ -132,10 +197,53 @@ export function PendingApprovalsTab() {
                         </div>
                     ) : (
                         <div className="space-y-4">
+                            {/* Bulk Actions */}
+                            {selectedLeaveIds.length > 0 && (
+                                <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-3">
+                                    <div className="flex items-center gap-2">
+                                        <CheckSquare className="size-5 text-blue-600" />
+                                        <span className="text-sm font-medium">
+                                            {selectedLeaveIds.length} selected
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="border-green-600 text-green-600 hover:bg-green-50"
+                                            onClick={() => setShowBulkConfirm({ action: "approve" })}
+                                            disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
+                                        >
+                                            <Check className="mr-1 size-4" />
+                                            Approve Selected
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="border-red-600 text-red-600 hover:bg-red-50"
+                                            onClick={() => setShowBulkConfirm({ action: "reject" })}
+                                            disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
+                                        >
+                                            <X className="mr-1 size-4" />
+                                            Reject Selected
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="rounded-md border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead className="w-12">
+                                                <Checkbox
+                                                    checked={
+                                                        selectedLeaveIds.length === leavesInPending.length &&
+                                                        leavesInPending.length > 0
+                                                    }
+                                                    onCheckedChange={handleSelectAll}
+                                                />
+                                            </TableHead>
                                             <TableHead>Employee</TableHead>
                                             <TableHead>Leave Type</TableHead>
                                             <TableHead>Dates</TableHead>
@@ -159,6 +267,14 @@ export function PendingApprovalsTab() {
 
                                             return (
                                                 <TableRow key={leave.id}>
+                                                    <TableCell>
+                                                        <Checkbox
+                                                            checked={selectedLeaveIds.includes(leave.id)}
+                                                            onCheckedChange={(checked: boolean) =>
+                                                                handleSelectLeave(leave.id, checked as boolean)
+                                                            }
+                                                        />
+                                                    </TableCell>
                                                     <TableCell className="font-medium">
                                                         <div className="flex items-center gap-2">
                                                             <User className="size-4 text-muted-foreground" />
@@ -221,6 +337,81 @@ export function PendingApprovalsTab() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Bulk Confirmation Dialog */}
+            {showBulkConfirm && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
+                    <div className="bg-background p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                        <h2 className="text-lg font-semibold mb-2">
+                            {showBulkConfirm.action === "approve"
+                                ? "Bulk Approve Leave Requests"
+                                : "Bulk Reject Leave Requests"}
+                        </h2>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            {showBulkConfirm.action === "approve" ? (
+                                <>
+                                    You are approving <strong>{selectedLeaveIds.length}</strong> leave requests.
+                                    All selected leaves will be moved to HR for final approval.
+                                </>
+                            ) : (
+                                <>
+                                    You are rejecting <strong>{selectedLeaveIds.length}</strong> leave requests.
+                                    All selected employees will be notified. This action cannot be undone.
+                                </>
+                            )}
+                        </p>
+
+                        <div className="mb-4 rounded-lg border p-3 bg-muted/30">
+                            <p className="text-sm font-medium mb-2">Selected Leave Requests:</p>
+                            <ul className="text-sm space-y-1 max-h-50 overflow-y-auto">
+                                {leavesInPending
+                                    .filter(leave => selectedLeaveIds.includes(leave.id))
+                                    .map(leave => {
+                                        const employeeName = leave.user?.employee
+                                            ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
+                                            : leave.user?.email || "Unknown";
+                                        return (
+                                            <li key={leave.id} className="flex items-center gap-2">
+                                                <Check className="size-3 text-muted-foreground" />
+                                                <span>
+                                                    {employeeName} - {leave.leaveType?.name} (
+                                                    {formatDate(leave.startDate)} to {formatDate(leave.endDate)})
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                            </ul>
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => setShowBulkConfirm(null)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    if (showBulkConfirm.action === "approve") {
+                                        handleBulkApprove();
+                                    } else {
+                                        handleBulkReject();
+                                    }
+                                }}
+                                className={
+                                    showBulkConfirm.action === "approve"
+                                        ? "bg-green-600 hover:bg-green-700"
+                                        : "bg-red-600 hover:bg-red-700"
+                                }
+                                disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
+                            >
+                                {bulkApproveMutation.isPending || bulkRejectMutation.isPending ? (
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                ) : null}
+                                Confirm{" "}
+                                {showBulkConfirm.action === "approve" ? "Approval" : "Rejection"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Confirmation Dialog */}
             {selectedLeave && (

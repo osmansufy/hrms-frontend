@@ -28,17 +28,21 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { useCreateLeavePolicy, useLeaveTypes } from "@/lib/queries/leave";
-import { AlertCircle, Loader2, Plus, Settings } from "lucide-react";
+import { useCreateLeavePolicy, useLeaveTypes, useUpdateLeavePolicy } from "@/lib/queries/leave";
+import { AlertCircle, Edit, Loader2, Plus, Settings } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+
+type LeaveType = NonNullable<ReturnType<typeof useLeaveTypes>["data"]>[number];
 
 export function LeavePoliciesTab() {
     const { data: leaveTypes, isLoading } = useLeaveTypes();
     const createPolicyMutation = useCreateLeavePolicy();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState("");
+    const [editingLeaveType, setEditingLeaveType] = useState<LeaveType | null>(null);
 
     // Form state
     const [maxDays, setMaxDays] = useState("");
@@ -70,6 +74,30 @@ export function LeavePoliciesTab() {
         }
     };
 
+    const updatePolicyMutation = useUpdateLeavePolicy(editingLeaveType?.id || "");
+
+    const handleUpdatePolicy = async () => {
+        if (!editingLeaveType) {
+            toast.error("No leave type selected");
+            return;
+        }
+
+        try {
+            await updatePolicyMutation.mutateAsync({
+                maxDays: maxDays ? parseInt(maxDays) : undefined,
+                encashmentFlag,
+                carryForwardCap: carryForwardCap ? parseInt(carryForwardCap) : undefined,
+                allowAdvance,
+                requireDocThresholdDays: requireDocThresholdDays ? parseInt(requireDocThresholdDays) : undefined,
+            });
+            toast.success("Leave policy updated successfully");
+            setIsEditDialogOpen(false);
+            resetForm();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || "Failed to update policy");
+        }
+    };
+
     const resetForm = () => {
         setSelectedLeaveTypeId("");
         setMaxDays("");
@@ -77,6 +105,17 @@ export function LeavePoliciesTab() {
         setCarryForwardCap("");
         setAllowAdvance(false);
         setRequireDocThresholdDays("");
+        setEditingLeaveType(null);
+    };
+
+    const openEditDialog = (type: LeaveType) => {
+        setEditingLeaveType(type);
+        setMaxDays(type.leavePolicy?.maxDays?.toString() || "");
+        setEncashmentFlag(type.leavePolicy?.encashmentFlag || false);
+        setCarryForwardCap(type.leavePolicy?.carryForwardCap?.toString() || "");
+        setAllowAdvance(type.leavePolicy?.allowAdvance || false);
+        setRequireDocThresholdDays(type.leavePolicy?.requireDocThresholdDays?.toString() || "");
+        setIsEditDialogOpen(true);
     };
 
     if (isLoading) {
@@ -248,6 +287,7 @@ export function LeavePoliciesTab() {
                                         <TableHead>Doc Required</TableHead>
                                         <TableHead>Encashment</TableHead>
                                         <TableHead>Advance</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -272,17 +312,30 @@ export function LeavePoliciesTab() {
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <span className="text-sm text-muted-foreground">Not configured</span>
+                                                {type.leavePolicy?.requireDocThresholdDays ? (
+                                                    <Badge variant="outline">≥{type.leavePolicy.requireDocThresholdDays} days</Badge>
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">Not configured</span>
+                                                )}
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={type.leavePolicy?.allowAdvance ? "default" : "secondary"}>
-                                                    {type.leavePolicy?.allowAdvance ? "Yes" : "No"}
+                                                <Badge variant={type.leavePolicy?.encashmentFlag ? "default" : "secondary"}>
+                                                    {type.leavePolicy?.encashmentFlag ? "Yes" : "No"}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={type.leavePolicy?.allowAdvance ? "default" : "secondary"}>
                                                     {type.leavePolicy?.allowAdvance ? "Yes" : "No"}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => openEditDialog(type)}
+                                                >
+                                                    <Edit className="size-4" />
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -292,6 +345,104 @@ export function LeavePoliciesTab() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Edit Policy Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit Leave Policy</DialogTitle>
+                        <DialogDescription>
+                            Update policy rules for {editingLeaveType?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-maxDays">Maximum Days</Label>
+                            <Input
+                                id="edit-maxDays"
+                                type="number"
+                                placeholder="e.g., 30"
+                                value={maxDays}
+                                onChange={(e) => setMaxDays(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Maximum days allowed per leave request (leave empty for no limit)
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-carryForwardCap">Carry Forward Cap</Label>
+                            <Input
+                                id="edit-carryForwardCap"
+                                type="number"
+                                placeholder="e.g., 10"
+                                value={carryForwardCap}
+                                onChange={(e) => setCarryForwardCap(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Maximum days that can be carried forward to next year
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-requireDocThresholdDays">Document Threshold Days</Label>
+                            <Input
+                                id="edit-requireDocThresholdDays"
+                                type="number"
+                                placeholder="e.g., 5"
+                                value={requireDocThresholdDays}
+                                onChange={(e) => setRequireDocThresholdDays(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Require supporting document if leave exceeds this many days
+                            </p>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                                <Label>Encashment Allowed</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Allow employees to encash unused leave
+                                </p>
+                            </div>
+                            <Switch
+                                checked={encashmentFlag}
+                                onCheckedChange={setEncashmentFlag}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                                <Label>Allow Advance Leave</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Allow taking leave before accrual
+                                </p>
+                            </div>
+                            <Switch
+                                checked={allowAdvance}
+                                onCheckedChange={setAllowAdvance}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setIsEditDialogOpen(false);
+                                resetForm();
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button onClick={handleUpdatePolicy} disabled={updatePolicyMutation.isPending}>
+                            {updatePolicyMutation.isPending ? (
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                            ) : null}
+                            Update Policy
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

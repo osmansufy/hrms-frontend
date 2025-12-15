@@ -46,7 +46,7 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
   );
 
   return (
-    <div className="flex min-h-screen bg-background" suppressHydrationWarning>
+    <div className="flex min-h-screen bg-background">
       <aside className="hidden w-64 border-r lg:block">
         <div className="flex h-16 items-center gap-3 px-6">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-semibold">

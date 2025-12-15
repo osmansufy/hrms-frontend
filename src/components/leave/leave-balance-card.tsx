@@ -17,9 +17,13 @@ export function LeaveBalanceCard({
     showDetails = false,
     onClick,
 }: LeaveBalanceCardProps) {
-    const totalAllocated =
-        balance.balance + balance.carryForward || balance.balance;
-    const available = balance.balance;
+    // Handle both flat and nested structures
+    const leaveTypeName = balance.leaveType?.name || balance.leaveTypeName || "Unknown";
+    const leaveTypeDescription = balance.leaveType?.description || null;
+    const leavePolicy = balance.leaveType?.leavePolicy || balance.policy || null;
+
+    const totalAllocated = balance.allocated || balance.balance + balance.carryForward || balance.balance;
+    const available = balance.available || balance.balance;
     const carryForward = balance.carryForward;
     const percentage = totalAllocated > 0 ? (available / totalAllocated) * 100 : 0;
 
@@ -56,13 +60,13 @@ export function LeaveBalanceCard({
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-medium">
-                        {balance.leaveType.name}
+                        {leaveTypeName}
                     </CardTitle>
                     {getStatusBadge()}
                 </div>
-                {balance.leaveType.description && (
+                {leaveTypeDescription && (
                     <p className="text-sm text-muted-foreground">
-                        {balance.leaveType.description}
+                        {leaveTypeDescription}
                     </p>
                 )}
             </CardHeader>
@@ -102,30 +106,32 @@ export function LeaveBalanceCard({
                     )}
 
                     {/* Additional Details */}
-                    {showDetails && balance.leaveType.leavePolicy && (
+                    {showDetails && leavePolicy && (
                         <div className="mt-4 pt-4 border-t space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Max Days per Year</span>
-                                <span className="font-medium">
-                                    {balance.leaveType.leavePolicy.maxDays}
-                                </span>
-                            </div>
-                            {balance.leaveType.leavePolicy.carryForwardCap > 0 && (
+                            {leavePolicy.maxDays && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Max Days per Year</span>
+                                    <span className="font-medium">
+                                        {leavePolicy.maxDays}
+                                    </span>
+                                </div>
+                            )}
+                            {leavePolicy.carryForwardCap && leavePolicy.carryForwardCap > 0 && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">
                                         Carry Forward Cap
                                     </span>
                                     <span className="font-medium">
-                                        {balance.leaveType.leavePolicy.carryForwardCap}
+                                        {leavePolicy.carryForwardCap}
                                     </span>
                                 </div>
                             )}
-                            {balance.leaveType.leavePolicy.encashmentFlag && (
+                            {leavePolicy.encashmentFlag && (
                                 <Badge variant="outline" className="mt-2">
                                     Encashment Available
                                 </Badge>
                             )}
-                            {balance.leaveType.leavePolicy.allowAdvance && (
+                            {"allowAdvance" in leavePolicy && (leavePolicy as any).allowAdvance && (
                                 <Badge variant="outline" className="mt-2 ml-2">
                                     Advance Allowed
                                 </Badge>
@@ -149,12 +155,14 @@ export function LeaveBalanceCard({
                                     {balance.accrualRule.ratePerPeriod} days
                                 </span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Last Accrued</span>
-                                <span className="font-medium">
-                                    {new Date(balance.lastAccruedAt).toLocaleDateString()}
-                                </span>
-                            </div>
+                            {balance.lastAccruedAt && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Last Accrued</span>
+                                    <span className="font-medium">
+                                        {new Date(balance.lastAccruedAt).toLocaleDateString()}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

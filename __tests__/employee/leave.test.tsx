@@ -16,6 +16,9 @@ jest.mock("@/lib/queries/leave", () => ({
     useLeaveTypes: jest.fn(),
     useMyLeaves: jest.fn(),
     useApplyLeave: jest.fn(),
+    useUserBalances: jest.fn(),
+    useBalanceDetails: jest.fn(),
+    useLeavePolicy: jest.fn(),
 }));
 
 // Mock sonner toast
@@ -77,6 +80,40 @@ describe("LeavePage", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (sessionProvider.useSession as jest.Mock).mockReturnValue({ session: mockSession });
+        // Mock useUserBalances
+        (leaveQueries.useUserBalances as jest.Mock).mockReturnValue({
+            data: [
+                {
+                    leaveTypeId: "lt-1",
+                    leaveType: { id: "lt-1", name: "Annual Leave", code: "AL" },
+                    balance: 15,
+                    used: 5,
+                    total: 20,
+                    pending: 0,
+                    approved: 5
+                },
+                {
+                    leaveTypeId: "lt-2",
+                    leaveType: { id: "lt-2", name: "Sick Leave", code: "SL" },
+                    balance: 10,
+                    used: 0,
+                    total: 10,
+                    pending: 0,
+                    approved: 0
+                },
+            ],
+            isLoading: false,
+        });
+        // Mock useBalanceDetails
+        (leaveQueries.useBalanceDetails as jest.Mock).mockReturnValue({
+            data: null,
+            isLoading: false,
+        });
+        // Mock useLeavePolicy
+        (leaveQueries.useLeavePolicy as jest.Mock).mockReturnValue({
+            data: null,
+            isLoading: false,
+        });
         (leaveQueries.useApplyLeave as jest.Mock).mockReturnValue({
             mutateAsync: jest.fn(),
             isLoading: false,

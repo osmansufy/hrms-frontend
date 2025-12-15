@@ -9,6 +9,8 @@ export type LeaveType = {
     maxDays?: number | null;
     carryForwardCap?: number | null;
     allowAdvance?: boolean | null;
+    encashmentFlag?: boolean | null;
+    requireDocThresholdDays?: number | null;
   } | null;
 };
 
@@ -21,6 +23,60 @@ export type LeaveRecord = {
   startDate: string;
   endDate: string;
   createdAt: string;
+};
+
+export type LeaveApprovalStep = {
+  id: string;
+  leaveId: string;
+  approverUserId: string;
+  approverUser?: {
+    id: string;
+    email: string;
+    employee?: {
+      firstName: string;
+      lastName: string;
+    } | null;
+  };
+  approvalLevel: number;
+  action: string | null;
+  comments: string | null;
+  actionDate: string | null;
+  createdAt: string;
+};
+
+export type LeaveDetails = {
+  id: string;
+  leaveTypeId: string;
+  leaveType: {
+    id: string;
+    name: string;
+    code: string;
+    description?: string | null;
+  };
+  userId: string;
+  user: {
+    id: string;
+    email: string;
+    employee?: {
+      firstName: string;
+      lastName: string;
+      employeeCode: string;
+    } | null;
+  };
+  reason: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  supportingDocumentUrl?: string | null;
+  approvalSteps: LeaveApprovalStep[];
+  balanceImpact?: {
+    balanceBefore: number;
+    balanceAfter: number;
+    deducted: number;
+  };
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ApplyLeavePayload = {
@@ -42,6 +98,16 @@ export async function applyLeave(payload: ApplyLeavePayload) {
 
 export async function listLeavesByUser(userId: string) {
   const response = await apiClient.get<LeaveRecord[]>(`/leave/user/${userId}`);
+  return response.data;
+}
+
+export async function getLeaveDetails(leaveId: string) {
+  const response = await apiClient.get<LeaveDetails>(`/leave/${leaveId}`);
+  return response.data;
+}
+
+export async function getMyLeavePolicies(userId: string) {
+  const response = await apiClient.get(`/leave/policies/user/${userId}`);
   return response.data;
 }
 
@@ -253,6 +319,22 @@ export async function rejectLeave(id: string) {
   return response.data;
 }
 
+export async function bulkApproveLeaves(leaveIds: string[], comment?: string) {
+  const response = await apiClient.post(`/leave/bulk/approve`, {
+    leaveIds,
+    comment,
+  });
+  return response.data;
+}
+
+export async function bulkRejectLeaves(leaveIds: string[], comment: string) {
+  const response = await apiClient.post(`/leave/bulk/reject`, {
+    leaveIds,
+    comment,
+  });
+  return response.data;
+}
+
 // Line Manager Endpoints (for employees who are managers)
 
 // Get pending leaves from subordinates (PENDING status, waiting for manager approval)
@@ -332,16 +414,22 @@ export async function processAccruals(userId: string, leaveTypeId: string) {
 
 // Leave Balance Types
 export type LeaveBalance = {
-  id: string;
-  userId: string;
   leaveTypeId: string;
+  leaveTypeName: string;
+  leaveTypeCode: string;
+  leaveYear: string;
   balance: number;
   carryForward: number;
-  accrualRuleId: string | null;
-  lastAccruedAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  leaveType: {
+  used: number;
+  allocated: number;
+  available: number;
+  policy?: {
+    maxDays?: number;
+    carryForwardCap?: number;
+    encashmentFlag?: boolean;
+  };
+  // Legacy support for nested structure
+  leaveType?: {
     id: string;
     name: string;
     code: string;
@@ -362,6 +450,12 @@ export type LeaveBalance = {
     startAfterDays: number;
     resetMonthDay: number | null;
   } | null;
+  lastAccruedAt?: Date;
+  id?: string;
+  userId?: string;
+  accrualRuleId?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
 export type LeaveBalanceDetails = LeaveBalance & {
@@ -413,6 +507,19 @@ export async function getUserBalances() {
 export async function getBalanceDetails(leaveTypeId: string) {
   const response = await apiClient.get<LeaveBalanceDetails>(
     `/leave/balance/${leaveTypeId}`
+  );
+  return response.data;
+}
+
+export async function getUserLeaveBalance(
+  userId: string,
+  leaveTypeId: string,
+  leaveYear?: string
+) {
+  const params = leaveYear ? { leaveYear } : {};
+  const response = await apiClient.get<LeaveBalanceDetails>(
+    `/leave/balance/user/${userId}/type/${leaveTypeId}`,
+    { params }
   );
   return response.data;
 }

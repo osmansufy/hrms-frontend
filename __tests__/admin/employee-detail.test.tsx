@@ -17,6 +17,8 @@ jest.mock("@/lib/queries/employees", () => ({
     useEmployeeDetail: jest.fn(),
     useUpdateEmployee: jest.fn(),
     useDeleteEmployee: jest.fn(),
+    useManagers: jest.fn(),
+    useAssignManager: jest.fn(),
 }));
 
 // Mock sonner toast
@@ -74,6 +76,16 @@ describe("AdminEmployeeDetailPage", () => {
         });
         (employeeQueries.useDeleteEmployee as jest.Mock).mockReturnValue({
             mutateAsync: jest.fn(),
+        });
+        // Mock useManagers
+        (employeeQueries.useManagers as jest.Mock).mockReturnValue({
+            data: [],
+            isLoading: false,
+        });
+        // Mock useAssignManager
+        (employeeQueries.useAssignManager as jest.Mock).mockReturnValue({
+            mutate: jest.fn(),
+            isPending: false,
         });
     });
 

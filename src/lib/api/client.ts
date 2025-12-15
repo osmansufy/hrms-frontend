@@ -184,26 +184,104 @@ apiClient.interceptors.response.use(
 export type ApiError = {
   message: string;
   status?: number;
+  code?: string;
   data?: unknown;
+  validationErrors?: Array<{
+    field: string;
+    message: string;
+  }>;
 };
 
 /**
- * Parse axios error into a standard format
+ * Parse axios error into a standard format with enhanced validation error handling
  * @param error - Unknown error object
  * @returns Normalized error object
  */
 export function parseApiError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {
+    const responseData = error.response?.data;
+
+    // Extract structured error information
+    const errorMessage =
+      responseData?.message || error.message || "An error occurred";
+    const errorCode = responseData?.code || responseData?.errorCode;
+    const validationErrors =
+      responseData?.validationErrors || responseData?.errors;
+
+    // Handle validation errors array
+    if (Array.isArray(validationErrors)) {
+      const formattedErrors = validationErrors.map((err: any) => ({
+        field: err.field || err.property || "unknown",
+        message:
+          err.message ||
+          err.constraints?.[Object.keys(err.constraints || {})[0]] ||
+          "Validation failed",
+      }));
+
+      return {
+        message: errorMessage,
+        status: error.response?.status,
+        code: errorCode,
+        data: responseData,
+        validationErrors: formattedErrors,
+      };
+    }
+
+    // Handle specific error codes with better messages
+    if (errorCode) {
+      const enhancedMessage = getEnhancedErrorMessage(
+        errorCode,
+        errorMessage,
+        responseData
+      );
+      return {
+        message: enhancedMessage,
+        status: error.response?.status,
+        code: errorCode,
+        data: responseData,
+      };
+    }
+
     return {
-      message: error.response?.data?.message || error.message,
+      message: errorMessage,
       status: error.response?.status,
-      data: error.response?.data,
+      data: responseData,
     };
   }
 
   return {
     message: error instanceof Error ? error.message : "Unknown error",
   };
+}
+
+/**
+ * Get enhanced error messages based on error codes
+ */
+function getEnhancedErrorMessage(
+  code: string,
+  defaultMessage: string,
+  data: any
+): string {
+  const errorMessages: Record<string, string> = {
+    INSUFFICIENT_BALANCE: `Insufficient leave balance: ${
+      data?.details || defaultMessage
+    }`,
+    NOTICE_PERIOD_NOT_MET: `Notice period requirement not met: ${
+      data?.details || defaultMessage
+    }`,
+    OVERLAPPING_LEAVE: `Overlapping leave detected: ${
+      data?.details || defaultMessage
+    }`,
+    INVALID_DATE_RANGE: `Invalid date range: ${
+      data?.details || defaultMessage
+    }`,
+    LEAVE_TYPE_NOT_FOUND: "The selected leave type is not available",
+    USER_NOT_FOUND: "User account not found",
+    UNAUTHORIZED: "You do not have permission to perform this action",
+    VALIDATION_ERROR: "Please check your input and try again",
+  };
+
+  return errorMessages[code] || defaultMessage;
 }
 
 export function createOpenApiClient() {
