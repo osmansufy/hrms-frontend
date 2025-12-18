@@ -3,7 +3,7 @@
 import { Bell, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useSession } from "@/components/auth/session-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -44,7 +44,16 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
     () => filterNav(NAV_BY_ROLE[primaryRole], roles, permissions),
     [permissions, roles, primaryRole],
   );
+  // If you're using any dynamic data, ensure it's initialized consistently
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, []);
 
+  // For browser-only content, wait until mounted
+  if (!mounted) {
+    return null // or a skeleton loader
+  }
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-64 border-r lg:block">
@@ -229,3 +238,5 @@ function UserMenu() {
     </DropdownMenu>
   );
 }
+
+
