@@ -411,45 +411,25 @@ export async function processAccruals(userId: string, leaveTypeId: string) {
   );
   return response.data;
 }
-
 // Leave Balance Types
 export type LeaveBalance = {
   leaveTypeId: string;
   leaveTypeName: string;
   leaveTypeCode: string;
   leaveYear: string;
-  balance: number;
-  carryForward: number;
-  used: number;
-  allocated: number;
   available: number;
+  carried: number;
+  used: number;
+  openingBalance: number;
+  accrued: number;
+  lapsed: number;
+  adjusted: number;
+  ledgerEntries: number;
   policy?: {
     maxDays?: number;
     carryForwardCap?: number;
     encashmentFlag?: boolean;
   };
-  // Legacy support for nested structure
-  leaveType?: {
-    id: string;
-    name: string;
-    code: string;
-    description: string | null;
-    leavePolicy?: {
-      maxDays: number;
-      carryForwardCap: number;
-      encashmentFlag: boolean;
-      allowAdvance: boolean;
-    } | null;
-  };
-  accrualRule?: {
-    id: string;
-    frequency: string;
-    ratePerPeriod: number;
-    accrualStrategy: string;
-    prorateFlag: boolean;
-    startAfterDays: number;
-    resetMonthDay: number | null;
-  } | null;
   lastAccruedAt?: Date;
   id?: string;
   userId?: string;

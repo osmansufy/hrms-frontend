@@ -18,13 +18,13 @@ export function LeaveBalanceCard({
     onClick,
 }: LeaveBalanceCardProps) {
     // Handle both flat and nested structures
-    const leaveTypeName = balance.leaveType?.name || balance.leaveTypeName || "Unknown";
-    const leaveTypeDescription = balance.leaveType?.description || null;
-    const leavePolicy = balance.leaveType?.leavePolicy || balance.policy || null;
+    const leaveTypeName = balance.leaveTypeName || "Unknown";
+    const leaveTypeDescription = null;
+    const leavePolicy = balance.policy || null;
 
-    const totalAllocated = balance.allocated || balance.balance + balance.carryForward || balance.balance;
-    const available = balance.available || balance.balance;
-    const carryForward = balance.carryForward;
+    const totalAllocated = balance.available + balance.carried;
+    const available = balance.available;
+    const carryForward = balance.carried;
     const percentage = totalAllocated > 0 ? (available / totalAllocated) * 100 : 0;
 
     const getStatusColor = () => {
@@ -135,33 +135,6 @@ export function LeaveBalanceCard({
                                 <Badge variant="outline" className="mt-2 ml-2">
                                     Advance Allowed
                                 </Badge>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Accrual Info */}
-                    {showDetails && balance.accrualRule && (
-                        <div className="mt-4 pt-4 border-t space-y-2">
-                            <h4 className="text-sm font-medium">Accrual Information</h4>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Frequency</span>
-                                <span className="font-medium capitalize">
-                                    {balance.accrualRule.frequency.toLowerCase()}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Rate per Period</span>
-                                <span className="font-medium">
-                                    {balance.accrualRule.ratePerPeriod} days
-                                </span>
-                            </div>
-                            {balance.lastAccruedAt && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Last Accrued</span>
-                                    <span className="font-medium">
-                                        {new Date(balance.lastAccruedAt).toLocaleDateString()}
-                                    </span>
-                                </div>
                             )}
                         </div>
                     )}

@@ -71,10 +71,6 @@ export default function AdminAttendancePage() {
             </div>
 
             <StatsCards />
-
-
-            <StatsCards />
-
             <Tabs defaultValue="today" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="today">Today</TabsTrigger>

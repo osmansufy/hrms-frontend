@@ -59,7 +59,6 @@ export default function LeavePage() {
   const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes();
   const { data: leaves, isLoading: leavesLoading } = useMyLeaves(userId);
   const { data: balances, isLoading: balancesLoading } = useUserBalances();
-  const { data: balanceDetails } = useBalanceDetails(selectedLeaveTypeId, !!selectedLeaveTypeId);
   const { data: leavePolicy } = useLeavePolicy(selectedLeaveTypeId);
   const applyMutation = useApplyLeave(userId);
   console.log({ leavePolicy });
@@ -175,7 +174,7 @@ export default function LeavePage() {
       return { sufficient: true, warning: null, error: null };
     }
 
-    const available = selectedBalance.balance;
+    const available = selectedBalance.available;
 
     if (available < requestedDays) {
       const deficit = requestedDays - available;
@@ -378,11 +377,11 @@ export default function LeavePage() {
                   <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Available Balance</span>
-                      <span className="text-lg font-bold text-blue-600">{selectedBalance.balance} days</span>
+                      <span className="text-lg font-bold text-blue-600">{selectedBalance.available} days</span>
                     </div>
-                    {selectedBalance.carryForward > 0 && (
+                    {selectedBalance.carried > 0 && (
                       <div className="text-xs text-muted-foreground">
-                        Includes {selectedBalance.carryForward} carried forward days
+                        Includes {selectedBalance.carried} carried forward days
                       </div>
                     )}
                   </div>

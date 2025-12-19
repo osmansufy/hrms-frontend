@@ -38,7 +38,13 @@ export function TodayAttendanceCard() {
     const present = records.filter(r => r.signIn && !r.signOut);
     const signedOut = records.filter(r => r.signIn && r.signOut);
     const late = records.filter(r => r.isLate);
-
+    // attendance status map
+    const attendanceStatusMap = {
+        present: "Present",
+        late: "Late",
+        signedOut: "Signed Out",
+        absent: "Absent",
+    };
     return (
         <Card>
             <CardHeader>
@@ -119,12 +125,18 @@ export function TodayAttendanceCard() {
                                                 {formatTime(record.signOut)}
                                             </TableCell>
                                             <TableCell>
-                                                {!record.signOut ? (
+                                                {!record.signIn ? (
+                                                    <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
+                                                        Absent
+                                                    </Badge>
+                                                ) : record.signOut ? (
                                                     <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
-                                                        Present
+                                                        Signed Out
                                                     </Badge>
                                                 ) : (
-                                                    <Badge variant="secondary">Signed Out</Badge>
+                                                    <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
+                                                        Signed In
+                                                    </Badge>
                                                 )}
                                                 {record.isLate && (
                                                     <Badge variant="destructive" className="ml-2">Late</Badge>
