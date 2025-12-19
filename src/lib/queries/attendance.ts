@@ -1,12 +1,36 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
+import { toast } from "sonner";
 
-import { getTodayAttendance, signIn, signOut } from "@/lib/api/attendance";
+import {
+  getTodayAttendance,
+  signIn,
+  signOut,
+  exportAttendanceReport,
+  type AttendanceListParams,
+  getTodayAttendanceForAdmin,
+  getAttendanceStats,
+  getAttendanceRecords,
+  createAttendanceRecord,
+  updateAttendanceRecord,
+} from "@/lib/api/attendance";
 
 export const attendanceKeys = {
   today: (userId: string | undefined) =>
     ["attendance", "today", userId] as const,
+  history: (params?: AttendanceListParams) =>
+    ["attendance", "history", params] as const,
+  list: (params?: AttendanceListParams) =>
+    ["attendance", "list", params] as const,
+  employeeHistory: (userId: string | undefined) =>
+    ["attendance", "employee", userId] as const,
 };
 
+// Employee hooks
 export function useTodayAttendance(userId?: string) {
   return useQuery({
     queryKey: attendanceKeys.today(userId),
@@ -40,3 +64,71 @@ export function useSignOut(userId?: string) {
     },
   });
 }
+
+// Admin hooks
+// Admin hooks
+// Legacy hooks removed/replaced
+
+
+
+export function useExportAttendanceReport() {
+  return useMutation({
+    mutationFn: exportAttendanceReport,
+  });
+}
+
+// get all employee today attendance record for admin
+export function useTodayAttendanceForAdmin() {
+  return useQuery({
+    queryKey: ["attendance", "admin", "today"],
+    queryFn: () => getTodayAttendanceForAdmin(),
+  });
+}
+
+export function useAttendanceStats(date: string, departmentId?: string) {
+  return useQuery({
+    queryKey: ["attendance", "admin", "stats", date, departmentId],
+    queryFn: () => getAttendanceStats(date, departmentId),
+  });
+}
+
+export function useAttendanceRecords(params: AttendanceListParams) {
+  return useQuery({
+    queryKey: ["attendance", "admin", "records", params],
+    queryFn: () => getAttendanceRecords(params),
+    placeholderData: (previousData) => previousData, // Keep previous data while fetching new page
+  });
+}
+
+export function useCreateAttendanceRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createAttendanceRecord,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "admin", "records"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "admin", "stats"],
+      });
+    },
+  });
+}
+
+export function useUpdateAttendanceRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: { id: string; payload: { signIn?: string; signOut?: string | null; isLate?: boolean } }) =>
+      updateAttendanceRecord(variables.id, variables.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
+      toast.success("Attendance record updated");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update record");
+    },
+  });
+}
+
+

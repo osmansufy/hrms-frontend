@@ -135,7 +135,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         email: payload?.email || email,
         roles: resolvedRoles,
         permissions,
-        title: "People Operations",
       },
       token,
       refreshToken: res.data.refreshToken,

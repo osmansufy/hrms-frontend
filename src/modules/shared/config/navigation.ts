@@ -109,6 +109,13 @@ const ADMIN_NAV: NavItem[] = [
     permissions: ["leave.approve"],
   },
   {
+    href: "/dashboard/admin/attendance",
+    label: "Attendance",
+    icon: Clock,
+    roles: ["admin", "super-admin"],
+    permissions: ["attendance.view"],
+  },
+  {
     href: "/dashboard/admin/leave",
     label: "Leave Management",
     icon: CalendarCheck,

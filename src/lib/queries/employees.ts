@@ -34,6 +34,7 @@ type ApiEmployeeShape = Pick<
   | "reportingManagerId"
   | "departmentId"
   | "designationId"
+  | "userId"
 >;
 
 const statusLabel = (status?: string): Employee["status"] => {
@@ -70,6 +71,7 @@ const toEmployee = (apiEmp: ApiEmployeeShape): Employee => ({
     : undefined,
   phone: apiEmp.phone || undefined,
   startDate: apiEmp.joiningDate || "",
+  userId: apiEmp.userId,
 });
 
 export const employeeKeys = {

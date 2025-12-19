@@ -10,6 +10,7 @@ export type Employee = {
   manager?: string;
   phone?: string;
   startDate: string;
+  userId?: string;
 };
 
 export const employees: Employee[] = [

@@ -113,7 +113,7 @@ export default function LeaveBalanceManagementPage() {
         const employeeCode =
             balance.user.employee?.employeeCode?.toLowerCase() || "";
         const email = balance.user.email.toLowerCase();
-        const leaveType = balance.leaveType.name.toLowerCase();
+        const leaveType = balance.leaveType?.name?.toLowerCase() || "";
 
         return (
             employeeName.includes(searchLower) ||
@@ -304,10 +304,10 @@ export default function LeaveBalanceManagementPage() {
                                                 <TableCell>
                                                     <div>
                                                         <div className="font-medium">
-                                                            {balance.leaveType.name}
+                                                            {balance.leaveType?.name}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            {balance.leaveType.code}
+                                                            {balance.leaveType?.code}
                                                         </div>
                                                     </div>
                                                 </TableCell>
