@@ -5,3 +5,4 @@ export { AccrualRulesTab } from "./accrual-rules-tab";
 export { LeaveDashboardTab } from "./leave-dashboard-tab";
 export { LeaveBalancesTab } from "./leave-balances-tab";
 export { AuditTrailTab } from "./audit-trail-tab";
+export { LeaveTypesTab } from "./leave-types-tab";

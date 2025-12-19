@@ -889,3 +889,155 @@ export async function exportBalances(params?: AdminBalanceExportParams) {
   });
   return response.data;
 }
+// Leave Type Management API Functions
+
+export type CreateLeaveTypePayload = {
+  name: string;
+  code: string;
+  description?: string;
+  requiresApproval?: boolean;
+  allowOverlapPartial?: boolean;
+  isPaid?: boolean;
+};
+
+export type UpdateLeaveTypePayload = Partial<CreateLeaveTypePayload> & {
+  isActive?: boolean;
+};
+
+export type LeaveTypeWithStats = {
+  id: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  requiresApproval: boolean;
+  allowOverlapPartial: boolean;
+  isPaid: boolean;
+  isActive: boolean;
+  leavePolicy?: {
+    id: string;
+    maxDays?: number | null;
+    carryForwardCap?: number | null;
+    allowAdvance?: boolean;
+  } | null;
+  stats?: {
+    totalLeaves: number;
+    activeLeaves: number;
+    employeesUsing: number;
+    hasPolicy: boolean;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+/**
+ * Create a new leave type
+ * @param payload - Leave type creation data
+ * @returns Created leave type
+ */
+export async function createLeaveType(payload: CreateLeaveTypePayload) {
+  const response = await apiClient.post<LeaveTypeWithStats>(
+    "/admin/leave-types",
+    payload
+  );
+  return response.data;
+}
+
+/**
+ * Get all leave types with optional filtering (Admin)
+ * @param filters - Filter options (isActive, search)
+ * @returns Array of leave types
+ */
+export async function listLeaveTypesAdmin(filters?: {
+  isActive?: boolean;
+  search?: string;
+}) {
+  const params = new URLSearchParams();
+  if (filters?.isActive !== undefined) {
+    params.append("isActive", String(filters.isActive));
+  }
+  if (filters?.search) {
+    params.append("search", filters.search);
+  }
+  const queryString = params.toString();
+  const response = await apiClient.get<LeaveTypeWithStats[]>(
+    `/admin/leave-types${queryString ? "?" + queryString : ""}`
+  );
+  return response.data;
+}
+
+/**
+ * Get a leave type by ID
+ * @param id - Leave type ID
+ * @returns Leave type details
+ */
+export async function getLeaveTypeById(id: string) {
+  const response = await apiClient.get<LeaveTypeWithStats>(
+    `/admin/leave-types/${id}`
+  );
+  return response.data;
+}
+
+/**
+ * Get leave type with statistics
+ * @param id - Leave type ID
+ * @returns Leave type with stats and policy
+ */
+export async function getLeaveTypeWithDetails(id: string) {
+  const response = await apiClient.get<LeaveTypeWithStats>(
+    `/admin/leave-types/${id}/details`
+  );
+  return response.data;
+}
+
+/**
+ * Get leave type usage statistics
+ * @param id - Leave type ID
+ * @returns Statistics object
+ */
+export async function getLeaveTypeStats(id: string) {
+  const response = await apiClient.get<{
+    totalLeaves: number;
+    activeLeaves: number;
+    employeesUsing: number;
+    hasPolicy: boolean;
+  }>(`/admin/leave-types/${id}/stats`);
+  return response.data;
+}
+
+/**
+ * Update a leave type
+ * @param id - Leave type ID
+ * @param payload - Update data
+ * @returns Updated leave type
+ */
+export async function updateLeaveType(
+  id: string,
+  payload: UpdateLeaveTypePayload
+) {
+  const response = await apiClient.patch<LeaveTypeWithStats>(
+    `/admin/leave-types/${id}`,
+    payload
+  );
+  return response.data;
+}
+
+/**
+ * Deactivate a leave type (soft delete)
+ * @param id - Leave type ID
+ * @returns Updated leave type
+ */
+export async function deactivateLeaveType(id: string) {
+  const response = await apiClient.delete<LeaveTypeWithStats>(
+    `/admin/leave-types/${id}`
+  );
+  return response.data;
+}
+
+/**
+ * Permanently delete a leave type (hard delete)
+ * Only possible if no leave applications exist
+ * @param id - Leave type ID
+ */
+export async function deleteLeaveType(id: string) {
+  await apiClient.delete(`/admin/leave-types/${id}/permanent`);
+}

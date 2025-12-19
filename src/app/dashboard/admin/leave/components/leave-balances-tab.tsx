@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
     Table,
     TableBody,
@@ -22,20 +26,47 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+import {
     useAdminLeaveBalances,
     useExportBalances,
+    useAdjustBalance,
     downloadCSV,
 } from "@/lib/queries/leave";
 import {
     Search,
-    Filter,
     Download,
     ChevronLeft,
     ChevronRight,
     AlertTriangle,
+    Edit,
+    Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import Link from "next/link";
+
+const adjustSchema = z.object({
+    adjustment: z.string().min(1, "Adjustment is required").refine(
+        (val) => !isNaN(parseFloat(val)),
+        "Adjustment must be a valid number"
+    ),
+    reason: z.string().min(10, "Reason must be at least 10 characters long for audit purposes"),
+});
+
+type AdjustFormValues = z.infer<typeof adjustSchema>;
 
 export function LeaveBalancesTab() {
     const currentYear = new Date().getFullYear();
@@ -44,6 +75,14 @@ export function LeaveBalancesTab() {
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState<"low" | "normal" | "negative" | "">("");
     const [year, setYear] = useState(currentYear);
+    const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
+    const [selectedBalance, setSelectedBalance] = useState<{
+        userId: string;
+        leaveTypeId: string;
+        employeeName: string;
+        leaveTypeName: string;
+        currentBalance: number;
+    } | null>(null);
 
     const { data, isLoading, error } = useAdminLeaveBalances({
         page,
@@ -54,6 +93,15 @@ export function LeaveBalancesTab() {
     });
 
     const exportMutation = useExportBalances();
+    const adjustMutation = useAdjustBalance();
+
+    const adjustForm = useForm<AdjustFormValues>({
+        resolver: zodResolver(adjustSchema),
+        defaultValues: {
+            adjustment: "",
+            reason: "",
+        },
+    });
 
     const handleExport = async () => {
         try {
@@ -66,6 +114,36 @@ export function LeaveBalancesTab() {
         } catch (error) {
             toast.error("Failed to export balances");
             console.error(error);
+        }
+    };
+
+    const handleOpenAdjustDialog = (balance: any) => {
+        setSelectedBalance({
+            userId: balance.userId,
+            leaveTypeId: balance.leaveType.id,
+            employeeName: balance.employee.name,
+            leaveTypeName: balance.leaveType.name,
+            currentBalance: balance.balances.available,
+        });
+        adjustForm.reset();
+        setAdjustDialogOpen(true);
+    };
+
+    const handleAdjustBalance = async (values: AdjustFormValues) => {
+        if (!selectedBalance) return;
+
+        try {
+            await adjustMutation.mutateAsync({
+                userId: selectedBalance.userId,
+                leaveTypeId: selectedBalance.leaveTypeId,
+                adjustment: parseFloat(values.adjustment),
+                reason: values.reason,
+            });
+            toast.success("Balance adjusted successfully");
+            setAdjustDialogOpen(false);
+            setSelectedBalance(null);
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || "Failed to adjust balance");
         }
     };
 
@@ -264,13 +342,14 @@ export function LeaveBalancesTab() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <Link
-                                                        href={`/dashboard/admin/leave-balance?userId=${balance.userId}&leaveTypeId=${balance.leaveType.id}`}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => handleOpenAdjustDialog(balance)}
                                                     >
-                                                        <Button size="sm" variant="ghost">
-                                                            Adjust
-                                                        </Button>
-                                                    </Link>
+                                                        <Edit className="mr-2 h-4 w-4" />
+                                                        Adjust
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -316,6 +395,94 @@ export function LeaveBalancesTab() {
                     }
                 </CardContent>
             </Card>
+
+            {/* Adjust Balance Dialog */}
+            <Dialog open={adjustDialogOpen} onOpenChange={setAdjustDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Adjust Leave Balance</DialogTitle>
+                        <DialogDescription>
+                            {selectedBalance && (
+                                <>
+                                    Adjusting balance for <strong>{selectedBalance.employeeName}</strong>{" "}
+                                    - {selectedBalance.leaveTypeName}
+                                </>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedBalance && (
+                        <div className="rounded-md bg-muted p-3 text-sm">
+                            Current balance:{" "}
+                            <strong>{selectedBalance.currentBalance} days</strong>
+                        </div>
+                    )}
+                    <Form {...adjustForm}>
+                        <form
+                            onSubmit={adjustForm.handleSubmit(handleAdjustBalance)}
+                            className="space-y-4"
+                        >
+                            <FormField
+                                control={adjustForm.control}
+                                name="adjustment"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Adjustment (days)</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="number"
+                                                step="0.5"
+                                                placeholder="e.g., 5 or -3"
+                                                aria-label="Leave balance adjustment in days"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <p className="text-xs text-muted-foreground">
+                                            Positive numbers add to balance, negative numbers subtract
+                                        </p>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={adjustForm.control}
+                                name="reason"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Reason</FormLabel>
+                                        <FormControl>
+                                            <Textarea
+                                                placeholder="Explain why this adjustment is being made (minimum 10 characters)..."
+                                                aria-label="Reason for balance adjustment"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setAdjustDialogOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={adjustMutation.isPending}>
+                                    {adjustMutation.isPending ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Adjusting...
+                                        </>
+                                    ) : (
+                                        "Adjust Balance"
+                                    )}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

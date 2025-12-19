@@ -122,20 +122,6 @@ const ADMIN_NAV: NavItem[] = [
     roles: ["admin", "super-admin"],
     permissions: ["leave.approve"],
   },
-  {
-    href: "/dashboard/admin/leave-balance",
-    label: "Leave Balances",
-    icon: CalendarCheck,
-    roles: ["admin", "super-admin"],
-    permissions: ["leave.approve"],
-  },
-  {
-    href: "/dashboard/admin/settings",
-    label: "Settings",
-    icon: Settings,
-    roles: ["admin", "super-admin"],
-    permissions: ["settings.manage"],
-  },
 ];
 
 const SUPER_ADMIN_NAV: NavItem[] = [

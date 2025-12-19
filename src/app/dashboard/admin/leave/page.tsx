@@ -9,6 +9,7 @@ import {
     LayoutDashboard,
     Wallet,
     FileText,
+    Tag,
 } from "lucide-react";
 import {
     LeaveApprovalsTab,
@@ -18,6 +19,7 @@ import {
     LeaveDashboardTab,
     LeaveBalancesTab,
     AuditTrailTab,
+    LeaveTypesTab,
 } from "./components";
 
 export default function AdminLeavePage() {
@@ -36,10 +38,14 @@ export default function AdminLeavePage() {
             </div>
 
             <Tabs defaultValue="dashboard" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-7">
+                <TabsList className="grid w-full grid-cols-8">
                     <TabsTrigger value="dashboard" className="flex items-center gap-2">
                         <LayoutDashboard className="size-4" />
                         Dashboard
+                    </TabsTrigger>
+                    <TabsTrigger value="types" className="flex items-center gap-2">
+                        <Tag className="size-4" />
+                        Leave Types
                     </TabsTrigger>
                     <TabsTrigger value="balances" className="flex items-center gap-2">
                         <Wallet className="size-4" />
@@ -69,6 +75,10 @@ export default function AdminLeavePage() {
 
                 <TabsContent value="dashboard" className="space-y-4">
                     <LeaveDashboardTab />
+                </TabsContent>
+
+                <TabsContent value="types" className="space-y-4">
+                    <LeaveTypesTab />
                 </TabsContent>
 
                 <TabsContent value="balances" className="space-y-4">

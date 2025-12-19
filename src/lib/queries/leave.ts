@@ -1,5 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
+// Import these for immediate use
+import { createLeaveType, updateLeaveType } from "@/lib/api/leave";
+import {
+  adminBalanceKeys,
+  useAdminLeaveBalances,
+  useAdminBalanceSummary,
+  useAdminBalanceAlerts,
+  useAdminAdjustmentHistory,
+  useBulkInitializeBalances,
+  useBulkAdjustBalances,
+  useExportBalances,
+  downloadCSV,
+} from "./admin-leave-balances";
 import {
   applyLeave,
   listLeaveTypes,
@@ -352,6 +364,146 @@ export function useInitializeBalance() {
   });
 }
 
+// Leave Type Management Hooks
+
+export const leaveTypeKeys = {
+  all: ["admin", "leaveTypes"] as const,
+  list: (filters?: { isActive?: boolean; search?: string }) =>
+    ["admin", "leaveTypes", "list", filters] as const,
+  detail: (id: string) => ["admin", "leaveTypes", id] as const,
+  stats: (id: string) => ["admin", "leaveTypes", id, "stats"] as const,
+};
+
+/**
+ * Hook to fetch all leave types with optional filtering
+ */
+export function useLeaveTypesAdmin(filters?: {
+  isActive?: boolean;
+  search?: string;
+}) {
+  return useQuery({
+    queryKey: leaveTypeKeys.list(filters),
+    queryFn: async () => {
+      const { listLeaveTypesAdmin } = await import("@/lib/api/leave");
+      return listLeaveTypesAdmin(filters);
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Hook to fetch a single leave type by ID
+ */
+export function useLeaveTypeById(id: string) {
+  return useQuery({
+    queryKey: leaveTypeKeys.detail(id),
+    queryFn: async () => {
+      const { getLeaveTypeById } = await import("@/lib/api/leave");
+      return getLeaveTypeById(id);
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!id,
+  });
+}
+
+/**
+ * Hook to fetch leave type with details and stats
+ */
+export function useLeaveTypeWithDetails(id: string) {
+  return useQuery({
+    queryKey: [...leaveTypeKeys.detail(id), "details"],
+    queryFn: async () => {
+      const { getLeaveTypeWithDetails } = await import("@/lib/api/leave");
+      return getLeaveTypeWithDetails(id);
+    },
+    enabled: !!id,
+  });
+}
+
+/**
+ * Hook to fetch leave type statistics
+ */
+export function useLeaveTypeStats(id: string) {
+  return useQuery({
+    queryKey: leaveTypeKeys.stats(id),
+    queryFn: async () => {
+      const { getLeaveTypeStats } = await import("@/lib/api/leave");
+      return getLeaveTypeStats(id);
+    },
+    enabled: !!id,
+  });
+}
+
+/**
+ * Hook to create a new leave type
+ */
+export function useCreateLeaveType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: Parameters<typeof createLeaveType>[0]) => {
+      const { createLeaveType } = await import("@/lib/api/leave");
+      return createLeaveType(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leaveTypeKeys.all });
+    },
+  });
+}
+
+/**
+ * Hook to update a leave type
+ */
+export function useUpdateLeaveType(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: Parameters<typeof updateLeaveType>[1]) => {
+      const { updateLeaveType } = await import("@/lib/api/leave");
+      return updateLeaveType(id, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leaveTypeKeys.all });
+      queryClient.invalidateQueries({ queryKey: leaveTypeKeys.detail(id) });
+    },
+  });
+}
+
+/**
+ * Hook to deactivate a leave type
+ */
+export function useDeactivateLeaveType(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { deactivateLeaveType } = await import("@/lib/api/leave");
+      return deactivateLeaveType(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leaveTypeKeys.all });
+      queryClient.invalidateQueries({ queryKey: leaveTypeKeys.detail(id) });
+    },
+  });
+}
+
+/**
+ * Hook to permanently delete a leave type
+ */
+export function useDeleteLeaveType(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { deleteLeaveType } = await import("@/lib/api/leave");
+      return deleteLeaveType(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leaveTypeKeys.all });
+    },
+  });
+}
+
 // Admin Dashboard Hooks - Import from admin-leave-balances.ts
 export {
   adminBalanceKeys,
@@ -363,4 +515,4 @@ export {
   useBulkAdjustBalances,
   useExportBalances,
   downloadCSV,
-} from "./admin-leave-balances";
+};
