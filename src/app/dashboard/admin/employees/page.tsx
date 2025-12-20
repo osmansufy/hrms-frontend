@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { useEmployees } from "@/lib/queries/employees";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
+import { ChangePasswordDialog } from "@/components/change-password-dialog";
 
 export default function AdminEmployeesPage() {
   const [search, setSearch] = useState("");
@@ -149,6 +150,11 @@ export default function AdminEmployeesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <ChangePasswordDialog
+                          userId={emp.userId}
+                          userName={emp.name}
+                          userEmail={emp.email}
+                        />
                         <AssignManagerDialog
                           employeeId={emp.id}
                           employeeName={emp.name}

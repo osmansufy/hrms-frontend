@@ -553,10 +553,8 @@ export type AdminLeaveBalanceItem = {
     carried: number;
     used: number;
     adjusted: number;
-    encashed: number;
     available: number;
-    pending: number;
-    expired: number;
+    lapsed: number;
   };
   status: "NORMAL" | "LOW" | "NEGATIVE";
   lastUpdated: string;
@@ -595,7 +593,7 @@ export type AdminBalanceSummaryResponse = {
     totalDaysAllocated: number;
     totalDaysUsed: number;
     totalDaysAvailable: number;
-    totalDaysPending: number;
+    totalDaysLapsed: number;
     overallUtilizationRate: number;
   };
   byDepartment: Array<{
@@ -605,7 +603,7 @@ export type AdminBalanceSummaryResponse = {
     allocated: number;
     used: number;
     available: number;
-    pending: number;
+    lapsed: number;
     utilizationRate: number;
   }>;
   byLeaveType: Array<{
@@ -615,7 +613,7 @@ export type AdminBalanceSummaryResponse = {
     allocated: number;
     used: number;
     available: number;
-    pending: number;
+    lapsed: number;
     utilizationRate: number;
   }>;
   generatedAt: string;

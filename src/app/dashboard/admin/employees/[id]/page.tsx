@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee } from "@/lib/queries/employees";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
+import { ChangePasswordDialog } from "@/components/change-password-dialog";
 
 const schema = z.object({
   phone: z.string().optional(),
@@ -188,11 +189,18 @@ export default function AdminEmployeeDetailPage() {
                 <CardTitle>Profile</CardTitle>
                 <CardDescription>Core employee and user details.</CardDescription>
               </div>
-              <AssignManagerDialog
-                employeeId={id || ""}
-                employeeName={fullName}
-                currentManager={data.reportingManager}
-              />
+              <div className="flex items-center gap-2">
+                <ChangePasswordDialog
+                  userId={data.userId}
+                  userName={fullName}
+                  userEmail={data.user?.email || "unknown@company.com"}
+                />
+                <AssignManagerDialog
+                  employeeId={id || ""}
+                  employeeName={fullName}
+                  currentManager={data.reportingManager}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">

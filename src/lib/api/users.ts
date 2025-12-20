@@ -24,3 +24,9 @@ export async function getUser(id: string) {
   return res.data;
 }
 
+export async function changeUserPassword(userId: string, newPassword: string) {
+  const res = await apiClient.patch(`/users/${userId}/password`, {
+    newPassword,
+  });
+  return res.data;
+}

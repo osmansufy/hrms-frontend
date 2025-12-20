@@ -1,6 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { getUser, listUsers, type ApiUser } from "@/lib/api/users";
+import {
+  getUser,
+  listUsers,
+  changeUserPassword,
+  type ApiUser,
+} from "@/lib/api/users";
 
 export const userKeys = {
   list: ["users", "list"] as const,
@@ -22,3 +27,22 @@ export function useUser(id: string) {
   });
 }
 
+export function useChangeUserPassword() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      userId,
+      newPassword,
+    }: {
+      userId: string;
+      newPassword: string;
+    }) => changeUserPassword(userId, newPassword),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: userKeys.detail(variables.userId),
+      });
+      queryClient.invalidateQueries({ queryKey: userKeys.list });
+    },
+  });
+}
