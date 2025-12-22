@@ -41,8 +41,6 @@ export type AttendanceListParams = {
   sortOrder?: "asc" | "desc";
 };
 
-
-
 // Employee endpoints
 export async function getTodayAttendance(userId: string) {
   const response = await apiClient.get<AttendanceRecord>(
@@ -124,8 +122,6 @@ export async function updateAttendanceRecord(
 
 // For now, replacing getAttendanceHistory/List with getAttendanceRecords
 
-
-
 export async function exportAttendanceReport(params: {
   startDate: string;
   endDate: string;
@@ -142,6 +138,198 @@ export async function exportAttendanceReport(params: {
 export async function getTodayAttendanceForAdmin() {
   const response = await apiClient.get<AttendanceRecord[]>(
     `/attendance/admin/today`
+  );
+  return response.data;
+}
+
+// Attendance Policies
+export type WorkScheduleDay = {
+  id: string;
+  dayOfWeek: string;
+  isWorking: boolean;
+  startTime?: string | null;
+  endTime?: string | null;
+  breakMinutes?: number | null;
+  graceMinutes?: number | null;
+};
+
+export type WorkScheduleWithDays = {
+  id: string;
+  code: string;
+  name: string;
+  isFlexible: boolean;
+  days: WorkScheduleDay[];
+};
+
+export type AttendancePolicy = {
+  id: string;
+  name: string;
+  description?: string | null;
+  effectiveFrom: string;
+  startTime: string;
+  endTime: string;
+  targetMinutes: number;
+  delayBufferMinutes: number;
+  extraDelayBufferMinutes: number;
+  breakMinutes: number;
+  ignoreOtAndDeduction: boolean;
+  excludeFromReports: boolean;
+  discardOnWeekend: boolean;
+  isDefault: boolean;
+  isActive: boolean;
+  workScheduleId?: string | null;
+  workSchedule?: WorkScheduleWithDays | null;
+  _count?: {
+    assignments: number;
+  };
+};
+
+export async function getAttendancePolicies(params?: { isActive?: boolean }) {
+  const response = await apiClient.get<AttendancePolicy[]>(
+    `/attendance/admin/policies`,
+    { params }
+  );
+  return response.data;
+}
+
+export async function createAttendancePolicy(
+  payload: Partial<AttendancePolicy> & {
+    name: string;
+    effectiveFrom: string;
+    startTime: string;
+    endTime: string;
+  }
+) {
+  const response = await apiClient.post<AttendancePolicy>(
+    `/attendance/admin/policies`,
+    payload
+  );
+  return response.data;
+}
+
+export async function updateAttendancePolicy(
+  id: string,
+  payload: Partial<AttendancePolicy>
+) {
+  const response = await apiClient.put<AttendancePolicy>(
+    `/attendance/admin/policies/${id}`,
+    payload
+  );
+  return response.data;
+}
+
+// Work Schedules
+export type WorkSchedule = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  isFlexible: boolean;
+  isActive: boolean;
+  days?: WorkScheduleDay[];
+};
+
+export async function getWorkSchedules() {
+  const response = await apiClient.get<WorkSchedule[]>(`/work-schedules`);
+  return response.data;
+}
+
+export type WorkScheduleDayInput = {
+  dayOfWeek: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  breakMinutes?: number | null;
+  graceMinutes?: number | null;
+  isWorking?: boolean;
+};
+
+export type UpdateWorkSchedulePayload = {
+  code?: string;
+  name?: string;
+  description?: string | null;
+  isFlexible?: boolean;
+  isActive?: boolean;
+  days?: WorkScheduleDayInput[];
+};
+
+export async function updateWorkSchedule(
+  id: string,
+  payload: UpdateWorkSchedulePayload
+) {
+  const response = await apiClient.patch<WorkSchedule>(
+    `/work-schedules/${id}`,
+    payload
+  );
+  return response.data;
+}
+
+// Policy Assignments
+export type AttendancePolicyAssignment = {
+  id: string;
+  policyId: string;
+  userId?: string | null;
+  departmentId?: string | null;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  policy?: AttendancePolicy;
+  user?: { id: string; name: string } | null;
+  department?: { id: string; name: string } | null;
+};
+
+export async function getPolicyAssignments(params?: {
+  userId?: string;
+  departmentId?: string;
+}) {
+  const response = await apiClient.get<AttendancePolicyAssignment[]>(
+    `/attendance/admin/policy-assignments`,
+    { params }
+  );
+  return response.data;
+}
+
+export async function createPolicyAssignment(payload: {
+  policyId: string;
+  userId?: string;
+  departmentId?: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+}) {
+  const response = await apiClient.post<AttendancePolicyAssignment>(
+    `/attendance/admin/policy-assignments`,
+    payload
+  );
+  return response.data;
+}
+
+export async function updatePolicyAssignment(
+  id: string,
+  payload: { effectiveTo?: string | null }
+) {
+  const response = await apiClient.put<AttendancePolicyAssignment>(
+    `/attendance/admin/policy-assignments/${id}`,
+    payload
+  );
+  return response.data;
+}
+
+// Lost Hours Report
+export type LostHoursRow = {
+  userId: string;
+  name: string;
+  totalWorkedMinutes: number;
+  totalLostMinutes: number;
+  totalOvertimeMinutes: number;
+  days: number;
+};
+
+export async function getLostHoursReport(params: {
+  startDate: string;
+  endDate: string;
+  departmentId?: string;
+}) {
+  const response = await apiClient.get<LostHoursRow[]>(
+    `/attendance/admin/reports/lost-hours`,
+    { params }
   );
   return response.data;
 }

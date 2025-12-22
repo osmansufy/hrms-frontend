@@ -13,6 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSignIn, useSignOut, useTodayAttendance } from "@/lib/queries/attendance";
 import { AttendanceStatsCard } from "./components/stats-card";
+import { Card } from "@/components/ui/card";
+import { useLostHoursReport } from "@/lib/queries/attendance";
 import { AttendanceHistoryTab } from "./components/history-tab";
 
 function formatTime(value?: string | null) {
@@ -28,6 +30,9 @@ export default function AttendancePage() {
   const { data, isLoading, error, isFetching } = useTodayAttendance(userId);
   const signInMutation = useSignIn(userId);
   const signOutMutation = useSignOut(userId);
+  const start7 = new Date();
+  start7.setDate(start7.getDate() - 7);
+  const lostQuery = useLostHoursReport({ startDate: start7.toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10) });
 
   const status = useMemo(() => {
     if (isLoading) return "Checking status…";
@@ -136,6 +141,18 @@ export default function AttendancePage() {
               {(isFetching || signInMutation.isPending || signOutMutation.isPending) && (
                 <p className="text-xs text-muted-foreground">Updating attendance…</p>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Your last 7 days</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <InfoRow label="Total worked" value={`${Math.round(((lostQuery.data?.find(r => r.userId === userId)?.totalWorkedMinutes) || 0) / 60)} h`} />
+                <InfoRow label="Lost hours" value={`${Math.round(((lostQuery.data?.find(r => r.userId === userId)?.totalLostMinutes) || 0) / 60)} h`} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

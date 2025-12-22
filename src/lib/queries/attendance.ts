@@ -17,6 +17,15 @@ import {
   getAttendanceRecords,
   createAttendanceRecord,
   updateAttendanceRecord,
+  getAttendancePolicies,
+  createAttendancePolicy,
+  updateAttendancePolicy,
+  getPolicyAssignments,
+  createPolicyAssignment,
+  updatePolicyAssignment,
+  getLostHoursReport,
+  getWorkSchedules,
+  updateWorkSchedule,
 } from "@/lib/api/attendance";
 
 export const attendanceKeys = {
@@ -69,8 +78,6 @@ export function useSignOut(userId?: string) {
 // Admin hooks
 // Legacy hooks removed/replaced
 
-
-
 export function useExportAttendanceReport() {
   return useMutation({
     mutationFn: exportAttendanceReport,
@@ -118,17 +125,116 @@ export function useCreateAttendanceRecord() {
 export function useUpdateAttendanceRecord() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (variables: { id: string; payload: { signIn?: string; signOut?: string | null; isLate?: boolean } }) =>
-      updateAttendanceRecord(variables.id, variables.payload),
+    mutationFn: (variables: {
+      id: string;
+      payload: { signIn?: string; signOut?: string | null; isLate?: boolean };
+    }) => updateAttendanceRecord(variables.id, variables.payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
       toast.success("Attendance record updated");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to update record");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update record"
+      );
     },
   });
 }
 
+// Policies
+export function useAttendancePolicies(params?: { isActive?: boolean }) {
+  return useQuery({
+    queryKey: ["attendance", "policies", params],
+    queryFn: () => getAttendancePolicies(params),
+  });
+}
 
+export function useCreateAttendancePolicy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createAttendancePolicy,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance", "policies"] });
+    },
+  });
+}
+
+export function useUpdateAttendancePolicy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; payload: any }) =>
+      updateAttendancePolicy(v.id, v.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance", "policies"] });
+    },
+  });
+}
+
+// Assignments
+export function usePolicyAssignments(params?: {
+  userId?: string;
+  departmentId?: string;
+}) {
+  return useQuery({
+    queryKey: ["attendance", "policy-assignments", params],
+    queryFn: () => getPolicyAssignments(params),
+  });
+}
+
+export function useCreatePolicyAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createPolicyAssignment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "policy-assignments"],
+      });
+    },
+  });
+}
+
+export function useUpdatePolicyAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; payload: { effectiveTo?: string | null } }) =>
+      updatePolicyAssignment(v.id, v.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "policy-assignments"],
+      });
+    },
+  });
+}
+
+// Lost hours report
+export function useLostHoursReport(params: {
+  startDate: string;
+  endDate: string;
+  departmentId?: string;
+}) {
+  return useQuery({
+    queryKey: ["attendance", "reports", "lost-hours", params],
+    queryFn: () => getLostHoursReport(params),
+    enabled: Boolean(params?.startDate && params?.endDate),
+  });
+}
+
+// Work Schedules
+export function useWorkSchedules() {
+  return useQuery({
+    queryKey: ["work-schedules"],
+    queryFn: getWorkSchedules,
+  });
+}
+
+export function useUpdateWorkSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; payload: any }) =>
+      updateWorkSchedule(v.id, v.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["work-schedules"] });
+    },
+  });
+}
