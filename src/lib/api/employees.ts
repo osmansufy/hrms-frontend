@@ -191,3 +191,10 @@ export async function assignManager(
   );
   return response.data;
 }
+
+export async function getSubordinates(employeeId: string) {
+  const response = await apiClient.get<ApiEmployee[]>(
+    `/employees/${employeeId}/subordinates`
+  );
+  return response.data;
+}

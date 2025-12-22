@@ -1,11 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Clock } from "lucide-react";
 import { useAttendanceRecords } from "@/lib/queries/attendance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 
 function formatTime(value?: string | null) {
     if (!value) return "—";
@@ -28,11 +30,13 @@ function getInitials(name: string) {
 export function TodayAttendanceCard() {
     const today = new Date().toISOString().split("T")[0];
 
-    const { data, isLoading } = useAttendanceRecords({
-        startDate: today,
-        endDate: today,
+    const queryParams = useMemo(() => ({
+        startDate: toStartOfDayISO(today),
+        endDate: toEndOfDayISO(today),
         limit: "100", // Get all for today
-    });
+    }), [today]);
+
+    const { data, isLoading } = useAttendanceRecords(queryParams);
 
     const records = data?.data || [];
     const present = records.filter(r => r.signIn && !r.signOut);

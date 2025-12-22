@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { NAV_BY_ROLE, filterNav, getPrimaryRole } from "@/modules/shared/config/navigation";
 import { usePermissions } from "@/modules/shared/hooks/use-permissions";
 import { useUIStore } from "@/modules/shared/stores/ui-store";
+import { useSubordinatesLeaves } from "@/lib/queries/leave";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -40,10 +41,21 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
   const pathname = usePathname();
   const { permissions, roles } = usePermissions();
   const primaryRole = useMemo(() => getPrimaryRole(roles), [roles]);
-  const navItems = useMemo(
-    () => filterNav(NAV_BY_ROLE[primaryRole], roles, permissions),
-    [permissions, roles, primaryRole],
-  );
+  const { data: subordinatesData } = useSubordinatesLeaves();
+  const hasSubordinates = useMemo(() => {
+    return subordinatesData && subordinatesData.length > 0;
+  }, [subordinatesData]);
+
+  const navItems = useMemo(() => {
+    const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
+    // Hide Team Leave if user has no subordinates
+    return filtered.filter(item => {
+      if (item.href === "/dashboard/employee/leave-manager") {
+        return hasSubordinates;
+      }
+      return true;
+    });
+  }, [permissions, roles, primaryRole, hasSubordinates]);
   // If you're using any dynamic data, ensure it's initialized consistently
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
@@ -133,10 +145,21 @@ function MobileNav() {
   const { permissions, roles } = usePermissions();
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useUIStore();
   const primaryRole = useMemo(() => getPrimaryRole(roles), [roles]);
-  const navItems = useMemo(
-    () => filterNav(NAV_BY_ROLE[primaryRole], roles, permissions),
-    [permissions, roles, primaryRole],
-  );
+  const { data: subordinatesData } = useSubordinatesLeaves();
+  const hasSubordinates = useMemo(() => {
+    return subordinatesData && subordinatesData.length > 0;
+  }, [subordinatesData]);
+
+  const navItems = useMemo(() => {
+    const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
+    // Hide Team Leave if user has no subordinates
+    return filtered.filter(item => {
+      if (item.href === "/dashboard/employee/leave-manager") {
+        return hasSubordinates;
+      }
+      return true;
+    });
+  }, [permissions, roles, primaryRole, hasSubordinates]);
 
   return (
     <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>

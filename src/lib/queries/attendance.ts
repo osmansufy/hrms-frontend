@@ -15,6 +15,7 @@ import {
   getTodayAttendanceForAdmin,
   getAttendanceStats,
   getAttendanceRecords,
+  getMyAttendanceRecords,
   createAttendanceRecord,
   updateAttendanceRecord,
   getAttendancePolicies,
@@ -24,6 +25,7 @@ import {
   createPolicyAssignment,
   updatePolicyAssignment,
   getLostHoursReport,
+  getMyLostHoursReport,
   getWorkSchedules,
   updateWorkSchedule,
 } from "@/lib/api/attendance";
@@ -104,6 +106,20 @@ export function useAttendanceRecords(params: AttendanceListParams) {
     queryKey: ["attendance", "admin", "records", params],
     queryFn: () => getAttendanceRecords(params),
     placeholderData: (previousData) => previousData, // Keep previous data while fetching new page
+  });
+}
+export function useMyAttendanceRecords(
+  userId: string | undefined,
+  params: Omit<AttendanceListParams, "userId">
+) {
+  return useQuery({
+    queryKey: ["attendance", "my-records", userId, params],
+    queryFn: () => {
+      if (!userId) throw new Error("User ID required");
+      return getMyAttendanceRecords(userId, params);
+    },
+    enabled: Boolean(userId),
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -207,7 +223,7 @@ export function useUpdatePolicyAssignment() {
   });
 }
 
-// Lost hours report
+// Lost hours report (admin)
 export function useLostHoursReport(params: {
   startDate: string;
   endDate: string;
@@ -217,6 +233,24 @@ export function useLostHoursReport(params: {
     queryKey: ["attendance", "reports", "lost-hours", params],
     queryFn: () => getLostHoursReport(params),
     enabled: Boolean(params?.startDate && params?.endDate),
+  });
+}
+
+// Lost hours report (employee - for their own data)
+export function useMyLostHoursReport(
+  userId: string | undefined,
+  params: {
+    startDate: string;
+    endDate: string;
+  }
+) {
+  return useQuery({
+    queryKey: ["attendance", "my-lost-hours", userId, params],
+    queryFn: () => {
+      if (!userId) throw new Error("User ID required");
+      return getMyLostHoursReport(userId, params);
+    },
+    enabled: Boolean(userId && params?.startDate && params?.endDate),
   });
 }
 

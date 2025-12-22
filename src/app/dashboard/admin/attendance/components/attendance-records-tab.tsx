@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Filter, Edit, ArrowLeft, ArrowRight } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, Filter, Edit, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
 import { useAttendanceRecords, useUpdateAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
+import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
+import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePresets";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Select,
     SelectContent,
@@ -42,24 +45,27 @@ export function AttendanceRecordsTab() {
     const [search, setSearch] = useState("");
     const [departmentId, setDepartmentId] = useState<string>("all");
     const [employeeId, setEmployeeId] = useState<string>("all");
-    const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
-        start: new Date().toISOString().split("T")[0],
-        end: new Date().toISOString().split("T")[0],
-    });
     const [isLate, setIsLate] = useState<boolean | undefined>(undefined);
+
+    // Use date range presets hook
+    const { preset, dateRange, setPreset, setCustomRange } = useDateRangePresets("today");
 
     const { data: departments } = useDepartments();
     const { data: employees } = useEmployees();
-    const { data: recordsData, isLoading } = useAttendanceRecords({
+
+    // Convert date range to ISO DateTime with user's timezone
+    const queryParams = useMemo(() => ({
         page,
         limit: 10,
         search,
         departmentId: departmentId === "all" ? undefined : departmentId,
         userId: employeeId === "all" ? undefined : employeeId,
-        startDate: dateRange.start,
-        endDate: dateRange.end,
+        startDate: toStartOfDayISO(dateRange.startDate),
+        endDate: toEndOfDayISO(dateRange.endDate),
         isLate,
-    });
+    }), [page, search, departmentId, employeeId, dateRange.startDate, dateRange.endDate, isLate]);
+
+    const { data: recordsData, isLoading } = useAttendanceRecords(queryParams);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearch(e.target.value);
@@ -78,6 +84,52 @@ export function AttendanceRecordsTab() {
 
     return (
         <div className="space-y-4">
+            {/* Date Range Quick Filters */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Calendar className="h-4 w-4" />
+                        Date Range
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                        {DATE_RANGE_PRESETS.map((option) => (
+                            <Button
+                                key={option.value}
+                                variant={preset === option.value ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setPreset(option.value)}
+                                className="w-full"
+                            >
+                                {option.label}
+                            </Button>
+                        ))}
+                    </div>
+
+                    {preset === "custom" && (
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                            <div>
+                                <Input
+                                    type="date"
+                                    value={dateRange.startDate}
+                                    max={new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => setCustomRange({ startDate: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Input
+                                    type="date"
+                                    value={dateRange.endDate}
+                                    max={new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => setCustomRange({ endDate: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-4 rounded-lg border p-4 shadow-sm">
                 <div className="flex-1 min-w-[200px]">
@@ -119,24 +171,6 @@ export function AttendanceRecordsTab() {
                         ))}
                     </SelectContent>
                 </Select>
-
-                <div className="flex items-center gap-2">
-                    <Input
-                        type="date"
-                        value={dateRange.start}
-                        max={new Date().toISOString().split("T")[0]}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                        className="w-auto"
-                    />
-                    <span className="text-muted-foreground">-</span>
-                    <Input
-                        type="date"
-                        value={dateRange.end}
-                        max={new Date().toISOString().split("T")[0]}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                        className="w-auto"
-                    />
-                </div>
 
                 <Select
                     value={isLate === undefined ? "all" : isLate ? "late" : "ontime"}

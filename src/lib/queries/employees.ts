@@ -8,6 +8,7 @@ import {
   searchManagers,
   updateEmployeeApi,
   assignManager,
+  getSubordinates,
   type ApiEmployee,
   type ListEmployeesParams,
   type UpdateEmployeePayload,
@@ -80,6 +81,8 @@ export const employeeKeys = {
     [...employeeKeys.all, "list", params ?? {}] as const,
   detail: (id: string) => [...employeeKeys.all, "detail", id] as const,
   detailRaw: (id: string) => [...employeeKeys.all, "detail-raw", id] as const,
+  subordinates: (id: string) =>
+    [...employeeKeys.all, "subordinates", id] as const,
 };
 
 export function useEmployees(params?: ListEmployeesParams) {
@@ -200,5 +203,16 @@ export function useAssignManager(employeeId: string) {
       );
       queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
     },
+  });
+}
+
+export function useEmployeeSubordinates(employeeId?: string) {
+  return useQuery({
+    queryKey: employeeKeys.subordinates(employeeId || ""),
+    queryFn: () => {
+      if (!employeeId) throw new Error("Employee ID required");
+      return getSubordinates(employeeId);
+    },
+    enabled: Boolean(employeeId),
   });
 }

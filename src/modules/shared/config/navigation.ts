@@ -29,13 +29,6 @@ const EMPLOYEE_NAV: NavItem[] = [
     permissions: ["dashboard.view"],
   },
   {
-    href: "/dashboard/employee/directory",
-    label: "Directory",
-    icon: Users,
-    roles: ["employee", "admin", "super-admin"],
-    permissions: ["directory.view"],
-  },
-  {
     href: "/dashboard/employee/profile",
     label: "Profile",
     icon: User,

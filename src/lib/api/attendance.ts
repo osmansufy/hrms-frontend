@@ -30,8 +30,8 @@ export type ExtendedAttendanceRecord = AttendanceRecord & {
 
 export type AttendanceListParams = {
   userId?: string;
-  startDate?: string; // ISO date
-  endDate?: string; // ISO date
+  startDate?: string; // ISO DateTime string (use toStartOfDayISO from utils)
+  endDate?: string; // ISO DateTime string (use toEndOfDayISO from utils)
   isLate?: boolean;
   departmentId?: string;
   search?: string;
@@ -86,6 +86,20 @@ export async function getAttendanceRecords(params: AttendanceListParams) {
     limit: number;
     totalPages: number;
   }>(`/attendance/admin/records`, { params });
+  return response.data;
+}
+
+export async function getMyAttendanceRecords(
+  userId: string,
+  params: Omit<AttendanceListParams, "userId">
+) {
+  const response = await apiClient.get<{
+    data: ExtendedAttendanceRecord[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/attendance/${userId}/records`, { params });
   return response.data;
 }
 
@@ -322,6 +336,12 @@ export type LostHoursRow = {
   days: number;
 };
 
+/**
+ * Fetches lost hours report for admin (all employees or by department)
+ * @param params.startDate - ISO DateTime string at start of day (use toStartOfDayISO)
+ * @param params.endDate - ISO DateTime string at end of day (use toEndOfDayISO)
+ * @param params.departmentId - Optional department filter
+ */
 export async function getLostHoursReport(params: {
   startDate: string;
   endDate: string;
@@ -329,6 +349,26 @@ export async function getLostHoursReport(params: {
 }) {
   const response = await apiClient.get<LostHoursRow[]>(
     `/attendance/admin/reports/lost-hours`,
+    { params }
+  );
+  return response.data;
+}
+
+/**
+ * Fetches lost hours report for a specific employee
+ * @param userId - The user ID
+ * @param params.startDate - ISO DateTime string at start of day (use toStartOfDayISO)
+ * @param params.endDate - ISO DateTime string at end of day (use toEndOfDayISO)
+ */
+export async function getMyLostHoursReport(
+  userId: string,
+  params: {
+    startDate: string;
+    endDate: string;
+  }
+) {
+  const response = await apiClient.get<LostHoursRow[]>(
+    `/attendance/${userId}/lost-hours`,
     { params }
   );
   return response.data;

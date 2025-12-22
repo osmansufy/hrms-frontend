@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { Calendar, Clock, TrendingUp, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "@/components/auth/session-provider";
-import { useAttendanceRecords } from "@/lib/queries/attendance";
+import { useMyAttendanceRecords } from "@/lib/queries/attendance";
+import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 
 export function AttendanceStatsCard() {
     const { session } = useSession();
@@ -15,12 +16,13 @@ export function AttendanceStatsCard() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const { data } = useAttendanceRecords({
-        userId,
-        startDate: startOfMonth.toISOString().split("T")[0],
-        endDate: endOfMonth.toISOString().split("T")[0],
-        limit: 100, // Get all records for the month
-    });
+    const queryParams = useMemo(() => ({
+        startDate: toStartOfDayISO(startOfMonth.toISOString().split("T")[0]),
+        endDate: toEndOfDayISO(endOfMonth.toISOString().split("T")[0]),
+        limit: "100", // Get all records for the month
+    }), []);
+
+    const { data } = useMyAttendanceRecords(userId, queryParams);
 
     const stats = useMemo(() => {
         if (!data?.data) return { present: 0, late: 0, onTime: 0, percentage: 0 };
