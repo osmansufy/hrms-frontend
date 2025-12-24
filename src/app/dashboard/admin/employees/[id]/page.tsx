@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Mail, Phone, Trash2 } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Trash2, Calendar } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -34,9 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee } from "@/lib/queries/employees";
+import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee, useEmployeeSubordinates } from "@/lib/queries/employees";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const schema = z.object({
   phone: z.string().optional(),
@@ -79,13 +80,14 @@ export default function AdminEmployeeDetailPage() {
   const { data, isLoading, isError } = useEmployeeDetail(id || "");
   const updateMutation = useUpdateEmployee(id || "");
   const deleteMutation = useDeleteEmployee();
+  const { data: subordinates = [] } = useEmployeeSubordinates(id);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       phone: data?.phone || "",
       employmentType: data?.employmentType as FormValues["employmentType"],
-      joiningDate: data?.joiningDate?.slice(0, 10),
+      joiningDate: data?.joiningDate?.slice(0, 10) ?? "",
       departmentId: data?.departmentId || "",
       designationId: data?.designationId || "",
       reportingManagerId: data?.reportingManagerId || "",
@@ -190,6 +192,12 @@ export default function AdminEmployeeDetailPage() {
                 <CardDescription>Core employee and user details.</CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/dashboard/admin/employees/${id}/assign-leave`}>
+                    <Calendar className="mr-1 size-4" />
+                    Assign Leave
+                  </Link>
+                </Button>
                 <ChangePasswordDialog
                   userId={data.userId}
                   userName={fullName}
@@ -278,10 +286,16 @@ export default function AdminEmployeeDetailPage() {
                   name="departmentId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Department ID</FormLabel>
+                      <FormLabel>Department</FormLabel>
                       <FormControl>
-                        <Input placeholder="UUID of department" {...field} />
+                        <Input
+                          placeholder="Department name"
+                          value={data?.department?.name || ""}
+                          disabled
+                          readOnly
+                        />
                       </FormControl>
+                      <input type="hidden" {...field} />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -291,10 +305,16 @@ export default function AdminEmployeeDetailPage() {
                   name="designationId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Designation ID</FormLabel>
+                      <FormLabel>Designation</FormLabel>
                       <FormControl>
-                        <Input placeholder="UUID of designation" {...field} />
+                        <Input
+                          placeholder="Job title"
+                          value={data?.designation?.title || data?.designation?.name || ""}
+                          disabled
+                          readOnly
+                        />
                       </FormControl>
+                      <input type="hidden" {...field} />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -304,10 +324,16 @@ export default function AdminEmployeeDetailPage() {
                   name="reportingManagerId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Reporting manager ID</FormLabel>
+                      <FormLabel>Reporting manager</FormLabel>
                       <FormControl>
-                        <Input placeholder="Employee ID of manager" {...field} />
+                        <Input
+                          placeholder="Manager name"
+                          value={data?.reportingManager ? `${data.reportingManager.firstName} ${data.reportingManager.lastName}` : "No manager assigned"}
+                          disabled
+                          readOnly
+                        />
                       </FormControl>
+                      <input type="hidden" {...field} />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -333,6 +359,56 @@ export default function AdminEmployeeDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {subordinates && subordinates.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Team Members</CardTitle>
+            <CardDescription>Employees reporting to {fullName || "this manager"}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Designation</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {subordinates.map((subordinate) => {
+                  const subName = [subordinate.firstName, subordinate.lastName]
+                    .filter(Boolean)
+                    .join(" ");
+                  const subStatus = formatStatus(subordinate.user?.status);
+                  return (
+                    <TableRow key={subordinate.id}>
+                      <TableCell className="font-semibold">
+                        <Link
+                          href={`/dashboard/admin/employees/${subordinate.id}`}
+                          className="hover:underline"
+                        >
+                          {subName}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{subordinate.user?.email || "—"}</TableCell>
+                      <TableCell>{subordinate.designation?.title || subordinate.designation?.name || "—"}</TableCell>
+                      <TableCell>{subordinate.department?.name || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={subStatus === "Active" ? "default" : subStatus === "On Leave" ? "secondary" : "outline"}>
+                          {subStatus}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

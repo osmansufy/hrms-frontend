@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, use } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useSession } from "@/components/auth/session-provider";
-import { useAttendanceRecords } from "@/lib/queries/attendance";
+import { useAttendanceRecords, useMyAttendanceRecords } from "@/lib/queries/attendance";
 import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 
 function formatTime(value?: string | null) {
@@ -41,14 +41,12 @@ export function AttendanceHistoryTab() {
 
     // Convert date range to ISO DateTime with user's timezone
     const queryParams = useMemo(() => ({
-        userId,
         startDate: toStartOfDayISO(dateRange.start),
         endDate: toEndOfDayISO(dateRange.end),
         page: page.toString(),
         limit: "10",
-    }), [userId, dateRange.start, dateRange.end, page]);
-
-    const { data, isLoading } = useAttendanceRecords(queryParams);
+    }), [dateRange.start, dateRange.end, page]);
+    const { data, isLoading } = useMyAttendanceRecords(userId, queryParams);
 
     const records = data?.data || [];
     const totalPages = data?.totalPages || 1;

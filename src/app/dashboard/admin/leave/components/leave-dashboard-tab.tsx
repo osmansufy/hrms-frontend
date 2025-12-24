@@ -212,9 +212,9 @@ export function LeaveDashboardTab() {
                                     </span>
                                 </div>
                                 <div className="space-y-2 pl-4">
-                                    {alerts.alerts.approachingLimits.slice(0, 3).map((alert) => (
+                                    {alerts.alerts.approachingLimits.slice(0, 3).map((alert, index) => (
                                         <div
-                                            key={alert.employee.userId}
+                                            key={`${alert.employee.userId}-${alert.leaveType.id}-${index}`}
                                             className="rounded-lg border border-blue-200 bg-blue-50 p-3"
                                         >
                                             <div className="flex items-center justify-between text-sm">

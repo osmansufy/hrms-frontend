@@ -151,7 +151,7 @@ export default function AdminEmployeesPage() {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <ChangePasswordDialog
-                          userId={emp.userId}
+                          userId={emp?.userId ? emp.userId : "0"}
                           userName={emp.name}
                           userEmail={emp.email}
                         />

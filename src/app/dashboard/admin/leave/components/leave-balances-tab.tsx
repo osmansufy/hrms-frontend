@@ -298,8 +298,16 @@ export function LeaveBalancesTab() {
                                                         <span className="text-xs text-muted-foreground">
                                                             {balance.employee.email}
                                                         </span>
+                                                        {(
+                                                            balance.employee.personalEmail &&
+                                                            balance.employee.personalEmail !== balance.employee.email
+                                                        ) ? (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {balance.employee.personalEmail}
+                                                            </span>
+                                                        ) : null}
                                                         <span className="text-xs text-muted-foreground">
-                                                            {balance.employee.department.name}
+                                                            {balance.employee.department?.name || "N/A"}
                                                         </span>
                                                     </div>
                                                 </TableCell>

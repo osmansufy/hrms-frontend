@@ -7,6 +7,7 @@ import {
   User,
   Users,
   CalendarCheck,
+  Mail,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -88,20 +89,6 @@ const ADMIN_NAV: NavItem[] = [
     permissions: ["employees.manage"],
   },
   {
-    href: "/dashboard/admin/users",
-    label: "Users",
-    icon: Users,
-    roles: ["admin", "super-admin"],
-    permissions: ["employees.manage"],
-  },
-  {
-    href: "/dashboard/admin/approvals",
-    label: "Approvals",
-    icon: ShieldCheck,
-    roles: ["admin", "super-admin"],
-    permissions: ["leave.approve"],
-  },
-  {
     href: "/dashboard/admin/attendance",
     label: "Attendance",
     icon: Clock,
@@ -114,6 +101,12 @@ const ADMIN_NAV: NavItem[] = [
     icon: CalendarCheck,
     roles: ["admin", "super-admin"],
     permissions: ["leave.approve"],
+  },
+  {
+    href: "/dashboard/admin/communications",
+    label: "Communications",
+    icon: Mail,
+    roles: ["admin", "super-admin"],
   },
 ];
 

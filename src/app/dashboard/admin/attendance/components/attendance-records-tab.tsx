@@ -55,9 +55,9 @@ export function AttendanceRecordsTab() {
 
     // Convert date range to ISO DateTime with user's timezone
     const queryParams = useMemo(() => ({
-        page,
-        limit: 10,
-        search,
+        page: page.toString(),
+        limit: "10",
+        search: search.trim() || undefined,
         departmentId: departmentId === "all" ? undefined : departmentId,
         userId: employeeId === "all" ? undefined : employeeId,
         startDate: toStartOfDayISO(dateRange.startDate),
@@ -224,7 +224,14 @@ export function AttendanceRecordsTab() {
                                                 <AvatarFallback>{record.user.name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div className="flex flex-col">
-                                                <span className="font-medium">{record.user.name}</span>
+                                                <a
+                                                    href={`/dashboard/admin/employees/${record.user.id}`}
+                                                    className="font-medium text-primary hover:underline"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    {record.user.name}
+                                                </a>
                                                 <span className="text-xs text-muted-foreground">{record.user.employee?.employeeCode}</span>
                                             </div>
                                         </div>

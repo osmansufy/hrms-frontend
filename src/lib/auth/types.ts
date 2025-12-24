@@ -9,7 +9,8 @@ export type PermissionKey =
   | "leave.approve"
   | "attendance.view"
   | "payroll.manage"
-  | "employees.manage";
+  | "employees.manage"
+  | "communications.send";
 
 export type SessionPayload = {
   sub: string;

@@ -99,7 +99,7 @@ export async function getMyAttendanceRecords(
     page: number;
     limit: number;
     totalPages: number;
-  }>(`/attendance/${userId}/records`, { params });
+  }>(`/attendance/employee/${userId}/records`, { params });
   return response.data;
 }
 

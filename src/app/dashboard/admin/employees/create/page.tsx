@@ -93,8 +93,8 @@ export default function CreateEmployeePage() {
 
     try {
       const created = await mutation.mutateAsync(payload);
-      toast.success("Employee created");
-      router.push(`/dashboard/admin/employees/${created.id}`);
+      toast.success("Employee created. Now assign leave balances.");
+      router.push(`/dashboard/admin/employees/${created.id}/assign-leave`);
     } catch (error: any) {
       const message = extractErrorMessage(error, "Unable to create employee");
       toast.error(message);

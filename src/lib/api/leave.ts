@@ -535,6 +535,7 @@ export type AdminLeaveBalanceItem = {
   employee: {
     name: string;
     email: string;
+    personalEmail?: string | null;
     employeeCode: string;
     department: {
       id: string;
