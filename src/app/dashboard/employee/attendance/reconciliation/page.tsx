@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/components/auth/session-provider";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
@@ -23,7 +23,7 @@ interface AttendanceReconciliationRequest {
 }
 
 export default function AttendanceReconciliationEmployeePage() {
-    const { data: session } = useSession();
+    const { session } = useSession();
     const userId = session?.user?.email;
     const [refresh, setRefresh] = useState(0);
     const [form, setForm] = useState({

@@ -80,29 +80,54 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
         </div>
         <Separator />
         <nav className="px-3 py-4 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href;
-            return (
+          {navItems.map((item) =>
+            item.children ? (
+              <div key={item.label} className="space-y-1">
+                <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
+                  {item.icon && <item.icon className="size-4 mr-1" />} {item.label}
+                </div>
+                <div className="ml-4 space-y-1">
+                  {item.children.map((child) => {
+                    const ChildIcon = child.icon;
+                    const active = pathname === child.href;
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href!}
+                        className={cn(
+                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        {ChildIcon && <ChildIcon className="size-4" />}
+                        {child.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href!}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active
+                  pathname === item.href
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <Icon className="size-4" />
+                {item.icon && <item.icon className="size-4" />}
                 {item.label}
               </Link>
-            );
-          })}
+            )
+          )}
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">
-        <Header pathname={pathname} title={title} />
+        <Header pathname={pathname ?? ""} title={title} />
         <main className="flex-1 px-4 py-6 lg:px-8">{children}</main>
       </div>
     </div>
@@ -187,8 +212,9 @@ function MobileNav() {
             const active = pathname === item.href;
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={item?.href}
+                href={item?.href!}
+                onClick={() => setSidebarOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   active
@@ -196,7 +222,7 @@ function MobileNav() {
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <Icon className="size-4" />
+                {Icon && <Icon className="size-4" />}
                 {item.label}
               </Link>
             );

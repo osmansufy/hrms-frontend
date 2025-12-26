@@ -1,5 +1,6 @@
 // @ts-nocheck
 "use client";
+import { useWorkSchedules } from "@/lib/queries/work-schedules";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -127,6 +128,38 @@ export default function CreateEmployeePage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="workScheduleId"
+                  render={({ field }) => {
+                    const { data: workSchedules, isLoading: loadingSchedules } = useWorkSchedules();
+                    return (
+                      <FormItem>
+                        <FormLabel>Work Schedule</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={loadingSchedules ? "Loading..." : "Select work schedule"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {loadingSchedules && (
+                              <SelectItem value="loading" disabled>
+                                Loading...
+                              </SelectItem>
+                            )}
+                            {workSchedules?.map((ws) => (
+                              <SelectItem key={ws.id} value={ws.id}>
+                                {ws.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
                 <FormField
                   control={form.control}
                   name="email"

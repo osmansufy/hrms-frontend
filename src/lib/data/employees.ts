@@ -11,6 +11,7 @@ export type Employee = {
   phone?: string;
   startDate: string;
   userId?: string;
+  workSchedule?: { id: string; name?: string } | null;
 };
 
 export const employees: Employee[] = [

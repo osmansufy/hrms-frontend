@@ -55,7 +55,7 @@ const formatEmploymentType = (type?: string | null) =>
         .replace(/(^|\s)\S/g, (c) => c.toUpperCase())
     : "—";
 
-const toEmployee = (apiEmp: ApiEmployeeShape): Employee => ({
+const toEmployee = (apiEmp: ApiEmployeeShape & { workSchedule?: { id: string; name?: string } | null }): Employee => ({
   id: apiEmp.id,
   employeeCode: apiEmp.employeeCode,
   name:
@@ -73,6 +73,7 @@ const toEmployee = (apiEmp: ApiEmployeeShape): Employee => ({
   phone: apiEmp.phone || undefined,
   startDate: apiEmp.joiningDate || "",
   userId: apiEmp.userId,
+  workSchedule: apiEmp.workSchedule || null,
 });
 
 export const employeeKeys = {

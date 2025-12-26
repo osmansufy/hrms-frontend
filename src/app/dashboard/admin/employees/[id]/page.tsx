@@ -1,5 +1,5 @@
 "use client";
-
+import { useWorkSchedules } from "@/lib/queries/work-schedules";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Mail, Phone, Trash2, Calendar } from "lucide-react";
 import Link from "next/link";
@@ -220,6 +220,7 @@ export default function AdminEmployeeDetailPage() {
             <Info label="Joining date" value={data.joiningDate?.slice(0, 10)} />
             <Info label="Manager" value={data.reportingManager ? `${data.reportingManager.firstName} ${data.reportingManager.lastName}` : undefined} />
             <Info label="Nationality" value={data.nationality} />
+            <Info label="Work Schedule" value={data.workSchedule?.name || "—"} />
           </CardContent>
         </Card>
 
@@ -338,6 +339,8 @@ export default function AdminEmployeeDetailPage() {
                     </FormItem>
                   )}
                 />
+
+
 
                 <div className="flex flex-col gap-3">
                   <Button type="submit" className="w-full" disabled={updateMutation.isPending}>

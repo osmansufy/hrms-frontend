@@ -14,11 +14,12 @@ import type { ComponentType } from "react";
 import type { PermissionKey, Role } from "@/lib/auth/types";
 
 export type NavItem = {
-  href: string;
+  href?: string;
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  icon?: ComponentType<{ className?: string }>;
   roles?: Role[];
   permissions?: PermissionKey[];
+  children?: NavItem[];
 };
 
 const EMPLOYEE_NAV: NavItem[] = [
@@ -37,11 +38,26 @@ const EMPLOYEE_NAV: NavItem[] = [
     permissions: ["profile.view"],
   },
   {
-    href: "/dashboard/employee/attendance",
     label: "Attendance",
     icon: Clock,
     roles: ["employee", "admin", "super-admin"],
     permissions: ["attendance.view"],
+    children: [
+      {
+        href: "/dashboard/employee/attendance",
+        label: "Overview",
+        icon: Clock,
+        roles: ["employee", "admin", "super-admin"],
+        permissions: ["attendance.view"],
+      },
+      {
+        href: "/dashboard/employee/attendance/reconciliation",
+        label: "Reconciliation",
+        icon: Clock,
+        roles: ["employee", "admin", "super-admin"],
+        permissions: ["attendance.view"],
+      },
+    ],
   },
   {
     href: "/dashboard/employee/leave",
@@ -89,11 +105,26 @@ const ADMIN_NAV: NavItem[] = [
     permissions: ["employees.manage"],
   },
   {
-    href: "/dashboard/admin/attendance",
     label: "Attendance",
     icon: Clock,
     roles: ["admin", "super-admin"],
     permissions: ["attendance.view"],
+    children: [
+      {
+        href: "/dashboard/admin/attendance",
+        label: "Overview",
+        icon: Clock,
+        roles: ["admin", "super-admin"],
+        permissions: ["attendance.view"],
+      },
+      {
+        href: "/dashboard/admin/attendance/reconciliation",
+        label: "Reconciliation",
+        icon: Clock,
+        roles: ["admin", "super-admin"],
+        permissions: ["attendance.view"],
+      },
+    ],
   },
   {
     href: "/dashboard/admin/leave",
@@ -101,6 +132,13 @@ const ADMIN_NAV: NavItem[] = [
     icon: CalendarCheck,
     roles: ["admin", "super-admin"],
     permissions: ["leave.approve"],
+  },
+  {
+    href: "/dashboard/admin/work-schedule",
+    label: "Work Schedule",
+    icon: Settings,
+    roles: ["admin", "super-admin"],
+    permissions: ["dashboard.view"],
   },
   {
     href: "/dashboard/admin/communications",

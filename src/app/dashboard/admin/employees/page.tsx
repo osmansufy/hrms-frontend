@@ -107,6 +107,7 @@ export default function AdminEmployeesPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Designation</TableHead>
+                  <TableHead>Work Schedule</TableHead>
                   <TableHead>Manager</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -126,6 +127,7 @@ export default function AdminEmployeesPage() {
                     </TableCell>
                     <TableCell>{emp.department}</TableCell>
                     <TableCell>{emp.title}</TableCell>
+                    <TableCell>{emp.workSchedule?.name || "—"}</TableCell>
                     <TableCell>
                       {emp.manager ? (
                         <span className="text-sm">{emp.manager}</span>

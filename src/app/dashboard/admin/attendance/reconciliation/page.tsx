@@ -22,7 +22,6 @@ interface AttendanceReconciliationRequest {
 }
 
 export default function AttendanceReconciliationAdminPage() {
-    const { data: session } = useSession();
     const [refresh, setRefresh] = useState(0);
 
     // Fetch all reconciliation requests (admin/HR)

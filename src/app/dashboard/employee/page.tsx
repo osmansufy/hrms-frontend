@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import { Calendar, TrendingUp, AlertCircle, Clock, CheckCircle, XCircle, Loader2, ClockAlert, CheckCircle2, LogOut, MapPin } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/components/auth/session-provider";
 import { useUserBalances, useMyLeaves } from "@/lib/queries/leave";
+import { LeavePieChart } from "./components/leave-pie-chart";
+import { AttendanceBarChart } from "./components/attendance-bar-chart";
+import { useMyAttendanceRecords } from "@/lib/queries/attendance";
 import { useSignIn, useSignOut, useTodayAttendance, useMyLostHoursReport } from "@/lib/queries/attendance";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -25,15 +28,96 @@ function calculateBalancePercentage(balance: LeaveBalance): number {
 }
 
 export default function EmployeeDashboard() {
+
+  // Session and userId
   const { session } = useSession();
   const userId = session?.user.id;
-  const [location, setLocation] = useState("");
 
-  // const { data: balances, isLoading: balancesLoading, error: balancesError } = useUserBalances();
-  // const { data: leaves, isLoading: leavesLoading, error: leavesError } = useMyLeaves(userId);
+  // Attendance chart data for last 7 days
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 6);
+  const chartQueryParams = {
+    startDate: start.toISOString().split("T")[0],
+    endDate: end.toISOString().split("T")[0],
+    limit: "7",
+  };
+  const { data: attendanceChartData } = useMyAttendanceRecords(userId, chartQueryParams);
+  const attendanceBarData = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const rec = attendanceChartData?.data?.find(r => {
+      const recDate = new Date(r.date);
+      return recDate.getFullYear() === d.getFullYear() && recDate.getMonth() === d.getMonth() && recDate.getDate() === d.getDate();
+    });
+    return {
+      date: dateStr,
+      present: rec?.signIn ? 1 : 0,
+      late: rec?.isLate ? 1 : 0,
+      absent: rec?.signIn ? 0 : 1,
+    };
+  });
+
+  // Location state
+  const [location, setLocation] = useState("");
 
   // Attendance queries
   const { data: todayAttendance, isLoading: attendanceLoading, isFetching: attendanceFetching } = useTodayAttendance(userId);
+
+
+  // Live worked hours clock
+  const [workedSeconds, setWorkedSeconds] = useState(0);
+  const todayDate = new Date().toLocaleDateString();
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
+    if (todayAttendance?.signIn && !todayAttendance?.signOut) {
+      const signIn = new Date(todayAttendance.signIn);
+      interval = setInterval(() => {
+        setWorkedSeconds(Math.floor((Date.now() - signIn.getTime()) / 1000));
+      }, 1000);
+      // Set initial value
+      setWorkedSeconds(Math.floor((Date.now() - signIn.getTime()) / 1000));
+    } else if (todayAttendance?.signIn && todayAttendance?.signOut) {
+      const signIn = new Date(todayAttendance.signIn);
+      const signOut = new Date(todayAttendance.signOut);
+      setWorkedSeconds(Math.floor((signOut.getTime() - signIn.getTime()) / 1000));
+    } else {
+      setWorkedSeconds(0);
+    }
+    return () => interval && clearInterval(interval);
+  }, [todayAttendance?.signIn, todayAttendance?.signOut]);
+
+  function formatWorkedTime(seconds: number) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+
+
+  // Pie chart data for monthly leaves
+  const { data: leaves } = useMyLeaves(userId);
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthlyLeaves = (leaves || []).filter(l => {
+    const start = new Date(l.startDate);
+    return start.getMonth() === currentMonth && start.getFullYear() === currentYear;
+  });
+  const leaveTypeMap: Record<string, { name: string; value: number; color: string }> = {};
+  const colors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#8dd1e1", "#a4de6c", "#d0ed57", "#fa8072"];
+  let colorIdx = 0;
+  for (const leave of monthlyLeaves) {
+    const type = leave.leaveType?.name || "Other";
+    if (!leaveTypeMap[type]) {
+      leaveTypeMap[type] = { name: type, value: 0, color: colors[colorIdx % colors.length] };
+      colorIdx++;
+    }
+    leaveTypeMap[type].value += 1;
+  }
+  const pieData = Object.values(leaveTypeMap);
+
+
   const signInMutation = useSignIn(userId);
   const signOutMutation = useSignOut(userId);
 
@@ -83,12 +167,33 @@ export default function EmployeeDashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center mb-2">
+        <Badge variant="outline" className="text-base px-4 py-2 bg-blue-50 border-blue-400 text-blue-900 font-semibold tracking-wide rounded-full">
+          {`Hello from Codezen${session?.user?.name ? ", " + session.user.name : ""}!`}
+        </Badge>
+      </div>
+      <div className="flex flex-wrap gap-4 items-center justify-end">
+        <div className="flex flex-col items-end">
+          <span className="text-xs text-muted-foreground">Date</span>
+          <span className="font-medium">{todayDate}</span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-xs text-muted-foreground">Live Worked Time</span>
+          <span className="font-mono text-lg">{formatWorkedTime(workedSeconds)}</span>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Link href="/dashboard/employee/attendance/reconciliation">
+          <Button variant="secondary">Attendance Reconciliation</Button>
+        </Link>
+      </div>
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">Welcome back</p>
           <h1 className="text-2xl font-semibold">Your Dashboard</h1>
         </div>
       </div>
+
 
       {/* Attendance Quick Actions */}
       <div>
@@ -209,6 +314,15 @@ export default function EmployeeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Attendance Chart Overview */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Attendance Overview</h2>
+        {/* TODO: Fetch and pass attendance data for the chart */}
+
+        <AttendanceBarChart data={attendanceBarData} />
+      </div>
+
     </div>
   );
 }

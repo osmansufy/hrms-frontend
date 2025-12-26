@@ -1,3 +1,4 @@
+export { NoticeRulesTab } from "./notice-rules-tab";
 export { LeaveApprovalsTab } from "./leave-approvals-tab";
 export { AmendmentApprovalsTab } from "./amendment-approvals-tab";
 export { LeavePoliciesTab } from "./leave-policies-tab";
@@ -6,3 +7,4 @@ export { LeaveDashboardTab } from "./leave-dashboard-tab";
 export { LeaveBalancesTab } from "./leave-balances-tab";
 export { AuditTrailTab } from "./audit-trail-tab";
 export { LeaveTypesTab } from "./leave-types-tab";
+export { WorkScheduleTab } from "./work-schedule-tab";

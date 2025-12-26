@@ -26,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useApplyLeave, useLeaveTypes, useMyLeaves, useUserBalances, useLeavePolicy } from "@/lib/queries/leave";
+import { LeavePieChart } from "./leave-pie-chart";
 import { useBalanceDetails } from "@/lib/queries/leave-balance";
 import { LeaveBalanceCard } from "@/components/leave/leave-balance-card";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
@@ -58,6 +59,26 @@ export default function LeavePage() {
 
   const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes();
   const { data: leaves, isLoading: leavesLoading } = useMyLeaves(userId);
+
+  // Pie chart data for monthly leaves
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthlyLeaves = (leaves || []).filter(l => {
+    const start = new Date(l.startDate);
+    return start.getMonth() === currentMonth && start.getFullYear() === currentYear;
+  });
+  const leaveTypeMap: Record<string, { name: string; value: number; color: string }> = {};
+  const colors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#8dd1e1", "#a4de6c", "#d0ed57", "#fa8072"];
+  let colorIdx = 0;
+  for (const leave of monthlyLeaves) {
+    const type = leave.leaveType?.name || "Other";
+    if (!leaveTypeMap[type]) {
+      leaveTypeMap[type] = { name: type, value: 0, color: colors[colorIdx % colors.length] };
+      colorIdx++;
+    }
+    leaveTypeMap[type].value += 1;
+  }
+  const pieData = Object.values(leaveTypeMap);
   const { data: balances, isLoading: balancesLoading } = useUserBalances();
   const { data: leavePolicy } = useLeavePolicy(selectedLeaveTypeId);
   const applyMutation = useApplyLeave(userId);
@@ -299,6 +320,17 @@ export default function LeavePage() {
 
   return (
     <div className="space-y-6">
+      {/* Monthly Leave Pie Chart */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Monthly Leave Summary</h2>
+        {pieData.length > 0 ? (
+          <div className="max-w-xs mx-auto">
+            <LeavePieChart data={pieData} />
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">No leaves taken this month.</div>
+        )}
+      </div>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">Time away</p>
@@ -310,27 +342,22 @@ export default function LeavePage() {
         </Badge>
       </div>
 
-      {/* Leave Balance Section */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Your Leave Balances</h2>
-        {balancesLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : balances && balances.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {balances.map((balance) => (
-              <LeaveBalanceCard key={balance.leaveTypeId || balance.id} balance={balance} />
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              No leave balances found. Contact HR to initialize your leave balances.
-            </CardContent>
-          </Card>
-        )}
+      {/* Policy context and progressive disclosure for leave balance */}
+      <div className="mb-4">
+        <div className="text-sm text-muted-foreground mb-1">
+          Company leave policy applies. Manager approval required. Team workload will be considered.
+        </div>
+        <div className="text-xs text-gray-500">
+          Leave eligibility (as per policy)
+        </div>
       </div>
+
+      {/* Usage awareness: show leaves taken this year */}
+      {leaves && (
+        <div className="mb-2 text-xs text-gray-500">
+          Leaves taken this year: {leaves.filter(l => new Date(l.startDate).getFullYear() === new Date().getFullYear()).length}
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
@@ -368,16 +395,32 @@ export default function LeavePage() {
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      {/* Show leave notice rule in small text if available */}
+                      {leavePolicy?.noticeRules && leavePolicy.noticeRules.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {leavePolicy.noticeRules.map((rule, idx) => (
+                            <div key={idx}>
+                              {rule.minLength && rule.maxLength
+                                ? `For ${rule.minLength}-${rule.maxLength} days: `
+                                : rule.minLength
+                                  ? `For ${rule.minLength}+ days: `
+                                  : ''}
+                              {`Requires ${rule.noticeDays} day${rule.noticeDays > 1 ? 's' : ''} notice`}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </FormItem>
                   )}
                 />
 
                 {/* Balance Display */}
-                {selectedBalance && (
-                  <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Available Balance</span>
-                      <span className="text-lg font-bold text-blue-600">{selectedBalance.available} days</span>
+                {/* Progressive disclosure: show balance only after dates are selected */}
+                {selectedBalance && watchedValues.startDate && watchedValues.endDate ? (
+                  <div className="rounded border bg-muted/50 p-2 mt-2">
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>Leave balance (subject to policy)</span>
+                      <span className="font-semibold">{selectedBalance.available} days</span>
                     </div>
                     {selectedBalance.carried > 0 && (
                       <div className="text-xs text-muted-foreground">
@@ -385,7 +428,9 @@ export default function LeavePage() {
                       </div>
                     )}
                   </div>
-                )}
+                ) : selectedBalance ? (
+                  <div className="text-xs text-gray-400 mt-2">Leave balance available</div>
+                ) : null}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField
                     control={form.control}

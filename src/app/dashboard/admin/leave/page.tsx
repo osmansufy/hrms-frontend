@@ -1,5 +1,4 @@
 "use client";
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     CalendarCheck,
@@ -20,6 +19,8 @@ import {
     LeaveBalancesTab,
     AuditTrailTab,
     LeaveTypesTab,
+    NoticeRulesTab,
+    WorkScheduleTab,
 } from "./components";
 
 export default function AdminLeavePage() {
@@ -37,8 +38,19 @@ export default function AdminLeavePage() {
                 <CalendarCheck className="size-8 text-primary" />
             </div>
 
-            <Tabs defaultValue="dashboard" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-8">
+            <Tabs defaultValue="balances" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-10">
+                    <TabsTrigger value="work-schedule" className="flex items-center gap-2">
+                        <Settings className="size-4" />
+                        Work Schedule
+                    </TabsTrigger>
+                    <TabsContent value="work-schedule" className="space-y-4">
+                        <WorkScheduleTab />
+                    </TabsContent>
+                    <TabsTrigger value="notice" className="flex items-center gap-2">
+                        <Settings className="size-4" />
+                        Notice Rules
+                    </TabsTrigger>
                     <TabsTrigger value="dashboard" className="flex items-center gap-2">
                         <LayoutDashboard className="size-4" />
                         Dashboard
@@ -103,6 +115,9 @@ export default function AdminLeavePage() {
 
                 <TabsContent value="accruals" className="space-y-4">
                     <AccrualRulesTab />
+                </TabsContent>
+                <TabsContent value="notice" className="space-y-4">
+                    <NoticeRulesTab />
                 </TabsContent>
             </Tabs>
         </div>
