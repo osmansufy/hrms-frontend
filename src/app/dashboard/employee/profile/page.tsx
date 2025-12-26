@@ -26,7 +26,7 @@ export default function ProfilePage() {
   });
 
   const employee = employees;
-  const { data: balances, isLoading: balancesLoading } = useUserBalances();
+  // const { data: balances, isLoading: balancesLoading } = useUserBalances();
 
   // Find subordinates (employees reporting to this employee)
   const { data: allEmployees } = useQuery({
@@ -51,9 +51,7 @@ export default function ProfilePage() {
     return `${employee.firstName?.charAt(0) || ""}${employee.lastName?.charAt(0) || ""}`.toUpperCase();
   }, [employee, session]);
 
-  const totalLeaveBalance = useMemo(() => {
-    return balances?.reduce((sum, b) => sum + b.available, 0) || 0;
-  }, [balances]);
+  // Leave balance calculation removed from profile page
 
   if (employeeLoading) {
     return (
@@ -107,9 +105,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="text-right space-y-1">
-              <p className="text-sm text-muted-foreground">Leave Balance</p>
-              <p className="text-3xl font-bold">{totalLeaveBalance}</p>
-              <p className="text-xs text-muted-foreground">days available</p>
+              {/* Leave balance display removed from profile page */}
             </div>
           </div>
         </CardContent>
@@ -354,36 +350,7 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      {/* Leave Balance Summary */}
-      {!balancesLoading && balances && balances.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Leave Balance Summary</CardTitle>
-            <CardDescription>Your current leave balances by type</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {balances.map((balance) => (
-                <div key={balance.id} className="rounded-lg border p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">{balance.leaveTypeName}</h4>
-                    <Badge variant="outline">{balance.leaveTypeCode}</Badge>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">{balance.available}</span>
-                    <span className="text-sm text-muted-foreground">days</span>
-                  </div>
-                  {balance.carried > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      +{balance.carried} carried forward
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Leave Balance Summary removed from profile page */}
 
       {/* Account Status */}
       <Card>

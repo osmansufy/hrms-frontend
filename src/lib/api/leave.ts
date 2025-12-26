@@ -194,13 +194,11 @@ export type LeaveApproval = {
 
 export type LeaveWithApprovals = LeaveRecord & {
   approvals?: LeaveApproval[];
-  user?: {
-    id: string;
-    email: string;
-    employee?: {
-      firstName: string;
-      lastName: string;
-    };
+
+  employee?: {
+    firstName: string;
+    lastName: string;
+    employeeCode: string;
   };
 };
 

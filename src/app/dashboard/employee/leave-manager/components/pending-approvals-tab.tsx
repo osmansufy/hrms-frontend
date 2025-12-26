@@ -260,9 +260,9 @@ export function PendingApprovalsTab() {
                                             const duration = Math.ceil(
                                                 (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
                                             ) + 1;
-                                            const employeeName = leave.user?.employee
-                                                ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
-                                                : leave.user?.email || "Unknown";
+                                            const employeeName = leave.employee
+                                                ? `${leave.employee.firstName} ${leave.employee.lastName}`
+                                                : "Unknown";
                                             const appliedDate = new Date(leave.createdAt);
 
                                             return (
@@ -367,9 +367,9 @@ export function PendingApprovalsTab() {
                                 {leavesInPending
                                     .filter(leave => selectedLeaveIds.includes(leave.id))
                                     .map(leave => {
-                                        const employeeName = leave.user?.employee
-                                            ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
-                                            : leave.user?.email || "Unknown";
+                                        const employeeName = leave.employee
+                                            ? `${leave.employee.firstName} ${leave.employee.lastName}`
+                                            : "Unknown";
                                         return (
                                             <li key={leave.id} className="flex items-center gap-2">
                                                 <Check className="size-3 text-muted-foreground" />
