@@ -75,6 +75,7 @@ export default function AdminAttendancePage() {
                 <Link href="/dashboard/admin/attendance/policies"><Button variant="secondary">Policies</Button></Link>
                 <Link href="/dashboard/admin/attendance/policy-assignments"><Button variant="secondary">Assignments</Button></Link>
                 <Link href="/dashboard/admin/attendance/reports/lost-hours"><Button variant="secondary">Lost Hours</Button></Link>
+                <Link href="/dashboard/admin/attendance/reconciliation"><Button variant="secondary">Reconciliation</Button></Link>
             </div>
             <Tabs defaultValue="today" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">

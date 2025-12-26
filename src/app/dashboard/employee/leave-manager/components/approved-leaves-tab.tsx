@@ -93,9 +93,9 @@ export function ApprovedLeavesTab() {
                                         const duration = Math.ceil(
                                             (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
                                         ) + 1;
-                                        const employeeName = leave.user?.employee
-                                            ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
-                                            : leave.user?.email || "Unknown";
+                                        const employeeName = leave.employee
+                                            ? `${leave.employee.firstName} ${leave.employee.lastName}`
+                                            : "Unknown";
 
                                         // Find Step 1 approval
                                         const step1Approval = leave.approvals?.find((approval) => approval.step === 1);

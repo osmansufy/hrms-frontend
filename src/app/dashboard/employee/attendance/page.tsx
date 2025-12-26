@@ -33,6 +33,11 @@ export default function AttendancePage() {
           {status}
         </Badge>
       </div>
+      <div className="flex gap-2">
+        <a href="/dashboard/employee/attendance/reconciliation">
+          <button className="btn btn-secondary">Reconciliation Requests</button>
+        </a>
+      </div>
 
       <AttendanceStatsCard />
 
