@@ -55,7 +55,11 @@ const formatEmploymentType = (type?: string | null) =>
         .replace(/(^|\s)\S/g, (c) => c.toUpperCase())
     : "—";
 
-const toEmployee = (apiEmp: ApiEmployeeShape & { workSchedule?: { id: string; name?: string } | null }): Employee => ({
+const toEmployee = (
+  apiEmp: ApiEmployeeShape & {
+    workSchedule?: { id: string; name?: string } | null;
+  }
+): Employee => ({
   id: apiEmp.id,
   employeeCode: apiEmp.employeeCode,
   name:
