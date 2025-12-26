@@ -34,6 +34,7 @@ function redirectToForbidden(req: NextRequest) {
 }
 
 function redirectToRoleHome(req: NextRequest, roles: Role[]) {
+  console.log("Redirecting to role home for roles:", roles);
   const preferred = roles.find((role) => roleRedirects[role]);
   if (!preferred) return redirectToForbidden(req);
   return NextResponse.redirect(new URL(roleRedirects[preferred], req.url));
@@ -53,13 +54,15 @@ export async function middleware(req: NextRequest) {
 
   const allowedRoles = getAllowedRolesForPath(pathname);
   const userRoles = session.session.user.roles;
-
+  console.log({ userRoles });
   if (!allowedRoles) {
     // Unknown dashboard segment — send to a safe default
     return redirectToRoleHome(req, userRoles);
   }
 
-  const authorized = userRoles.some((role) => allowedRoles.includes(role));
+  const authorized = userRoles.some((role: Role) =>
+    allowedRoles.includes(role)
+  );
   if (!authorized) {
     return redirectToRoleHome(req, userRoles);
   }

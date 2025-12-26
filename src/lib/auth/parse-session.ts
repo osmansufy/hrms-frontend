@@ -49,7 +49,9 @@ export async function parseSession(req: NextRequest): Promise<ParsedSession> {
     return { authenticated: false, reason: verification.reason };
   }
 
-  const roles = normalizeRoles(verification.payload, req);
+  let roles = normalizeRoles(verification.payload, req);
+  roles = roles.map((r) => r.toLowerCase()) as Role[]; // <-- normalize and cast here!
+
   if (!roles.length) {
     return { authenticated: false, reason: "missing-roles" };
   }
