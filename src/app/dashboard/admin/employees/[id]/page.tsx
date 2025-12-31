@@ -37,6 +37,7 @@ import {
 import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee, useEmployeeSubordinates } from "@/lib/queries/employees";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
+import { ChangeWorkScheduleDialog } from "@/components/change-work-schedule-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const schema = z.object({
@@ -192,6 +193,7 @@ export default function AdminEmployeeDetailPage() {
                 <CardDescription>Core employee and user details.</CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                <ChangeWorkScheduleDialog employeeId={id || ""} currentScheduleId={data.workSchedule?.id} />
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/dashboard/admin/employees/${id}/assign-leave`}>
                     <Calendar className="mr-1 size-4" />
