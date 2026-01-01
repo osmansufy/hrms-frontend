@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +14,7 @@ import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePre
 import { Calendar, Download } from "lucide-react";
 
 export default function LostHoursReportPage() {
+    const router = useRouter();
     const { preset, dateRange, setPreset, setCustomRange } = useDateRangePresets("this-month");
 
     // Convert date strings to ISO DateTime with user's timezone
@@ -27,7 +30,10 @@ export default function LostHoursReportPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => router.back()} title="Back">
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
                 <h1 className="text-2xl font-semibold">Lost Hours Report</h1>
             </div>
 

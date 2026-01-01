@@ -1,7 +1,6 @@
 "use client";
-
-
 import { useState } from "react";
+import React from "react";
 import {
     useWorkSchedules,
     useCreateWorkSchedule,
@@ -144,8 +143,8 @@ export function WorkScheduleTab() {
                                     const assignedEmployees = (employees || []).filter(emp => emp.workSchedule?.id === schedule.id);
                                     const isExpanded = expanded === schedule.id;
                                     return (
-                                        <>
-                                            <TableRow key={schedule.id} className={isExpanded ? "bg-muted/40" : ""}>
+                                        <React.Fragment key={schedule.id}>
+                                            <TableRow className={isExpanded ? "bg-muted/40" : ""}>
                                                 <TableCell className="w-8">
                                                     <Button variant="ghost" size="icon" onClick={() => setExpanded(isExpanded ? null : schedule.id)} aria-label={isExpanded ? "Collapse" : "Expand"}>
                                                         {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
@@ -216,7 +215,7 @@ export function WorkScheduleTab() {
                                                     </TableCell>
                                                 </TableRow>
                                             )}
-                                        </>
+                                        </React.Fragment>
                                     );
                                 })
                             )}

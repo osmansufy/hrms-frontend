@@ -134,13 +134,6 @@ const ADMIN_NAV: NavItem[] = [
     permissions: ["leave.approve"],
   },
   {
-    href: "/dashboard/admin/work-schedule",
-    label: "Work Schedule",
-    icon: Settings,
-    roles: ["admin", "super-admin"],
-    permissions: ["dashboard.view"],
-  },
-  {
     href: "/dashboard/admin/communications",
     label: "Communications",
     icon: Mail,

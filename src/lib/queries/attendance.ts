@@ -24,6 +24,8 @@ import {
   getPolicyAssignments,
   createPolicyAssignment,
   updatePolicyAssignment,
+  createBulkPolicyAssignment,
+  deleteAttendancePolicy,
   getLostHoursReport,
   getMyLostHoursReport,
   getWorkSchedules,
@@ -216,6 +218,36 @@ export function useUpdatePolicyAssignment() {
     mutationFn: (v: { id: string; payload: { effectiveTo?: string | null } }) =>
       updatePolicyAssignment(v.id, v.payload),
     onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "policy-assignments"],
+      });
+    },
+  });
+}
+
+export function useCreateBulkPolicyAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createBulkPolicyAssignment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "policy-assignments"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["employees"],
+      });
+    },
+  });
+}
+
+export function useDeleteAttendancePolicy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteAttendancePolicy,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "policies"],
+      });
       queryClient.invalidateQueries({
         queryKey: ["attendance", "policy-assignments"],
       });

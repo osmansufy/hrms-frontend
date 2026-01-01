@@ -326,6 +326,29 @@ export async function updatePolicyAssignment(
   return response.data;
 }
 
+export async function createBulkPolicyAssignment(
+  assignments: {
+    policyId: string;
+    userId?: string;
+    departmentId?: string;
+    effectiveFrom: string;
+    effectiveTo?: string;
+  }[]
+) {
+  const response = await apiClient.post<{
+    message: string;
+    assignments: AttendancePolicyAssignment[];
+  }>(`/attendance/admin/policy-assignments/bulk`, { assignments });
+  return response.data;
+}
+
+export async function deleteAttendancePolicy(id: string) {
+  const response = await apiClient.delete<{ message: string }>(
+    `/attendance/admin/policies/${id}`
+  );
+  return response.data;
+}
+
 // Lost Hours Report
 export type LostHoursRow = {
   userId: string;

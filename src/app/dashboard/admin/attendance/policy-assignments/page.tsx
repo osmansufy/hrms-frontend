@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAttendancePolicies, useCreatePolicyAssignment, usePolicyAssignments } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 
 export default function PolicyAssignmentsPage() {
+    const router = useRouter();
     const { data: policies } = useAttendancePolicies({ isActive: true });
     const { data: assignments } = usePolicyAssignments();
     const { data: departments } = useDepartments();
@@ -39,47 +41,52 @@ export default function PolicyAssignmentsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold">Policy Assignments</h1>
-                <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild>
-                        <Button><Plus className="mr-2 size-4" />New Assignment</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create Assignment</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid grid-cols-2 gap-3 py-2">
-                            <div>
-                                <Label>Policy</Label>
-                                <Select value={form.policyId} onValueChange={(v) => setForm({ ...form, policyId: v })}>
-                                    <SelectTrigger><SelectValue placeholder="Select policy" /></SelectTrigger>
-                                    <SelectContent>
-                                        {policies?.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => router.back()} title="Back">
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className="flex-1 flex items-center justify-between">
+                    <h1 className="text-2xl font-semibold">Policy Assignments</h1>
+                    <Dialog open={open} onOpenChange={setOpen}>
+                        <DialogTrigger asChild>
+                            <Button><Plus className="mr-2 size-4" />New Assignment</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create Assignment</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid grid-cols-2 gap-3 py-2">
+                                <div>
+                                    <Label>Policy</Label>
+                                    <Select value={form.policyId} onValueChange={(v) => setForm({ ...form, policyId: v })}>
+                                        <SelectTrigger><SelectValue placeholder="Select policy" /></SelectTrigger>
+                                        <SelectContent>
+                                            {policies?.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="col-span-2">
+                                    <Label>Department</Label>
+                                    <Select value={form.departmentId} onValueChange={(v) => setForm({ ...form, departmentId: v })}>
+                                        <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                                        <SelectContent>
+                                            {departments?.map((d: any) => (
+                                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label>Effective From</Label>
+                                    <Input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} />
+                                </div>
                             </div>
-                            <div className="col-span-2">
-                                <Label>Department</Label>
-                                <Select value={form.departmentId} onValueChange={(v) => setForm({ ...form, departmentId: v })}>
-                                    <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                                    <SelectContent>
-                                        {departments?.map((d: any) => (
-                                            <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label>Effective From</Label>
-                                <Input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={onCreate} disabled={createMutation.isPending}>Create</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                            <DialogFooter>
+                                <Button onClick={onCreate} disabled={createMutation.isPending}>Create</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
             <Card>
                 <CardHeader>

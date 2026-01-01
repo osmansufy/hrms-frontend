@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -22,6 +24,7 @@ interface AttendanceReconciliationRequest {
 }
 
 export default function AttendanceReconciliationAdminPage() {
+    const router = useRouter();
     const [refresh, setRefresh] = useState(0);
 
     // Fetch all reconciliation requests (admin/HR)
@@ -44,6 +47,12 @@ export default function AttendanceReconciliationAdminPage() {
 
     return (
         <div className="space-y-6">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => router.back()} title="Back">
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <h1 className="text-2xl font-semibold">Attendance Reconciliation</h1>
+            </div>
             <Card>
                 <CardHeader>
                     <CardTitle>Attendance Reconciliation Requests</CardTitle>

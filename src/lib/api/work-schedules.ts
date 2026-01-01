@@ -40,3 +40,21 @@ export async function deleteWorkSchedule(id: string) {
   const { data } = await apiClient.delete(`/work-schedules/${id}`);
   return data;
 }
+
+export async function updateWorkScheduleDay(
+  scheduleId: string,
+  dayId: string,
+  payload: {
+    startTime?: string;
+    endTime?: string;
+    breakMinutes?: number;
+    graceMinutes?: number;
+    isWorking?: boolean;
+  }
+) {
+  const { data } = await apiClient.patch(
+    `/work-schedules/${scheduleId}/days/${dayId}`,
+    payload
+  );
+  return data;
+}
