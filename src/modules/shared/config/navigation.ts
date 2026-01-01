@@ -84,11 +84,26 @@ const ADMIN_NAV: NavItem[] = [
     permissions: ["dashboard.view"],
   },
   {
-    href: "/dashboard/admin/employees",
     label: "Employees",
     icon: Users,
     roles: ["admin", "super-admin"],
     permissions: ["employees.manage"],
+    children: [
+      {
+        href: "/dashboard/admin/employees",
+        label: "All Employees",
+        icon: Users,
+        roles: ["admin", "super-admin"],
+        permissions: ["employees.manage"],
+      },
+      {
+        href: "/dashboard/admin/employees/bulk",
+        label: "Bulk Create",
+        icon: Users,
+        roles: ["admin", "super-admin"],
+        permissions: ["employees.manage"],
+      },
+    ],
   },
   {
     href: "/dashboard/admin/departments",

@@ -120,6 +120,10 @@ export async function createEmployee(payload: CreateEmployeePayload) {
   const response = await apiClient.post<ApiEmployee>("/employees", payload);
   return response.data;
 }
+export async function bulkCreateEmployees(payload: CreateEmployeePayload[]) {
+  const response = await apiClient.post<ApiEmployee[]>("/employees/bulk", payload);
+  return response.data;
+}
 
 export async function updateEmployeeApi(
   id: string,
