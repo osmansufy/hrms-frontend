@@ -47,6 +47,7 @@ import {
     useAdjustBalance,
     downloadCSV,
 } from "@/lib/queries/leave";
+import { useDepartments } from "@/lib/queries/departments";
 import {
     Search,
     Download,
@@ -55,8 +56,13 @@ import {
     AlertTriangle,
     Edit,
     Loader2,
+    LayoutGrid,
+    LayoutList,
+    ChevronDown,
+    ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 
 const adjustSchema = z.object({
     adjustment: z.string().min(1, "Adjustment is required").refine(
@@ -68,13 +74,41 @@ const adjustSchema = z.object({
 
 type AdjustFormValues = z.infer<typeof adjustSchema>;
 
+type ViewMode = "cards" | "table";
+
+interface GroupedBalance {
+    userId: string;
+    employeeName: string;
+    employeeCode: string;
+    employeeEmail: string;
+    personalEmail?: string | null;
+    department: string;
+    totalAvailable: number;
+    totalUsed: number;
+    totalAllocated: number;
+    overallStatus: "NORMAL" | "LOW" | "NEGATIVE";
+    leaveTypes: Array<{
+        id: string;
+        leaveTypeId: string;
+        leaveTypeName: string;
+        available: number;
+        used: number;
+        allocated: number;
+        status: string;
+        balances: any;
+    }>;
+}
+
 export function LeaveBalancesTab() {
     const currentYear = new Date().getFullYear();
     const [page, setPage] = useState(1);
     const [pageSize] = useState(20);
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState<"low" | "normal" | "negative" | "">("");
+    const [departmentId, setDepartmentId] = useState<string>("");
     const [year, setYear] = useState(currentYear);
+    const [viewMode, setViewMode] = useState<ViewMode>("cards");
+    const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
     const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
     const [selectedBalance, setSelectedBalance] = useState<{
         userId: string;
@@ -89,8 +123,11 @@ export function LeaveBalancesTab() {
         pageSize,
         search: search || undefined,
         status: status || undefined,
+        departmentId: departmentId || undefined,
         year,
     });
+
+    const { data: departments } = useDepartments();
 
     const exportMutation = useExportBalances();
     const adjustMutation = useAdjustBalance();
@@ -147,6 +184,76 @@ export function LeaveBalancesTab() {
         }
     };
 
+    const toggleCardExpansion = (userId: string) => {
+        setExpandedCards((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(userId)) {
+                newSet.delete(userId);
+            } else {
+                newSet.add(userId);
+            }
+            return newSet;
+        });
+    };
+
+    // Group balances by employee
+    const groupedBalances: GroupedBalance[] = data?.data.reduce((acc: GroupedBalance[], balance) => {
+        const existingEmployee = acc.find((emp) => emp.userId === balance.userId);
+
+        const allocated =
+            balance.balances.openingBalance +
+            balance.balances.accrued +
+            balance.balances.carried +
+            balance.balances.adjusted;
+
+        if (existingEmployee) {
+            existingEmployee.totalAvailable += balance.balances.available;
+            existingEmployee.totalUsed += balance.balances.used;
+            existingEmployee.totalAllocated += allocated;
+            existingEmployee.leaveTypes.push({
+                id: balance.id,
+                leaveTypeId: balance.leaveType.id,
+                leaveTypeName: balance.leaveType.name,
+                available: balance.balances.available,
+                used: balance.balances.used,
+                allocated,
+                status: balance.status,
+                balances: balance.balances,
+            });
+
+            // Update overall status to worst case
+            if (balance.status === "NEGATIVE") {
+                existingEmployee.overallStatus = "NEGATIVE";
+            } else if (balance.status === "LOW" && existingEmployee.overallStatus !== "NEGATIVE") {
+                existingEmployee.overallStatus = "LOW";
+            }
+        } else {
+            acc.push({
+                userId: balance.userId,
+                employeeName: balance.employee.name,
+                employeeCode: balance.employee.employeeCode,
+                employeeEmail: balance.employee.email,
+                personalEmail: balance.employee.personalEmail,
+                department: balance.employee.department?.name || "N/A",
+                totalAvailable: balance.balances.available,
+                totalUsed: balance.balances.used,
+                totalAllocated: allocated,
+                overallStatus: balance.status as "NORMAL" | "LOW" | "NEGATIVE",
+                leaveTypes: [{
+                    id: balance.id,
+                    leaveTypeId: balance.leaveType.id,
+                    leaveTypeName: balance.leaveType.name,
+                    available: balance.balances.available,
+                    used: balance.balances.used,
+                    allocated,
+                    status: balance.status,
+                    balances: balance.balances,
+                }],
+            });
+        }
+        return acc;
+    }, []) || [];
+
     if (isLoading) {
         return <BalancesSkeleton />;
     }
@@ -177,7 +284,7 @@ export function LeaveBalancesTab() {
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                             {/* Search */}
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -208,6 +315,27 @@ export function LeaveBalancesTab() {
                                     <SelectItem value="normal">Normal</SelectItem>
                                     <SelectItem value="low">Low</SelectItem>
                                     <SelectItem value="negative">Negative</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            {/* Department Filter */}
+                            <Select
+                                value={departmentId || "all"}
+                                onValueChange={(value) => {
+                                    setDepartmentId(value === "all" ? "" : value);
+                                    setPage(1);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Departments" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Departments</SelectItem>
+                                    {departments?.map((dept) => (
+                                        <SelectItem key={dept.id} value={dept.id}>
+                                            {dept.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
 
@@ -256,153 +384,368 @@ export function LeaveBalancesTab() {
                                 <strong>{data?.statistics.lowBalances}</strong> low balances
                             </span>
                         </div>
+
+                        {/* View Toggle */}
+                        <div className="flex items-center justify-between pt-2 border-t">
+                            <p className="text-sm text-muted-foreground">
+                                {viewMode === "cards"
+                                    ? "Grouped by employee with expandable details"
+                                    : "Detailed breakdown by leave type"}
+                            </p>
+                            <div className="flex gap-1 bg-muted p-1 rounded-lg">
+                                <Button
+                                    size="sm"
+                                    variant={viewMode === "cards" ? "default" : "ghost"}
+                                    onClick={() => setViewMode("cards")}
+                                    className="gap-2"
+                                >
+                                    <LayoutGrid className="h-4 w-4" />
+                                    Cards
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={viewMode === "table" ? "default" : "ghost"}
+                                    onClick={() => setViewMode("table")}
+                                    className="gap-2"
+                                >
+                                    <LayoutList className="h-4 w-4" />
+                                    Table
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Balances Table */}
-            <Card>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Employee</TableHead>
-                                    <TableHead>Code</TableHead>
-                                    <TableHead>Leave Type</TableHead>
-                                    <TableHead className="text-right">Available</TableHead>
-                                    <TableHead className="text-right">Used</TableHead>
-                                    <TableHead className="text-right">Total Allocated</TableHead>
-                                    <TableHead className="text-center">Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            {
-                                !data || data.data.length === 0 ? (
-                                    <TableBody>
-                                        <TableRow>
-                                            <TableCell colSpan={8} className="text-center py-8">
-                                                No leave balances found.
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                ) : (
-                                    <TableBody>
-                                        {data.data.map((balance) => (
-                                            <TableRow key={balance.id}>
-                                                <TableCell>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium">
-                                                            {balance.employee.name}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {balance.employee.email}
-                                                        </span>
-                                                        {(
-                                                            balance.employee.personalEmail &&
-                                                            balance.employee.personalEmail !== balance.employee.email
-                                                        ) ? (
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {balance.employee.personalEmail}
-                                                            </span>
-                                                        ) : null}
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {balance.employee.department?.name || "N/A"}
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="font-mono text-sm">
-                                                    {balance.employee.employeeCode}
-                                                </TableCell>
-                                                <TableCell>{balance.leaveType.name}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <span className="font-semibold text-base">
-                                                        {balance.balances.available}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {balance.balances.used}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {balance.balances.openingBalance +
-                                                        balance.balances.accrued +
-                                                        balance.balances.carried +
-                                                        balance.balances.adjusted}
-                                                </TableCell>
-                                                <TableCell className="text-center">
+            {/* Card View */}
+            {viewMode === "cards" && (
+                <div className="grid gap-4">
+                    {!groupedBalances || groupedBalances.length === 0 ? (
+                        <Card>
+                            <CardContent className="py-8 text-center text-muted-foreground">
+                                No leave balances found.
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        groupedBalances.map((employee) => {
+                            const isExpanded = expandedCards.has(employee.userId);
+                            const usagePercentage = employee.totalAllocated > 0
+                                ? (employee.totalUsed / employee.totalAllocated) * 100
+                                : 0;
+
+                            return (
+                                <Card key={employee.userId} className="overflow-hidden">
+                                    <div className="p-6">
+                                        {/* Header */}
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h3 className="font-semibold text-lg">
+                                                        {employee.employeeName}
+                                                    </h3>
                                                     <Badge
                                                         variant={
-                                                            balance.status === "NEGATIVE"
+                                                            employee.overallStatus === "NEGATIVE"
                                                                 ? "destructive"
-                                                                : balance.status === "LOW"
+                                                                : employee.overallStatus === "LOW"
                                                                     ? "secondary"
                                                                     : "default"
                                                         }
                                                         className={
-                                                            balance.status === "LOW"
+                                                            employee.overallStatus === "LOW"
                                                                 ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-                                                                : balance.status === "NORMAL"
+                                                                : employee.overallStatus === "NORMAL"
                                                                     ? "bg-green-100 text-green-800 hover:bg-green-200"
                                                                     : ""
                                                         }
                                                     >
-                                                        {balance.status}
+                                                        {employee.overallStatus}
                                                     </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => handleOpenAdjustDialog(balance)}
-                                                    >
-                                                        <Edit className="mr-2 h-4 w-4" />
-                                                        Adjust
-                                                    </Button>
+                                                </div>
+                                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                                    <span className="font-mono">{employee.employeeCode}</span>
+                                                    <span>•</span>
+                                                    <span>{employee.employeeEmail}</span>
+                                                    <span>•</span>
+                                                    <span>{employee.department}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Summary Stats */}
+                                        <div className="grid grid-cols-3 gap-4 mb-4">
+                                            <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
+                                                <p className="text-xs text-muted-foreground mb-1">Total Available</p>
+                                                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                    {employee.totalAvailable}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">days</p>
+                                            </div>
+                                            <div className="bg-orange-50 dark:bg-orange-950/20 rounded-lg p-4">
+                                                <p className="text-xs text-muted-foreground mb-1">Total Used</p>
+                                                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                                                    {employee.totalUsed}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">days</p>
+                                            </div>
+                                            <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg p-4">
+                                                <p className="text-xs text-muted-foreground mb-1">Total Allocated</p>
+                                                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                                                    {employee.totalAllocated}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">days</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Progress Bar */}
+                                        <div className="mb-4">
+                                            <div className="flex items-center justify-between text-sm mb-2">
+                                                <span className="text-muted-foreground">Leave Usage</span>
+                                                <span className="font-medium">
+                                                    {usagePercentage.toFixed(1)}%
+                                                </span>
+                                            </div>
+                                            <Progress value={usagePercentage} className="h-2" />
+                                        </div>
+
+                                        {/* Expand/Collapse Button */}
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => toggleCardExpansion(employee.userId)}
+                                            className="w-full justify-between"
+                                        >
+                                            <span className="text-sm font-medium">
+                                                {isExpanded ? "Hide" : "Show"} breakdown by leave type
+                                                ({employee.leaveTypes.length} types)
+                                            </span>
+                                            {isExpanded ? (
+                                                <ChevronUp className="h-4 w-4" />
+                                            ) : (
+                                                <ChevronDown className="h-4 w-4" />
+                                            )}
+                                        </Button>
+
+                                        {/* Expanded Details */}
+                                        {isExpanded && (
+                                            <div className="mt-4 border-t pt-4 space-y-3">
+                                                {employee.leaveTypes.map((leaveType) => {
+                                                    const ltUsagePercentage = leaveType.allocated > 0
+                                                        ? (leaveType.used / leaveType.allocated) * 100
+                                                        : 0;
+
+                                                    return (
+                                                        <div
+                                                            key={leaveType.id}
+                                                            className="bg-muted/50 rounded-lg p-4"
+                                                        >
+                                                            <div className="flex items-start justify-between mb-3">
+                                                                <div>
+                                                                    <h4 className="font-medium mb-1">
+                                                                        {leaveType.leaveTypeName}
+                                                                    </h4>
+                                                                    <div className="flex gap-4 text-sm">
+                                                                        <span className="text-muted-foreground">
+                                                                            Available: <strong className="text-foreground">{leaveType.available}</strong>
+                                                                        </span>
+                                                                        <span className="text-muted-foreground">
+                                                                            Used: <strong className="text-foreground">{leaveType.used}</strong>
+                                                                        </span>
+                                                                        <span className="text-muted-foreground">
+                                                                            Allocated: <strong className="text-foreground">{leaveType.allocated}</strong>
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        handleOpenAdjustDialog({
+                                                                            userId: employee.userId,
+                                                                            leaveType: {
+                                                                                id: leaveType.leaveTypeId,
+                                                                                name: leaveType.leaveTypeName,
+                                                                            },
+                                                                            employee: {
+                                                                                name: employee.employeeName,
+                                                                            },
+                                                                            balances: {
+                                                                                available: leaveType.available,
+                                                                            },
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <Edit className="mr-2 h-3 w-3" />
+                                                                    Adjust
+                                                                </Button>
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center justify-between text-xs mb-1">
+                                                                    <span className="text-muted-foreground">Usage</span>
+                                                                    <span className="font-medium">
+                                                                        {ltUsagePercentage.toFixed(1)}%
+                                                                    </span>
+                                                                </div>
+                                                                <Progress value={ltUsagePercentage} className="h-1.5" />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </Card>
+                            );
+                        })
+                    )}
+                </div>
+            )}
+
+            {/* Balances Table */}
+            {viewMode === "table" && (
+                <Card>
+                    <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Employee</TableHead>
+                                        <TableHead>Code</TableHead>
+                                        <TableHead>Leave Type</TableHead>
+                                        <TableHead className="text-right">Available</TableHead>
+                                        <TableHead className="text-right">Used</TableHead>
+                                        <TableHead className="text-right">Total Allocated</TableHead>
+                                        <TableHead className="text-center">Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                {
+                                    !data || data.data.length === 0 ? (
+                                        <TableBody>
+                                            <TableRow>
+                                                <TableCell colSpan={8} className="text-center py-8">
+                                                    No leave balances found.
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                )}
+                                        </TableBody>
+                                    ) : (
+                                        <TableBody>
+                                            {data.data.map((balance) => (
+                                                <TableRow key={balance.id}>
+                                                    <TableCell>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">
+                                                                {balance.employee.name}
+                                                            </span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {balance.employee.email}
+                                                            </span>
+                                                            {(
+                                                                balance.employee.personalEmail &&
+                                                                balance.employee.personalEmail !== balance.employee.email
+                                                            ) ? (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {balance.employee.personalEmail}
+                                                                </span>
+                                                            ) : null}
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {balance.employee.department?.name || "N/A"}
+                                                            </span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="font-mono text-sm">
+                                                        {balance.employee.employeeCode}
+                                                    </TableCell>
+                                                    <TableCell>{balance.leaveType.name}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <span className="font-semibold text-base">
+                                                            {balance.balances.available}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {balance.balances.used}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {balance.balances.openingBalance +
+                                                            balance.balances.accrued +
+                                                            balance.balances.carried +
+                                                            balance.balances.adjusted}
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Badge
+                                                            variant={
+                                                                balance.status === "NEGATIVE"
+                                                                    ? "destructive"
+                                                                    : balance.status === "LOW"
+                                                                        ? "secondary"
+                                                                        : "default"
+                                                            }
+                                                            className={
+                                                                balance.status === "LOW"
+                                                                    ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                                                                    : balance.status === "NORMAL"
+                                                                        ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                                                        : ""
+                                                            }
+                                                        >
+                                                            {balance.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => handleOpenAdjustDialog(balance)}
+                                                        >
+                                                            <Edit className="mr-2 h-4 w-4" />
+                                                            Adjust
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    )}
 
-                        </Table>
-                    </div>
-
-                    {/* Pagination */}
-                    {
-                        data && data.pagination.totalPages > 1 && (<div className="flex items-center justify-between border-t px-6 py-4">
-                            <div className="text-sm text-muted-foreground">
-                                Showing {(page - 1) * pageSize + 1} to{" "}
-                                {Math.min(page * pageSize, data.pagination.totalCount)} of{" "}
-                                {data.pagination.totalCount} results
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                    disabled={page === 1}
-                                >
-                                    <ChevronLeft className="h-4 w-4 mr-1" />
-                                    Previous
-                                </Button>
-                                <div className="text-sm">
-                                    Page {page} of {data.pagination.totalPages}
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setPage((p) => p + 1)}
-                                    disabled={page >= data.pagination.totalPages}
-                                >
-                                    Next
-                                    <ChevronRight className="h-4 w-4 ml-1" />
-                                </Button>
-                            </div>
+                            </Table>
                         </div>
-                        )
-                    }
-                </CardContent>
-            </Card>
+
+                        {/* Pagination */}
+                        {
+                            data && data.pagination.totalPages > 1 && (<div className="flex items-center justify-between border-t px-6 py-4">
+                                <div className="text-sm text-muted-foreground">
+                                    Showing {(page - 1) * pageSize + 1} to{" "}
+                                    {Math.min(page * pageSize, data.pagination.totalCount)} of{" "}
+                                    {data.pagination.totalCount} results
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                        disabled={page === 1}
+                                    >
+                                        <ChevronLeft className="h-4 w-4 mr-1" />
+                                        Previous
+                                    </Button>
+                                    <div className="text-sm">
+                                        Page {page} of {data.pagination.totalPages}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage((p) => p + 1)}
+                                        disabled={page >= data.pagination.totalPages}
+                                    >
+                                        Next
+                                        <ChevronRight className="h-4 w-4 ml-1" />
+                                    </Button>
+                                </div>
+                            </div>
+                            )
+                        }
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Adjust Balance Dialog */}
             <Dialog open={adjustDialogOpen} onOpenChange={setAdjustDialogOpen}>
@@ -505,17 +848,14 @@ function BalancesSkeleton() {
                             <Skeleton key={i} className="h-10 w-full" />
                         ))}
                     </div>
+                    <Skeleton className="h-20 w-full mt-4" />
                 </CardContent>
             </Card>
-            <Card>
-                <CardContent className="p-6">
-                    <div className="space-y-4">
-                        {[...Array(5)].map((_, i) => (
-                            <Skeleton key={i} className="h-16 w-full" />
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+            <div className="grid gap-4">
+                {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-64 w-full" />
+                ))}
+            </div>
         </div>
     );
 }

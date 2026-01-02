@@ -13,14 +13,19 @@ import { apiClient } from "@/lib/api/client";
 interface AttendanceReconciliationRequest {
     id: string;
     userId: string;
+    attendanceId?: string;
     date: string;
     type: "SIGN_IN" | "SIGN_OUT";
+    originalSignIn?: string;
+    originalSignOut?: string;
+    requestedSignIn?: string;
+    requestedSignOut?: string;
     reason: string;
     status: "PENDING" | "APPROVED" | "REJECTED";
-    requestedTime: string;
     reviewedBy?: string;
     reviewedAt?: string;
-    response?: string;
+    reviewerComment?: string;
+    createdAt: string;
 }
 
 export default function AttendanceReconciliationAdminPage() {
@@ -67,6 +72,8 @@ export default function AttendanceReconciliationAdminPage() {
                                     <TableHead>Date</TableHead>
                                     <TableHead>User</TableHead>
                                     <TableHead>Type</TableHead>
+                                    <TableHead>Original Time</TableHead>
+                                    <TableHead>Requested Time</TableHead>
                                     <TableHead>Reason</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Actions</TableHead>
@@ -78,8 +85,25 @@ export default function AttendanceReconciliationAdminPage() {
                                         <TableCell>{new Date(req.date).toLocaleDateString()}</TableCell>
                                         <TableCell>{req.userId}</TableCell>
                                         <TableCell>{req.type}</TableCell>
+                                        <TableCell className="text-sm">
+                                            {req.type === "SIGN_IN"
+                                                ? (req.originalSignIn ? new Date(req.originalSignIn).toLocaleTimeString() : "Missing")
+                                                : (req.originalSignOut ? new Date(req.originalSignOut).toLocaleTimeString() : "Missing")}
+                                        </TableCell>
+                                        <TableCell className="text-sm font-semibold">
+                                            {req.type === "SIGN_IN"
+                                                ? (req.requestedSignIn ? new Date(req.requestedSignIn).toLocaleTimeString() : "-")
+                                                : (req.requestedSignOut ? new Date(req.requestedSignOut).toLocaleTimeString() : "-")}
+                                        </TableCell>
                                         <TableCell>{req.reason}</TableCell>
-                                        <TableCell>{req.status}</TableCell>
+                                        <TableCell>
+                                            <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
+                                                    req.status === "REJECTED" ? "bg-red-100 text-red-800" :
+                                                        "bg-yellow-100 text-yellow-800"
+                                                }`}>
+                                                {req.status}
+                                            </span>
+                                        </TableCell>
                                         <TableCell>
                                             {req.status === "PENDING" && (
                                                 <>

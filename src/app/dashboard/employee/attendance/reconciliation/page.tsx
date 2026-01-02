@@ -12,14 +12,19 @@ import { apiClient } from "@/lib/api/client";
 interface AttendanceReconciliationRequest {
     id: string;
     userId: string;
+    attendanceId?: string;
     date: string;
     type: "SIGN_IN" | "SIGN_OUT";
+    originalSignIn?: string;
+    originalSignOut?: string;
+    requestedSignIn?: string;
+    requestedSignOut?: string;
     reason: string;
     status: "PENDING" | "APPROVED" | "REJECTED";
-    requestedTime: string;
     reviewedBy?: string;
     reviewedAt?: string;
-    response?: string;
+    reviewerComment?: string;
+    createdAt: string;
 }
 
 export default function AttendanceReconciliationEmployeePage() {
@@ -29,6 +34,8 @@ export default function AttendanceReconciliationEmployeePage() {
     const [form, setForm] = useState({
         date: "",
         type: "SIGN_IN",
+        requestedSignIn: "",
+        requestedSignOut: "",
         reason: "",
     });
     const [submitting, setSubmitting] = useState(false);
@@ -49,12 +56,22 @@ export default function AttendanceReconciliationEmployeePage() {
         if (!userId || !form.date || !form.reason) return;
         setSubmitting(true);
         try {
+            // Combine date and time for datetime fields
+            const requestedSignIn = form.type === "SIGN_IN" && form.requestedSignIn
+                ? `${form.date}T${form.requestedSignIn}:00`
+                : undefined;
+            const requestedSignOut = form.type === "SIGN_OUT" && form.requestedSignOut
+                ? `${form.date}T${form.requestedSignOut}:00`
+                : undefined;
+
             await apiClient.post("/attendance/reconciliation", {
                 date: form.date,
                 type: form.type,
+                requestedSignIn,
+                requestedSignOut,
                 reason: form.reason,
             });
-            setForm({ date: "", type: "SIGN_IN", reason: "" });
+            setForm({ date: "", type: "SIGN_IN", requestedSignIn: "", requestedSignOut: "", reason: "" });
             setRefresh((r) => r + 1);
         } finally {
             setSubmitting(false);
@@ -87,6 +104,28 @@ export default function AttendanceReconciliationEmployeePage() {
                                 <SelectItem value="SIGN_OUT">Sign Out</SelectItem>
                             </SelectContent>
                         </Select>
+                        {form.type === "SIGN_IN" && (
+                            <div>
+                                <label className="text-sm font-medium">Requested Sign-In Time</label>
+                                <Input
+                                    type="time"
+                                    value={form.requestedSignIn}
+                                    onChange={(e) => setForm((f) => ({ ...f, requestedSignIn: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                        )}
+                        {form.type === "SIGN_OUT" && (
+                            <div>
+                                <label className="text-sm font-medium">Requested Sign-Out Time</label>
+                                <Input
+                                    type="time"
+                                    value={form.requestedSignOut}
+                                    onChange={(e) => setForm((f) => ({ ...f, requestedSignOut: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                        )}
                         <Input
                             type="text"
                             placeholder="Reason"
@@ -111,9 +150,10 @@ export default function AttendanceReconciliationEmployeePage() {
                                 <TableRow>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Type</TableHead>
+                                    <TableHead>Original Time</TableHead>
+                                    <TableHead>Requested Time</TableHead>
                                     <TableHead>Reason</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Requested</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -121,9 +161,25 @@ export default function AttendanceReconciliationEmployeePage() {
                                     <TableRow key={req.id}>
                                         <TableCell>{new Date(req.date).toLocaleDateString()}</TableCell>
                                         <TableCell>{req.type}</TableCell>
+                                        <TableCell>
+                                            {req.type === "SIGN_IN"
+                                                ? (req.originalSignIn ? new Date(req.originalSignIn).toLocaleTimeString() : "Missing")
+                                                : (req.originalSignOut ? new Date(req.originalSignOut).toLocaleTimeString() : "Missing")}
+                                        </TableCell>
+                                        <TableCell>
+                                            {req.type === "SIGN_IN"
+                                                ? (req.requestedSignIn ? new Date(req.requestedSignIn).toLocaleTimeString() : "-")
+                                                : (req.requestedSignOut ? new Date(req.requestedSignOut).toLocaleTimeString() : "-")}
+                                        </TableCell>
                                         <TableCell>{req.reason}</TableCell>
-                                        <TableCell>{req.status}</TableCell>
-                                        <TableCell>{new Date(req.requestedTime).toLocaleString()}</TableCell>
+                                        <TableCell>
+                                            <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
+                                                req.status === "REJECTED" ? "bg-red-100 text-red-800" :
+                                                    "bg-yellow-100 text-yellow-800"
+                                                }`}>
+                                                {req.status}
+                                            </span>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

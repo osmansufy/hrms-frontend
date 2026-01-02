@@ -40,13 +40,6 @@ export default function AdminLeavePage() {
 
             <Tabs defaultValue="balances" className="space-y-4">
                 <TabsList className="grid w-full grid-cols-10">
-                    <TabsTrigger value="work-schedule" className="flex items-center gap-2">
-                        <Settings className="size-4" />
-                        Work Schedule
-                    </TabsTrigger>
-                    <TabsContent value="work-schedule" className="space-y-4">
-                        <WorkScheduleTab />
-                    </TabsContent>
                     <TabsTrigger value="notice" className="flex items-center gap-2">
                         <Settings className="size-4" />
                         Notice Rules

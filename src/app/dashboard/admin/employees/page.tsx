@@ -15,6 +15,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -22,7 +29,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEmployees } from "@/lib/queries/employees";
+import { useEmployees, useDesignations } from "@/lib/queries/employees";
+import { useDepartments } from "@/lib/queries/departments";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 
@@ -36,6 +44,9 @@ export default function AdminEmployeesPage() {
     departmentId: departmentId || undefined,
     designationId: designationId || undefined,
   });
+
+  const { data: departments } = useDepartments();
+  const { data: designations } = useDesignations();
 
   const employees = useMemo(() => data ?? [], [data]);
 
@@ -66,19 +77,41 @@ export default function AdminEmployeesPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Input
-              placeholder="Filter by departmentId"
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
-            />
-            <Input
-              placeholder="Filter by designationId"
-              value={designationId}
-              onChange={(e) => setDesignationId(e.target.value)}
-            />
+            <Select
+              value={departmentId || "all"}
+              onValueChange={(value) => setDepartmentId(value === "all" ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments?.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={designationId || "all"}
+              onValueChange={(value) => setDesignationId(value === "all" ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Designations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Designations</SelectItem>
+                {designations?.map((desig) => (
+                  <SelectItem key={desig.id} value={desig.id}>
+                    {desig.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <CardDescription>
-            Mirrors backend filters: search (code/name/phone/email), departmentId, designationId.
+            Search by employee code, name, phone, or email. Filter by department and designation.
           </CardDescription>
         </CardHeader>
         <CardContent>
