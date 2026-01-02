@@ -34,7 +34,7 @@ interface BulkCreateResult {
 
 // Validation enums
 const EMPLOYMENT_TYPES = ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN", "TEMPORARY", "CONSULTANT"];
-const GENDERS = ["MALE", "FEMALE", "OTHER"];
+const GENDERS = ["MALE", "FEMALE"];
 const MARITAL_STATUSES = ["SINGLE", "MARRIED"];
 
 export default function BulkCreateEmployeesPage() {
@@ -97,9 +97,7 @@ export default function BulkCreateEmployeesPage() {
       "password",
       "firstName",
       "lastName",
-      "joiningDate",
       "gender",
-      "phone",
       "employmentType",
     ];
 
@@ -175,8 +173,8 @@ export default function BulkCreateEmployeesPage() {
         });
       }
 
-      // Validate date format (YYYY-MM-DD)
-      if (row.joiningDate) {
+      // Validate date format (YYYY-MM-DD) - only if provided
+      if (row.joiningDate && row.joiningDate.trim() !== "") {
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
         if (!dateRegex.test(row.joiningDate)) {
           errors.push({
@@ -187,8 +185,8 @@ export default function BulkCreateEmployeesPage() {
         }
       }
 
-      // Validate phone format (basic)
-      if (row.phone && row.phone.length < 10) {
+      // Validate phone format (basic) - only if provided
+      if (row.phone && row.phone.trim() !== "" && row.phone.length < 10) {
         errors.push({
           row: rowNum,
           field: "phone",
@@ -262,7 +260,7 @@ export default function BulkCreateEmployeesPage() {
 
   const downloadTemplate = () => {
     const template = `email,password,firstName,middleName,lastName,joiningDate,gender,phone,employmentType,departmentId,designationId,reportingManagerId,dateOfBirth,maritalStatus,bloodGroup,nationality,personalEmail,alternatePhone,confirmationDate,probationPeriod,noticePeriod,workScheduleId
-john.doe@example.com,Password123,John,M,Doe,2024-01-15,MALE,1234567890,FULL_TIME,,,,,SINGLE,O+,US,john.personal@gmail.com,0987654321,2024-04-15,3,30,
+john.doe@example.com,Password123,John,M,Doe,,MALE,,FULL_TIME,,,,,SINGLE,O+,US,john.personal@gmail.com,0987654321,2024-04-15,3,30,
 jane.smith@example.com,SecurePass456,Jane,,Smith,2024-02-01,FEMALE,1234567891,PART_TIME,,,,,MARRIED,A+,UK,jane.personal@gmail.com,,2024-05-01,2,15,`;
 
     const blob = new Blob([template], { type: "text/csv" });
@@ -313,15 +311,15 @@ jane.smith@example.com,SecurePass456,Jane,,Smith,2024-02-01,FEMALE,1234567891,PA
               <li>email (unique, valid format)</li>
               <li>password (minimum 6 characters)</li>
               <li>firstName, lastName</li>
-              <li>joiningDate (format: YYYY-MM-DD)</li>
               <li>gender (MALE, FEMALE, or OTHER)</li>
-              <li>phone (minimum 10 digits)</li>
               <li>employmentType (FULL_TIME, PART_TIME, CONTRACT, INTERN, TEMPORARY, or CONSULTANT)</li>
             </ul>
           </div>
           <div>
             <h4 className="font-semibold mb-2">Optional Fields:</h4>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+              <li>joiningDate (format: YYYY-MM-DD, defaults to today)</li>
+              <li>phone (minimum 10 digits if provided)</li>
               <li>middleName, dateOfBirth</li>
               <li>maritalStatus (SINGLE or MARRIED)</li>
               <li>bloodGroup, nationality, personalEmail, alternatePhone</li>

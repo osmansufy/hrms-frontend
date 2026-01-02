@@ -42,6 +42,7 @@ import { useCreateEmployee, useDepartments, useDesignations, useManagers } from 
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
+  employeeCode: z.string().max(50).optional().or(z.literal("")),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   dateOfBirth: z.string().min(1),
@@ -83,6 +84,7 @@ export default function CreateEmployeePage() {
   const onSubmit = async (values: FormValues) => {
     const payload = {
       ...values,
+      employeeCode: values.employeeCode || undefined,
       personalEmail: values.personalEmail || undefined,
       departmentId: values.departmentId || undefined,
       designationId: values.designationId || undefined,
@@ -181,6 +183,19 @@ export default function CreateEmployeePage() {
                       <FormLabel>Password *</FormLabel>
                       <FormControl>
                         <Input type="password" placeholder="Min 6 characters" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="employeeCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employee Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., EMP001 (auto-generated if empty)" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
