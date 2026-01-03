@@ -8,3 +8,4 @@ export { LeaveBalancesTab } from "./leave-balances-tab";
 export { AuditTrailTab } from "./audit-trail-tab";
 export { LeaveTypesTab } from "./leave-types-tab";
 export { WorkScheduleTab } from "./work-schedule-tab";
+export { EmployeeLeavesTab } from "./employee-leaves-tab";

@@ -401,6 +401,12 @@ export async function getPendingHRApprovals() {
   return response.data;
 }
 
+// Admin: Get all employee leaves
+export async function getAllEmployeeLeaves() {
+  const response = await apiClient.get<LeaveRecord[]>("/leave");
+  return response.data;
+}
+
 // Amendment Management
 export async function createAmendment(payload: CreateAmendmentPayload) {
   const response = await apiClient.post<LeaveAmendment>(

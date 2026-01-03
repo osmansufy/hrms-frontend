@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, CalendarDays, Loader2, NotebookPen, Send, Info, ExternalLink } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -56,6 +56,16 @@ export default function LeavePage() {
   const { session } = useSession();
   const userId = session?.user.id;
   const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState("");
+  const [today, setToday] = useState("");
+  const [maxDate, setMaxDate] = useState("");
+
+  // Calculate dates on client side only to prevent hydration mismatch
+  useEffect(() => {
+    const todayDate = new Date().toISOString().split('T')[0];
+    const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    setToday(todayDate);
+    setMaxDate(futureDate);
+  }, []);
 
   const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes();
   const { data: leaves, isLoading: leavesLoading } = useMyLeaves(userId);
@@ -436,15 +446,13 @@ export default function LeavePage() {
                     control={form.control}
                     name="startDate"
                     render={({ field }) => {
-                      const today = new Date().toISOString().split('T')[0];
-                      const maxDate = leavePolicy?.allowAdvance
-                        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                        : today;
+                      const minDate = today;
+                      const maxDateValue = leavePolicy?.allowAdvance ? maxDate : today;
                       return (
                         <FormItem>
                           <FormLabel>Start date</FormLabel>
                           <FormControl>
-                            <Input type="date" min={today} max={maxDate} {...field} />
+                            <Input type="date" min={minDate} max={maxDateValue} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -455,15 +463,13 @@ export default function LeavePage() {
                     control={form.control}
                     name="endDate"
                     render={({ field }) => {
-                      const today = new Date().toISOString().split('T')[0];
-                      const maxDate = leavePolicy?.allowAdvance
-                        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                        : today;
+                      const minDate = watchedValues.startDate || today;
+                      const maxDateValue = leavePolicy?.allowAdvance ? maxDate : today;
                       return (
                         <FormItem>
                           <FormLabel>End date</FormLabel>
                           <FormControl>
-                            <Input type="date" min={today} max={maxDate} {...field} />
+                            <Input type="date" min={minDate} max={maxDateValue} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

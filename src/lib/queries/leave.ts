@@ -134,6 +134,7 @@ import {
   getAmendment,
   getLeavePolicy,
   getPendingHRApprovals,
+  getAllEmployeeLeaves,
   listAccrualRules,
   listAmendments,
   rejectAmendment,
@@ -298,6 +299,14 @@ export function usePendingHRApprovals() {
     queryKey: adminLeaveKeys.pendingApprovals,
     queryFn: () => getPendingHRApprovals(),
     refetchInterval: 30_000, // Refetch every 30 seconds
+  });
+}
+
+export function useAllEmployeeLeaves() {
+  return useQuery({
+    queryKey: [...adminLeaveKeys.all, "all-leaves"],
+    queryFn: () => getAllEmployeeLeaves(),
+    staleTime: 5 * 60_000,
   });
 }
 
