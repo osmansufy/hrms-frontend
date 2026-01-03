@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { User, Mail, Phone, Briefcase, Calendar, Building2, Users, Heart, Globe, Droplet, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { User, Mail, Phone, Briefcase, Calendar, Building2, Users, Heart, Globe, Droplet, Loader2, KeyRound } from "lucide-react";
 import { useSession } from "@/components/auth/session-provider";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -351,6 +353,32 @@ export default function ProfilePage() {
       )}
 
       {/* Leave Balance Summary removed from profile page */}
+
+      {/* Account Security */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Account Security</CardTitle>
+          <CardDescription>Manage your password and security settings</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <KeyRound className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Password</p>
+                <p className="text-xs text-muted-foreground">Change your account password</p>
+              </div>
+            </div>
+            <Link href="/dashboard/employee/settings/password">
+              <Button variant="outline" size="sm">
+                Change Password
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Account Status */}
       <Card>
