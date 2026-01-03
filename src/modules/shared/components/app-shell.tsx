@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LogOut, Menu } from "lucide-react";
+import { Bell, LogOut, Menu, KeyRound, User, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -273,10 +273,21 @@ function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/dashboard/employee/profile">Profile</Link>
+          <Link href="/dashboard/employee/profile">
+            {/* profile icon */}
+            <User className="mr-2 size-4" />
+            Profile</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/dashboard/admin/settings">Settings</Link>
+          <Link href="/dashboard/employee/settings/password">
+            <KeyRound className="mr-2 size-4" />
+            Change Password
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/admin/settings">
+            <Settings className="mr-2 size-4" />
+            Settings</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive" onClick={signOut}>
