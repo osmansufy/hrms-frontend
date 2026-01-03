@@ -14,6 +14,7 @@ import { useSession } from "@/components/auth/session-provider";
 import { useUserBalances, useMyLeaves } from "@/lib/queries/leave";
 import { LeavePieChart } from "./components/leave-pie-chart";
 import { AttendanceBarChart } from "./components/attendance-bar-chart";
+import { AttendancePieChart } from "./components/attendance-pie-chart";
 import { useMyAttendanceRecords } from "@/lib/queries/attendance";
 import { useSignIn, useSignOut, useTodayAttendance, useMyLostHoursReport } from "@/lib/queries/attendance";
 import { toast } from "sonner";
@@ -318,9 +319,17 @@ export default function EmployeeDashboard() {
       {/* Attendance Chart Overview */}
       <div>
         <h2 className="text-lg font-semibold mb-3">Attendance Overview</h2>
-        {/* TODO: Fetch and pass attendance data for the chart */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Weekly Attendance Bar Chart */}
+          <div>
+            <AttendanceBarChart data={attendanceBarData} />
+          </div>
 
-        <AttendanceBarChart data={attendanceBarData} />
+          {/* Monthly Attendance Pie Chart */}
+          <div>
+            <AttendancePieChart />
+          </div>
+        </div>
       </div>
 
     </div>
