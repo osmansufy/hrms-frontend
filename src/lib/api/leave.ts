@@ -272,6 +272,40 @@ export async function addNoticeRule(
   return response.data;
 }
 
+export type NoticeRuleWithPolicy = LeaveNoticeRule & {
+  leavePolicy: {
+    id: string;
+    leaveTypeId: string;
+    leaveType: {
+      id: string;
+      name: string;
+      code: string;
+    };
+  };
+};
+
+export async function listNoticeRules() {
+  const response = await apiClient.get<NoticeRuleWithPolicy[]>(
+    "/leave/notice-rule"
+  );
+  return response.data;
+}
+
+export async function updateNoticeRule(
+  id: string,
+  payload: { minLength?: number; maxLength?: number; noticeDays: number }
+) {
+  const response = await apiClient.put<LeaveNoticeRule>(
+    `/leave/notice-rule/${id}`,
+    payload
+  );
+  return response.data;
+}
+
+export async function deleteNoticeRule(id: string) {
+  await apiClient.delete(`/leave/notice-rule/${id}`);
+}
+
 // Accrual Rule Management
 export async function createAccrualRule(payload: CreateAccrualRulePayload) {
   const response = await apiClient.post<LeaveAccrualRule>(

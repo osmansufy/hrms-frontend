@@ -140,6 +140,10 @@ import {
   rejectLeave,
   updateAccrualRule,
   updateLeavePolicy,
+  addNoticeRule,
+  listNoticeRules,
+  updateNoticeRule,
+  deleteNoticeRule,
   type CreateAccrualRulePayload,
   type CreateLeavePolicyPayload,
 } from "@/lib/api/leave";
@@ -151,6 +155,7 @@ export const adminLeaveKeys = {
     ["admin", "leave", "policy", leaveTypeId] as const,
   accrualRules: ["admin", "leave", "accrual-rules"] as const,
   accrualRule: (id: string) => ["admin", "leave", "accrual-rule", id] as const,
+  noticeRules: ["admin", "leave", "notice-rules"] as const,
   pendingApprovals: ["admin", "leave", "pending-approvals"] as const,
   amendments: ["admin", "leave", "amendments"] as const,
   amendment: (id: string) => ["admin", "leave", "amendment", id] as const,
@@ -229,6 +234,60 @@ export function useUpdateAccrualRule(id: string) {
         queryKey: adminLeaveKeys.accrualRule(id),
       });
       queryClient.invalidateQueries({ queryKey: adminLeaveKeys.accrualRules });
+    },
+  });
+}
+
+// Notice Rule Hooks
+export function useNoticeRules() {
+  return useQuery({
+    queryKey: adminLeaveKeys.noticeRules,
+    queryFn: () => listNoticeRules(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAddNoticeRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leavePolicyId,
+      payload,
+    }: {
+      leavePolicyId: string;
+      payload: { minLength?: number; maxLength?: number; noticeDays: number };
+    }) => addNoticeRule(leavePolicyId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminLeaveKeys.noticeRules });
+      queryClient.invalidateQueries({ queryKey: leaveKeys.types });
+    },
+  });
+}
+
+export function useUpdateNoticeRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: { minLength?: number; maxLength?: number; noticeDays: number };
+    }) => updateNoticeRule(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminLeaveKeys.noticeRules });
+      queryClient.invalidateQueries({ queryKey: leaveKeys.types });
+    },
+  });
+}
+
+export function useDeleteNoticeRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteNoticeRule(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminLeaveKeys.noticeRules });
+      queryClient.invalidateQueries({ queryKey: leaveKeys.types });
     },
   });
 }
