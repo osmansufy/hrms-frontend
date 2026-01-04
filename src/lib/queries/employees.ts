@@ -95,7 +95,14 @@ export function useEmployees(params?: ListEmployeesParams) {
     queryKey: employeeKeys.list(params),
     queryFn: async () => {
       const data = await listEmployees(params);
-      return data.map(toEmployee);
+      const filtered = data.filter((emp) => {
+        const roles = emp.user?.roleAssignments || [];
+        return !roles.some((assignment) => {
+          const code = assignment.role?.code?.toUpperCase();
+          return code === "SUPER_ADMIN" || code === "ADMIN";
+        });
+      });
+      return filtered.map(toEmployee);
     },
   });
 }
