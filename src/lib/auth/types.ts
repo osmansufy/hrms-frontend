@@ -31,7 +31,8 @@ export type SessionPayload = {
   sub: string;
   email?: string;
   name?: string;
-  roles?: Role[];
+  // Backend may send enum-style roles (e.g., SUPER_ADMIN); keep RawRole to normalize later.
+  roles?: RawRole[];
   permissions?: PermissionKey[];
   exp?: number;
 };

@@ -36,6 +36,7 @@ function redirectToForbidden(req: NextRequest) {
 function redirectToRoleHome(req: NextRequest, roles: Role[]) {
   console.log("Redirecting to role home for roles:", roles);
   const preferred = roles.find((role) => roleRedirects[role]);
+  console.log({ preferred });
   if (!preferred) return redirectToForbidden(req);
   return NextResponse.redirect(new URL(roleRedirects[preferred], req.url));
 }
