@@ -159,12 +159,11 @@ const ADMIN_NAV: NavItem[] = [
 const SUPER_ADMIN_NAV: NavItem[] = [
   {
     href: "/dashboard/super-admin",
-    label: "Overview",
-    icon: LayoutDashboard,
+    label: "User Management",
+    icon: ShieldCheck,
     roles: ["super-admin"],
     permissions: ["dashboard.view"],
   },
-  ...ADMIN_NAV,
 ];
 
 export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
