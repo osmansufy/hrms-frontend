@@ -1,5 +1,20 @@
 export type Role = "super-admin" | "admin" | "employee";
 
+// Raw roles coming from backend/JWT (e.g., Prisma enums) may be uppercase with underscores.
+export type RawRole = Role | "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
+
+export function normalizeRole(role: string): Role | null {
+  const normalized = role.toLowerCase().replace(/_/g, "-");
+  if (
+    normalized === "super-admin" ||
+    normalized === "admin" ||
+    normalized === "employee"
+  ) {
+    return normalized as Role;
+  }
+  return null;
+}
+
 export type PermissionKey =
   | "dashboard.view"
   | "directory.view"

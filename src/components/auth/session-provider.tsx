@@ -10,7 +10,7 @@ import {
   SESSION_MAX_AGE_SECONDS,
 } from "@/lib/auth/constants";
 import { buildPermissions } from "@/lib/auth/permissions";
-import type { Role, Session } from "@/lib/auth/types";
+import { normalizeRole, type Role, type Session } from "@/lib/auth/types";
 import { verifyToken } from "@/lib/auth/token";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -120,8 +120,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     const rolesFromToken =
       payload?.roles
-        ?.map((role) => role.toLowerCase().replace("_", "-"))
-        .filter((role): role is Role => ["super-admin", "admin", "employee"].includes(role)) || [];
+        ?.map((role) => normalizeRole(role))
+        .filter((role): role is Role => Boolean(role)) || [];
 
     const role = rolesFromToken[0] ?? pickRole(email);
     const permissions = buildPermissions(rolesFromToken.length ? rolesFromToken : [role]);
