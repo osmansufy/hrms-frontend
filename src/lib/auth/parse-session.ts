@@ -13,6 +13,7 @@ import type {
   Role,
   SessionPayload,
 } from "./types";
+import { normalizeRole } from "./types";
 
 function readCookieArray(req: NextRequest, key: string): string[] {
   const value = req.cookies.get(key)?.value;
@@ -22,7 +23,11 @@ function readCookieArray(req: NextRequest, key: string): string[] {
 
 function normalizeRoles(payload: SessionPayload, req: NextRequest): Role[] {
   const rolesFromCookie = readCookieArray(req, ROLES_COOKIE) as Role[];
-  return payload.roles?.length ? payload.roles : rolesFromCookie;
+  const rawRoles = payload.roles?.length ? payload.roles : rolesFromCookie;
+  // Normalize backend enum roles (e.g., SUPER_ADMIN) to frontend slug format (super-admin)
+  return rawRoles
+    .map((role) => normalizeRole(role))
+    .filter((role): role is Role => role !== null);
 }
 
 function normalizePermissions(
@@ -50,7 +55,6 @@ export async function parseSession(req: NextRequest): Promise<ParsedSession> {
   }
 
   let roles = normalizeRoles(verification.payload, req);
-  roles = roles.map((r) => r.toLowerCase()) as Role[]; // <-- normalize and cast here!
 
   if (!roles.length) {
     return { authenticated: false, reason: "missing-roles" };
