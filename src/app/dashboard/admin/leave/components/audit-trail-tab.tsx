@@ -21,6 +21,7 @@ import {
     AlertTriangle,
     FileText,
 } from "lucide-react";
+import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
 
 export function AuditTrailTab() {
     const [page, setPage] = useState(1);
@@ -134,14 +135,15 @@ export function AuditTrailTab() {
                                             <TableCell>
                                                 <div className="flex flex-col">
                                                     <span className="text-sm">
-                                                        {new Date(
-                                                            adjustment.adjustment.effectiveDate
-                                                        ).toLocaleDateString()}
+                                                        {formatDateInDhaka(
+                                                            adjustment.adjustment.effectiveDate,
+                                                            "long"
+                                                        )}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        {new Date(
+                                                        {formatTimeInDhaka(
                                                             adjustment.adjustment.effectiveDate
-                                                        ).toLocaleTimeString()}
+                                                        )}
                                                     </span>
                                                 </div>
                                             </TableCell>

@@ -8,6 +8,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
 
 // Types for reconciliation requests
 interface AttendanceReconciliationRequest {
@@ -92,7 +93,7 @@ export default function AttendanceReconciliationAdminPage() {
                             <TableBody>
                                 {data?.map((req) => (
                                     <TableRow key={req.id}>
-                                        <TableCell>{new Date(req.date).toLocaleDateString()}</TableCell>
+                                        <TableCell>{formatDateInDhaka(req.date, "long")}</TableCell>
                                         <TableCell>
                                             {req.user?.employee
                                                 ? `${req.user.employee.firstName} ${req.user.employee.lastName}`
@@ -104,13 +105,13 @@ export default function AttendanceReconciliationAdminPage() {
                                         <TableCell>{req.type}</TableCell>
                                         <TableCell className="text-sm">
                                             {req.type === "SIGN_IN"
-                                                ? (req.originalSignIn ? new Date(req.originalSignIn).toLocaleTimeString() : "Missing")
-                                                : (req.originalSignOut ? new Date(req.originalSignOut).toLocaleTimeString() : "Missing")}
+                                                ? (req.originalSignIn ? formatTimeInDhaka(req.originalSignIn) : "Missing")
+                                                : (req.originalSignOut ? formatTimeInDhaka(req.originalSignOut) : "Missing")}
                                         </TableCell>
                                         <TableCell className="text-sm font-semibold">
                                             {req.type === "SIGN_IN"
-                                                ? (req.requestedSignIn ? new Date(req.requestedSignIn).toLocaleTimeString() : "-")
-                                                : (req.requestedSignOut ? new Date(req.requestedSignOut).toLocaleTimeString() : "-")}
+                                                ? (req.requestedSignIn ? formatTimeInDhaka(req.requestedSignIn) : "-")
+                                                : (req.requestedSignOut ? formatTimeInDhaka(req.requestedSignOut) : "-")}
                                         </TableCell>
                                         <TableCell>{req.reason}</TableCell>
                                         <TableCell>

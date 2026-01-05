@@ -19,14 +19,11 @@ import {
 import { useManagerApprovedLeaves } from "@/lib/queries/leave";
 import { AlertCircle, Clock, Loader2, User } from "lucide-react";
 
+import { formatDateInDhaka } from "@/lib/utils";
+
 // Helper function to format dates
 function formatDate(dateString: string) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-    });
+    return formatDateInDhaka(dateString, "long");
 }
 
 export function ApprovedLeavesTab() {

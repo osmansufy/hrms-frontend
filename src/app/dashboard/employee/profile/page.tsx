@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
 import { listEmployees, type ApiEmployee } from "@/lib/api/employees";
 import { useUserBalances } from "@/lib/queries/leave";
+import { formatDateInDhaka } from "@/lib/utils";
 
 export default function ProfilePage() {
   const { session } = useSession();
@@ -152,7 +153,7 @@ export default function ProfilePage() {
               <InfoRow
                 icon={<Calendar className="h-4 w-4" />}
                 label="Date of Birth"
-                value={new Date(employee.dateOfBirth).toLocaleDateString()}
+                value={formatDateInDhaka(employee.dateOfBirth, "long")}
               />
             )}
             {employee?.gender && (
@@ -209,7 +210,7 @@ export default function ProfilePage() {
             <InfoRow
               icon={<Calendar className="h-4 w-4" />}
               label="Joining Date"
-              value={employee?.joiningDate ? new Date(employee.joiningDate).toLocaleDateString() : "N/A"}
+              value={employee?.joiningDate ? formatDateInDhaka(employee.joiningDate, "long") : "N/A"}
             />
             {employee?.employmentType && (
               <InfoRow
@@ -229,7 +230,7 @@ export default function ProfilePage() {
               <InfoRow
                 icon={<Calendar className="h-4 w-4" />}
                 label="Confirmation Date"
-                value={new Date(employee.confirmationDate).toLocaleDateString()}
+                value={formatDateInDhaka(employee.confirmationDate, "long")}
               />
             )}
             {employee?.probationPeriod !== null && employee?.probationPeriod !== undefined && (

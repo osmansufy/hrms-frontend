@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Loader2 } from "lucide-react";
 import { useSession } from "@/components/auth/session-provider";
 import { useMyAttendanceRecords } from "@/lib/queries/attendance";
-import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
+import { toStartOfDayISO, toEndOfDayISO, formatInDhakaTimezone } from "@/lib/utils";
 
 const COLORS = {
     onTime: "#22c55e", // green-500
@@ -89,7 +89,7 @@ export function AttendancePieChart() {
     }, [data, startOfMonth]);
 
     const monthName = useMemo(() => {
-        return new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        return formatInDhakaTimezone(new Date(), { month: "long", year: "numeric" });
     }, []);
 
     const totalPresent = useMemo(() => {

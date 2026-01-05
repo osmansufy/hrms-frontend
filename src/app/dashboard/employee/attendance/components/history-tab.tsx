@@ -11,22 +11,14 @@ import { useSession } from "@/components/auth/session-provider";
 import { useAttendanceRecords, useMyAttendanceRecords } from "@/lib/queries/attendance";
 import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 
+import { formatTimeInDhaka, formatDateInDhaka } from "@/lib/utils";
+
 function formatTime(value?: string | null) {
-    if (!value) return "—";
-    try {
-        return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-        return "—";
-    }
+    return formatTimeInDhaka(value || "");
 }
 
 function formatDate(value?: string | null) {
-    if (!value) return "—";
-    try {
-        return new Date(value).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
-    } catch {
-        return "—";
-    }
+    return formatDateInDhaka(value || "", "long");
 }
 
 export function AttendanceHistoryTab() {

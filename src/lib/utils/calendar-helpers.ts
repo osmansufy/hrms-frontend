@@ -144,6 +144,8 @@ export function getLeaveStatusColor(status: string): {
   }
 }
 
+import { formatInDhakaTimezone, APP_TIMEZONE } from "../utils";
+
 /**
  * Get weekday names
  */
@@ -156,8 +158,8 @@ export function getWeekdayNames(fmt: "short" | "long" = "short"): string[] {
     date.setDate(baseDate.getDate() + i);
     days.push(
       fmt === "short"
-        ? date.toLocaleDateString("en-US", { weekday: "short" })
-        : date.toLocaleDateString("en-US", { weekday: "long" })
+        ? formatInDhakaTimezone(date, { weekday: "short" })
+        : formatInDhakaTimezone(date, { weekday: "long" })
     );
   }
 

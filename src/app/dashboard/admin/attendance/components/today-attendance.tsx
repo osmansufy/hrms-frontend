@@ -7,15 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Clock } from "lucide-react";
 import { useAttendanceRecords } from "@/lib/queries/attendance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
+import { toStartOfDayISO, toEndOfDayISO, formatTimeInDhaka } from "@/lib/utils";
 
 function formatTime(value?: string | null) {
-    if (!value) return "—";
-    try {
-        return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-        return "—";
-    }
+    return formatTimeInDhaka(value || "");
 }
 
 function getInitials(name: string) {
@@ -59,7 +54,7 @@ export function TodayAttendanceCard() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4" />
-                        {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {formatTimeInDhaka(new Date())}
                     </div>
                 </div>
             </CardHeader>

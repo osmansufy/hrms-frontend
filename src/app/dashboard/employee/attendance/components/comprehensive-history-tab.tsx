@@ -12,22 +12,15 @@ import { formatMinutesToHours, toStartOfDayISO, toEndOfDayISO } from "@/lib/util
 import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePresets";
 import { Badge } from "@/components/ui/badge";
 
+import { formatTimeInDhaka, formatInDhakaTimezone, formatDateInDhaka } from "@/lib/utils";
+
 function formatTime(value?: string | null) {
-    if (!value) return "—";
-    try {
-        return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-        return "—";
-    }
+    return formatTimeInDhaka(value || "");
 }
 
 function formatDate(value?: string | null) {
     if (!value) return "—";
-    try {
-        return new Date(value).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-    } catch {
-        return "—";
-    }
+    return formatInDhakaTimezone(value, { weekday: "short", month: "short", day: "numeric" });
 }
 
 export function ComprehensiveHistoryTab() {
@@ -150,8 +143,8 @@ export function ComprehensiveHistoryTab() {
                     {/* Selected Range Display */}
                     <div className="flex items-center justify-between text-sm text-muted-foreground pt-2 border-t">
                         <span>
-                            Showing: <strong>{new Date(dateRange.startDate).toLocaleDateString()}</strong> to{" "}
-                            <strong>{new Date(dateRange.endDate).toLocaleDateString()}</strong>
+                            Showing: <strong>{formatDateInDhaka(dateRange.startDate, "long")}</strong> to{" "}
+                            <strong>{formatDateInDhaka(dateRange.endDate, "long")}</strong>
                         </span>
                     </div>
                 </CardContent>

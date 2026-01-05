@@ -25,14 +25,11 @@ import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { bulkApproveLeaves, bulkRejectLeaves } from "@/lib/api/leave";
 
+import { formatDateInDhaka } from "@/lib/utils";
+
 // Helper function to format dates
 function formatDate(dateString: string) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-    });
+    return formatDateInDhaka(dateString, "long");
 }
 
 export function PendingApprovalsTab() {

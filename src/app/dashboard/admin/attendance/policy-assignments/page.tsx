@@ -109,8 +109,10 @@ export default function PolicyAssignmentsPage() {
                                     <TableCell>{a.policy?.name}</TableCell>
                                     <TableCell>{a.user?.name || a.userId || "—"}</TableCell>
                                     <TableCell>{a.department?.name || a.departmentId || "—"}</TableCell>
-                                    <TableCell>{new Date(a.effectiveFrom).toLocaleDateString()}</TableCell>
-                                    <TableCell>{a.effectiveTo ? new Date(a.effectiveTo).toLocaleDateString() : "—"}</TableCell>
+                                    import {formatDateInDhaka} from "@/lib/utils";
+
+                                    <TableCell>{formatDateInDhaka(a.effectiveFrom, "long")}</TableCell>
+                                    <TableCell>{a.effectiveTo ? formatDateInDhaka(a.effectiveTo, "long") : "—"}</TableCell>
                                 </TableRow>
                             ))}
                             {assignments?.length === 0 && (

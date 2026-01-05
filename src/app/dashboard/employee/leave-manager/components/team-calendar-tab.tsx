@@ -21,13 +21,10 @@ import { Calendar, Loader2, User, AlertTriangle } from "lucide-react";
 import { useMemo } from "react";
 
 // Helper function to format dates
+import { formatDateInDhaka } from "@/lib/utils";
+
 function formatDate(dateString: string) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-    });
+    return formatDateInDhaka(dateString, "long");
 }
 
 // Helper to get status color

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Calendar, FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatInDhakaTimezone } from "@/lib/utils";
 
 type AmendmentComparisonProps = {
     original: {
@@ -33,7 +34,7 @@ export function AmendmentComparison({
     balanceImpact,
 }: AmendmentComparisonProps) {
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString(undefined, {
+        return formatInDhakaTimezone(dateString, {
             weekday: "short",
             year: "numeric",
             month: "short",

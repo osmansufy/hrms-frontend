@@ -60,3 +60,98 @@ export function formatMinutesToHours(minutes: number): string {
   if (mins === 0) return `${sign}${hours}h`;
   return `${sign}${hours}h ${mins}m`;
 }
+
+/**
+ * The timezone used across the application
+ */
+export const APP_TIMEZONE = "Asia/Dhaka";
+
+/**
+ * Formats a date/time string to Asia/Dhaka timezone
+ * @param dateString - ISO date string or Date object
+ * @param options - Intl.DateTimeFormatOptions
+ * @returns Formatted date/time string in Asia/Dhaka timezone
+ */
+export function formatInDhakaTimezone(
+  dateString: string | Date,
+  options: Intl.DateTimeFormatOptions = {}
+): string {
+  if (!dateString) return "—";
+  try {
+    const date =
+      typeof dateString === "string" ? new Date(dateString) : dateString;
+    return date.toLocaleString("en-US", {
+      ...options,
+      timeZone: APP_TIMEZONE,
+    });
+  } catch {
+    return "—";
+  }
+}
+
+/**
+ * Formats a date to Asia/Dhaka timezone (date only)
+ * @param dateString - ISO date string or Date object
+ * @param format - "short" (e.g., "Jan 5") | "long" (e.g., "Jan 5, 2026") | "full" (e.g., "January 5, 2026")
+ * @returns Formatted date string
+ */
+export function formatDateInDhaka(
+  dateString: string | Date,
+  format: "short" | "long" | "full" = "short"
+): string {
+  if (!dateString) return "—";
+
+  const options: Intl.DateTimeFormatOptions =
+    format === "short"
+      ? { month: "short", day: "numeric" }
+      : format === "long"
+      ? { month: "short", day: "numeric", year: "numeric" }
+      : { month: "long", day: "numeric", year: "numeric" };
+
+  return formatInDhakaTimezone(dateString, options);
+}
+
+/**
+ * Formats a time to Asia/Dhaka timezone (time only)
+ * @param dateString - ISO date string or Date object
+ * @param includeSeconds - Whether to include seconds
+ * @returns Formatted time string (e.g., "02:30 PM" or "14:30:00")
+ */
+export function formatTimeInDhaka(
+  dateString: string | Date,
+  includeSeconds = false
+): string {
+  if (!dateString) return "—";
+
+  const options: Intl.DateTimeFormatOptions = {
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(includeSeconds && { second: "2-digit" }),
+  };
+
+  return formatInDhakaTimezone(dateString, options);
+}
+
+/**
+ * Formats a date and time to Asia/Dhaka timezone
+ * @param dateString - ISO date string or Date object
+ * @param includeSeconds - Whether to include seconds
+ * @returns Formatted date and time string
+ */
+export function formatDateTimeInDhaka(
+  dateString: string | Date,
+  includeSeconds = false
+): string {
+  if (!dateString) return "—";
+
+  const options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(includeSeconds && { second: "2-digit" }),
+  };
+
+  return formatInDhakaTimezone(dateString, options);
+}

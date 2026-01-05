@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { formatDateInDhaka } from "@/lib/utils";
 
 // Zod validation schema
 const policyValidationSchema = z.object({
@@ -676,7 +677,7 @@ export default function AttendancePoliciesPage() {
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell text-sm">
-                                                    {new Date(p.effectiveFrom).toLocaleDateString()}
+                                                    {formatDateInDhaka(p.effectiveFrom, "long")}
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell text-sm">
                                                     {p.startTime} - {p.endTime}

@@ -56,7 +56,9 @@ export function LeaveCalendar({ leaves, leaveTypes = [] }: LeaveCalendarProps) {
     }, [year, month, filteredLeaves]);
 
     const weekdays = getWeekdayNames("short");
-    const monthName = currentDate.toLocaleDateString("en-US", {
+    import { formatInDhakaTimezone } from "@/lib/utils";
+
+    const monthName = formatInDhakaTimezone(currentDate, {
         month: "long",
         year: "numeric",
     });

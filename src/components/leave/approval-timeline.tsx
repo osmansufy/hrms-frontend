@@ -4,7 +4,7 @@ import { Check, Clock, X, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn, formatInDhakaTimezone } from "@/lib/utils";
 import type { LeaveApprovalStep } from "@/lib/api/leave";
 
 type ApprovalTimelineProps = {
@@ -152,9 +152,12 @@ export function ApprovalTimeline({ steps, currentStatus }: ApprovalTimelineProps
 
                                         {step.actionDate && (
                                             <p className="text-xs text-muted-foreground">
-                                                {new Date(step.actionDate).toLocaleString(undefined, {
-                                                    dateStyle: "medium",
-                                                    timeStyle: "short",
+                                                {formatInDhakaTimezone(step.actionDate, {
+                                                    year: "numeric",
+                                                    month: "long",
+                                                    day: "numeric",
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
                                                 })}
                                             </p>
                                         )}

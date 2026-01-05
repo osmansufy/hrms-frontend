@@ -20,6 +20,8 @@ import { useSignIn, useSignOut, useTodayAttendance, useMyLostHoursReport } from 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { LeaveBalance, LeaveRecord } from "@/lib/api/leave";
+import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
+
 
 // Helper function for calculating balance percentage
 function calculateBalancePercentage(balance: LeaveBalance): number {
@@ -47,7 +49,7 @@ export default function EmployeeDashboard() {
   const attendanceBarData = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
-    const dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const dateStr = formatDateInDhaka(d, "short");
     const rec = attendanceChartData?.data?.find(r => {
       const recDate = new Date(r.date);
       return recDate.getFullYear() === d.getFullYear() && recDate.getMonth() === d.getMonth() && recDate.getDate() === d.getDate();
@@ -69,7 +71,7 @@ export default function EmployeeDashboard() {
 
   // Live worked hours clock
   const [workedSeconds, setWorkedSeconds] = useState(0);
-  const todayDate = new Date().toLocaleDateString();
+  const todayDate = formatDateInDhaka(new Date(), "long");
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
     if (todayAttendance?.signIn && !todayAttendance?.signOut) {
@@ -233,7 +235,7 @@ export default function EmployeeDashboard() {
                     <h3 className="text-sm font-semibold">Sign In</h3>
                     {todayAttendance?.signIn && (
                       <Badge variant="outline" className="text-xs">
-                        {new Date(todayAttendance.signIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {formatTimeInDhaka(todayAttendance.signIn)}
                       </Badge>
                     )}
                   </div>
@@ -265,7 +267,7 @@ export default function EmployeeDashboard() {
                     <h3 className="text-sm font-semibold">Sign Out</h3>
                     {todayAttendance?.signOut && (
                       <Badge variant="outline" className="text-xs">
-                        {new Date(todayAttendance.signOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {formatTimeInDhaka(todayAttendance.signOut)}
                       </Badge>
                     )}
                   </div>

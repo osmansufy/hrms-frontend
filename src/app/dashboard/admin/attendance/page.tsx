@@ -15,14 +15,10 @@ import { StatsCards } from "./components/stats-cards";
 import { TodayAttendanceCard } from "./components/today-attendance";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { formatTimeInDhaka } from "@/lib/utils";
 
 function formatTime(value?: string | null) {
-    if (!value) return "—";
-    try {
-        return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-        return "—";
-    }
+    return formatTimeInDhaka(value || "");
 }
 
 export default function AdminAttendancePage() {

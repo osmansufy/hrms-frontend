@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 import { Separator } from "@/components/ui/separator";
 import type { LeaveDetails } from "@/lib/api/leave";
+import { formatInDhakaTimezone } from "@/lib/utils";
 
 type LeaveDetailCardProps = {
     leave: LeaveDetails;
@@ -17,7 +18,7 @@ export function LeaveDetailCard({ leave }: LeaveDetailCardProps) {
         : leave.user.email;
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString(undefined, {
+        return formatInDhakaTimezone(dateString, {
             weekday: "short",
             year: "numeric",
             month: "long",
@@ -26,9 +27,12 @@ export function LeaveDetailCard({ leave }: LeaveDetailCardProps) {
     };
 
     const formatDateTime = (dateString: string) => {
-        return new Date(dateString).toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
+        return formatInDhakaTimezone(dateString, {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
         });
     };
 

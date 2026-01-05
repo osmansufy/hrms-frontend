@@ -22,15 +22,12 @@ import { AlertCircle, Check, Loader2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { formatDateInDhaka } from "@/lib/utils";
+
 // Helper function to format dates
 function formatDate(dateString: string | null | undefined) {
     if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-    });
+    return formatDateInDhaka(dateString, "long");
 }
 
 export function AmendmentApprovalsTab() {

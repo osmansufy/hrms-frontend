@@ -30,20 +30,17 @@ import { useAllEmployeeLeaves } from "@/lib/queries/leave";
 import { Loader2, Search, Filter } from "lucide-react";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 
+import { formatDateInDhaka, formatInDhakaTimezone } from "@/lib/utils";
+
 function formatDate(dateString: string) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-    });
+    return formatDateInDhaka(dateString, "long");
 }
 
-function formatRange(start: string, end: string) {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const startLabel = startDate.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    const endLabel = endDate.toLocaleDateString(undefined, {
+function formatDateRange(startDate: string, endDate: string) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const startLabel = formatInDhakaTimezone(start, { month: "short", day: "numeric" });
+    const endLabel = formatInDhakaTimezone(end, {
         month: "short",
         day: "numeric",
         year: "numeric",

@@ -237,7 +237,7 @@ export function AttendanceRecordsTab() {
                                         </div>
                                     </TableCell>
                                     <TableCell>{record.user.employee?.department?.name || "—"}</TableCell>
-                                    <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                                    <TableCell>{formatDateInDhaka(record.date, "long")}</TableCell>
                                     <TableCell>{formatTime(record.signIn)}</TableCell>
                                     <TableCell>{formatTime(record.signOut)}</TableCell>
                                     <TableCell>
@@ -285,9 +285,10 @@ export function AttendanceRecordsTab() {
     );
 }
 
+import { formatTimeInDhaka, formatDateInDhaka } from "@/lib/utils";
+
 function formatTime(isoString?: string | null) {
-    if (!isoString) return "—";
-    return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatTimeInDhaka(isoString || "");
 }
 
 function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {

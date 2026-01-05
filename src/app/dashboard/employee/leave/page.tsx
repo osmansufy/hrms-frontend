@@ -28,6 +28,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useApplyLeave, useLeaveTypes, useMyLeaves, useUserBalances, useLeavePolicy } from "@/lib/queries/leave";
 import { LeavePieChart } from "./leave-pie-chart";
 import { useBalanceDetails } from "@/lib/queries/leave-balance";
+import { formatInDhakaTimezone } from "@/lib/utils";
 import { LeaveBalanceCard } from "@/components/leave/leave-balance-card";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 
@@ -43,8 +44,8 @@ type FormValues = z.infer<typeof schema>;
 function formatRange(start: string, end: string) {
   const startDate = new Date(start);
   const endDate = new Date(end);
-  const startLabel = startDate.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const endLabel = endDate.toLocaleDateString(undefined, {
+  const startLabel = formatInDhakaTimezone(startDate, { month: "short", day: "numeric" });
+  const endLabel = formatInDhakaTimezone(endDate, {
     month: "short",
     day: "numeric",
     year: "numeric",

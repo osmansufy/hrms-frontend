@@ -85,8 +85,10 @@ export default function LostHoursReportPage() {
                     {/* Selected Range Display */}
                     <div className="flex items-center justify-between text-sm text-muted-foreground pt-2 border-t">
                         <span>
-                            Showing: <strong>{new Date(dateRange.startDate).toLocaleDateString()}</strong> to{" "}
-                            <strong>{new Date(dateRange.endDate).toLocaleDateString()}</strong>
+                            import {formatDateInDhaka} from "@/lib/utils";
+
+                            Showing: <strong>{formatDateInDhaka(dateRange.startDate, "long")}</strong> to{" "}
+                            <strong>{formatDateInDhaka(dateRange.endDate, "long")}</strong>
                         </span>
                         <Button
                             size="sm"
