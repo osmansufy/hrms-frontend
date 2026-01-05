@@ -26,6 +26,15 @@ interface AttendanceReconciliationRequest {
     reviewedAt?: string;
     reviewerComment?: string;
     createdAt: string;
+    user?: {
+        employee?: {
+            firstName: string;
+            lastName: string;
+            department?: {
+                name: string;
+            };
+        };
+    };
 }
 
 export default function AttendanceReconciliationAdminPage() {
@@ -70,7 +79,8 @@ export default function AttendanceReconciliationAdminPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Date</TableHead>
-                                    <TableHead>User</TableHead>
+                                    <TableHead>Employee Name</TableHead>
+                                    <TableHead>Department</TableHead>
                                     <TableHead>Type</TableHead>
                                     <TableHead>Original Time</TableHead>
                                     <TableHead>Requested Time</TableHead>
@@ -83,7 +93,14 @@ export default function AttendanceReconciliationAdminPage() {
                                 {data?.map((req) => (
                                     <TableRow key={req.id}>
                                         <TableCell>{new Date(req.date).toLocaleDateString()}</TableCell>
-                                        <TableCell>{req.userId}</TableCell>
+                                        <TableCell>
+                                            {req.user?.employee
+                                                ? `${req.user.employee.firstName} ${req.user.employee.lastName}`
+                                                : req.userId}
+                                        </TableCell>
+                                        <TableCell>
+                                            {req.user?.employee?.department?.name || "-"}
+                                        </TableCell>
                                         <TableCell>{req.type}</TableCell>
                                         <TableCell className="text-sm">
                                             {req.type === "SIGN_IN"
@@ -98,8 +115,8 @@ export default function AttendanceReconciliationAdminPage() {
                                         <TableCell>{req.reason}</TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
-                                                    req.status === "REJECTED" ? "bg-red-100 text-red-800" :
-                                                        "bg-yellow-100 text-yellow-800"
+                                                req.status === "REJECTED" ? "bg-red-100 text-red-800" :
+                                                    "bg-yellow-100 text-yellow-800"
                                                 }`}>
                                                 {req.status}
                                             </span>
