@@ -332,17 +332,6 @@ export default function LeavePage() {
 
   return (
     <div className="space-y-6">
-      {/* Monthly Leave Pie Chart */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Monthly Leave Summary</h2>
-        {pieData.length > 0 ? (
-          <div className="max-w-xs mx-auto">
-            <LeavePieChart data={pieData} />
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground">No leaves taken this month.</div>
-        )}
-      </div>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">Time away</p>

@@ -69,7 +69,7 @@ export default function AdminAttendancePage() {
             <StatsCards />
             <div className="flex gap-2">
                 <Link href="/dashboard/admin/attendance/policies"><Button variant="secondary">Policies</Button></Link>
-                <Link href="/dashboard/admin/attendance/policy-assignments"><Button variant="secondary">Assignments</Button></Link>
+                <Link href="/dashboard/admin/work-schedules"><Button variant="secondary">Work Schedules</Button></Link>
                 <Link href="/dashboard/admin/attendance/reports/lost-hours"><Button variant="secondary">Lost Hours</Button></Link>
                 <Link href="/dashboard/admin/attendance/reconciliation"><Button variant="secondary">Reconciliation</Button></Link>
             </div>

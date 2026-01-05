@@ -5,7 +5,7 @@ import { Search, Filter, Edit, ArrowLeft, ArrowRight, Calendar } from "lucide-re
 import { useAttendanceRecords, useUpdateAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
-import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
+import { toStartOfDayISO, toEndOfDayISO, formatTimeInDhaka, formatDateInDhaka } from "@/lib/utils";
 import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePresets";
 
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export function AttendanceRecordsTab() {
     const [search, setSearch] = useState("");
     const [departmentId, setDepartmentId] = useState<string>("all");
     const [employeeId, setEmployeeId] = useState<string>("all");
-    const [isLate, setIsLate] = useState<boolean | undefined>(undefined);
+    const [statusFilter, setStatusFilter] = useState<string>("all"); // "all", "late", "ontime", "absent"
 
     // Use date range presets hook
     const { preset, dateRange, setPreset, setCustomRange } = useDateRangePresets("today");
@@ -62,10 +62,19 @@ export function AttendanceRecordsTab() {
         userId: employeeId === "all" ? undefined : employeeId,
         startDate: toStartOfDayISO(dateRange.startDate),
         endDate: toEndOfDayISO(dateRange.endDate),
-        isLate,
-    }), [page, search, departmentId, employeeId, dateRange.startDate, dateRange.endDate, isLate]);
+        isLate: statusFilter === "late" ? true : statusFilter === "ontime" ? false : undefined,
+    }), [page, search, departmentId, employeeId, dateRange.startDate, dateRange.endDate, statusFilter]);
 
     const { data: recordsData, isLoading } = useAttendanceRecords(queryParams);
+
+    // Client-side filter for absent status (since backend doesn't have this filter)
+    const filteredRecords = useMemo(() => {
+        if (!recordsData?.data) return [];
+        if (statusFilter === "absent") {
+            return recordsData.data.filter(record => !record.signIn);
+        }
+        return recordsData.data;
+    }, [recordsData?.data, statusFilter]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearch(e.target.value);
@@ -172,10 +181,7 @@ export function AttendanceRecordsTab() {
                     </SelectContent>
                 </Select>
 
-                <Select
-                    value={isLate === undefined ? "all" : isLate ? "late" : "ontime"}
-                    onValueChange={(val) => setIsLate(val === "all" ? undefined : val === "late")}
-                >
+                <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPage(1); }}>
                     <SelectTrigger className="w-[130px]">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -183,6 +189,7 @@ export function AttendanceRecordsTab() {
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="late">Late</SelectItem>
                         <SelectItem value="ontime">On Time</SelectItem>
+                        <SelectItem value="absent">Absent</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -208,14 +215,14 @@ export function AttendanceRecordsTab() {
                                     Loading...
                                 </TableCell>
                             </TableRow>
-                        ) : recordsData?.data.length === 0 ? (
+                        ) : filteredRecords.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={7} className="h-24 text-center">
                                     No records found.
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            recordsData?.data.map((record) => (
+                            filteredRecords.map((record) => (
                                 <TableRow key={record.id}>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
@@ -275,7 +282,7 @@ export function AttendanceRecordsTab() {
                     variant="outline"
                     size="sm"
                     onClick={() => setPage((old) => old + 1)}
-                    disabled={isLoading || !recordsData || recordsData.data.length < 10} // Simple check, ideally use totalPages
+                    disabled={isLoading || !recordsData || recordsData.data.length < 10}
                 >
                     Next
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -284,8 +291,6 @@ export function AttendanceRecordsTab() {
         </div>
     );
 }
-
-import { formatTimeInDhaka, formatDateInDhaka } from "@/lib/utils";
 
 function formatTime(isoString?: string | null) {
     return formatTimeInDhaka(isoString || "");

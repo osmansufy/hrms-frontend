@@ -241,10 +241,24 @@ export type WorkSchedule = {
   isFlexible: boolean;
   isActive: boolean;
   days?: WorkScheduleDay[];
+  _count?: {
+    employees: number;
+  };
 };
 
 export async function getWorkSchedules() {
   const response = await apiClient.get<WorkSchedule[]>(`/work-schedules`);
+  return response.data;
+}
+
+export async function getWorkSchedule(id: string) {
+  const response = await apiClient.get<
+    WorkSchedule & {
+      days: WorkScheduleDay[];
+      employees?: any[];
+      _count?: { employees: number };
+    }
+  >(`/work-schedules/${id}`);
   return response.data;
 }
 
@@ -266,6 +280,21 @@ export type UpdateWorkSchedulePayload = {
   days?: WorkScheduleDayInput[];
 };
 
+export async function createWorkSchedule(payload: {
+  code: string;
+  name: string;
+  description?: string | null;
+  isFlexible?: boolean;
+  isActive?: boolean;
+  days: WorkScheduleDayInput[];
+}) {
+  const response = await apiClient.post<WorkSchedule>(
+    `/work-schedules`,
+    payload
+  );
+  return response.data;
+}
+
 export async function updateWorkSchedule(
   id: string,
   payload: UpdateWorkSchedulePayload
@@ -277,68 +306,10 @@ export async function updateWorkSchedule(
   return response.data;
 }
 
-// Policy Assignments
-export type AttendancePolicyAssignment = {
-  id: string;
-  policyId: string;
-  userId?: string | null;
-  departmentId?: string | null;
-  effectiveFrom: string;
-  effectiveTo?: string | null;
-  policy?: AttendancePolicy;
-  user?: { id: string; name: string } | null;
-  department?: { id: string; name: string } | null;
-};
-
-export async function getPolicyAssignments(params?: {
-  userId?: string;
-  departmentId?: string;
-}) {
-  const response = await apiClient.get<AttendancePolicyAssignment[]>(
-    `/attendance/admin/policy-assignments`,
-    { params }
+export async function deleteWorkSchedule(id: string) {
+  const response = await apiClient.delete<{ message: string }>(
+    `/work-schedules/${id}`
   );
-  return response.data;
-}
-
-export async function createPolicyAssignment(payload: {
-  policyId: string;
-  userId?: string;
-  departmentId?: string;
-  effectiveFrom: string;
-  effectiveTo?: string;
-}) {
-  const response = await apiClient.post<AttendancePolicyAssignment>(
-    `/attendance/admin/policy-assignments`,
-    payload
-  );
-  return response.data;
-}
-
-export async function updatePolicyAssignment(
-  id: string,
-  payload: { effectiveTo?: string | null }
-) {
-  const response = await apiClient.put<AttendancePolicyAssignment>(
-    `/attendance/admin/policy-assignments/${id}`,
-    payload
-  );
-  return response.data;
-}
-
-export async function createBulkPolicyAssignment(
-  assignments: {
-    policyId: string;
-    userId?: string;
-    departmentId?: string;
-    effectiveFrom: string;
-    effectiveTo?: string;
-  }[]
-) {
-  const response = await apiClient.post<{
-    message: string;
-    assignments: AttendancePolicyAssignment[];
-  }>(`/attendance/admin/policy-assignments/bulk`, { assignments });
   return response.data;
 }
 

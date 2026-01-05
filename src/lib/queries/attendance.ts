@@ -21,15 +21,14 @@ import {
   getAttendancePolicies,
   createAttendancePolicy,
   updateAttendancePolicy,
-  getPolicyAssignments,
-  createPolicyAssignment,
-  updatePolicyAssignment,
-  createBulkPolicyAssignment,
   deleteAttendancePolicy,
   getLostHoursReport,
   getMyLostHoursReport,
   getWorkSchedules,
+  getWorkSchedule,
+  createWorkSchedule,
   updateWorkSchedule,
+  deleteWorkSchedule,
 } from "@/lib/api/attendance";
 
 export const attendanceKeys = {
@@ -189,57 +188,6 @@ export function useUpdateAttendancePolicy() {
   });
 }
 
-// Assignments
-export function usePolicyAssignments(params?: {
-  userId?: string;
-  departmentId?: string;
-}) {
-  return useQuery({
-    queryKey: ["attendance", "policy-assignments", params],
-    queryFn: () => getPolicyAssignments(params),
-  });
-}
-
-export function useCreatePolicyAssignment() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: createPolicyAssignment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["attendance", "policy-assignments"],
-      });
-    },
-  });
-}
-
-export function useUpdatePolicyAssignment() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { id: string; payload: { effectiveTo?: string | null } }) =>
-      updatePolicyAssignment(v.id, v.payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["attendance", "policy-assignments"],
-      });
-    },
-  });
-}
-
-export function useCreateBulkPolicyAssignment() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: createBulkPolicyAssignment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["attendance", "policy-assignments"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["employees"],
-      });
-    },
-  });
-}
-
 export function useDeleteAttendancePolicy() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -294,6 +242,27 @@ export function useWorkSchedules() {
   });
 }
 
+export function useWorkSchedule(id: string | undefined) {
+  return useQuery({
+    queryKey: ["work-schedules", id],
+    queryFn: () => {
+      if (!id) throw new Error("Schedule ID required");
+      return getWorkSchedule(id);
+    },
+    enabled: Boolean(id),
+  });
+}
+
+export function useCreateWorkSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createWorkSchedule,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["work-schedules"] });
+    },
+  });
+}
+
 export function useUpdateWorkSchedule() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -301,6 +270,18 @@ export function useUpdateWorkSchedule() {
       updateWorkSchedule(v.id, v.payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["work-schedules"] });
+    },
+  });
+}
+
+export function useDeleteWorkSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteWorkSchedule,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["work-schedules"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance", "policies"] });
     },
   });
 }

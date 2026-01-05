@@ -1,15 +1,17 @@
 "use client";
 
 import React from "react";
-import { Plus, Pencil, ArrowLeft, UserPlus, ChevronDown, ChevronUp, Users, ChevronRight, Trash2, AlertTriangle, Calendar, Clock, Settings, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Plus, Pencil, ArrowLeft, ChevronDown, ChevronUp, Users, ChevronRight, Trash2, AlertTriangle, Calendar, Clock, Settings, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useAttendancePolicies, useCreateAttendancePolicy, useUpdateAttendancePolicy, useWorkSchedules, useUpdateWorkSchedule, useCreatePolicyAssignment, useDeleteAttendancePolicy } from "@/lib/queries/attendance";
+import { useAttendancePolicies, useCreateAttendancePolicy, useUpdateAttendancePolicy, useWorkSchedules, useUpdateWorkSchedule, useDeleteAttendancePolicy } from "@/lib/queries/attendance";
 import { AttendancePolicy, WorkSchedule, WorkScheduleDay } from "@/lib/api/attendance";
 import { useEmployees } from "@/lib/queries/employees";
+import { useDepartments } from "@/lib/queries/departments";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -81,10 +83,10 @@ export default function AttendancePoliciesPage() {
     const { data: policies } = useAttendancePolicies();
     const { data: workSchedules } = useWorkSchedules();
     const { data: employees } = useEmployees();
+    const { data: departments } = useDepartments();
     const createMutation = useCreateAttendancePolicy();
     const updateMutation = useUpdateAttendancePolicy();
     const updateScheduleMutation = useUpdateWorkSchedule();
-    const assignPolicyMutation = useCreatePolicyAssignment();
     const deleteMutation = useDeleteAttendancePolicy();
 
     // React Hook Form setup
@@ -102,15 +104,11 @@ export default function AttendancePoliciesPage() {
     });
 
     const [open, setOpen] = useState(false);
-    const [assignOpen, setAssignOpen] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [scheduleEditOpen, setScheduleEditOpen] = useState(false);
     const [policyToDelete, setPolicyToDelete] = useState<string | null>(null);
     const [scheduleWarningOpen, setScheduleWarningOpen] = useState(false);
     const [expandedPolicy, setExpandedPolicy] = useState<string | null>(null);
-    const [selectedEmployee, setSelectedEmployee] = useState("");
-    const [selectedPolicyId, setSelectedPolicyId] = useState("");
-    const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().slice(0, 10));
     const [editableDays, setEditableDays] = useState<WorkScheduleDay[]>([]);
     const [activeTab, setActiveTab] = useState("basic");
 
@@ -241,27 +239,6 @@ export default function AttendancePoliciesPage() {
         });
     };
 
-    const handleAssignPolicy = async () => {
-        try {
-            if (!selectedEmployee || !selectedPolicyId) {
-                toast.error("Please select both employee and policy");
-                return;
-            }
-            await assignPolicyMutation.mutateAsync({
-                userId: selectedEmployee,
-                policyId: selectedPolicyId,
-                effectiveFrom,
-            });
-            toast.success("Policy assigned successfully");
-            setAssignOpen(false);
-            setSelectedEmployee("");
-            setSelectedPolicyId("");
-            setEffectiveFrom(new Date().toISOString().slice(0, 10));
-        } catch (e: any) {
-            toast.error(e?.message || "Failed to assign policy");
-        }
-    };
-
     const handleDeleteClick = (policyId: string) => {
         setPolicyToDelete(policyId);
         setDeleteConfirmOpen(true);
@@ -294,64 +271,11 @@ export default function AttendancePoliciesPage() {
                 <div className="flex-1 flex items-center justify-between">
                     <h1 className="text-2xl font-semibold">Attendance Policies</h1>
                     <div className="flex gap-2">
-                        <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" size="default">
-                                    <UserPlus className="mr-2 size-4" /> Assign Policy
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Assign Policy to Employee</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div>
-                                        <Label>Employee *</Label>
-                                        <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select employee" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {employees?.map((emp: any) => (
-                                                    <SelectItem key={emp.id} value={emp.userId || emp.id}>
-                                                        {[emp.firstName, emp.middleName, emp.lastName].filter(Boolean).join(' ')} - {emp.employeeCode}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label>Policy *</Label>
-                                        <Select value={selectedPolicyId} onValueChange={setSelectedPolicyId}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select policy" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {policies?.filter(p => p.isActive)?.map((policy) => (
-                                                    <SelectItem key={policy.id} value={policy.id}>
-                                                        {policy.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label>Effective From *</Label>
-                                        <Input
-                                            type="date"
-                                            value={effectiveFrom}
-                                            onChange={(e) => setEffectiveFrom(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setAssignOpen(false)}>Cancel</Button>
-                                    <Button onClick={handleAssignPolicy} disabled={assignPolicyMutation.isPending}>
-                                        {assignPolicyMutation.isPending ? "Assigning..." : "Assign"}
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                        <Link href="/dashboard/admin/work-schedules">
+                            <Button variant="outline">
+                                <Calendar className="mr-2 size-4" /> Manage Schedules
+                            </Button>
+                        </Link>
                         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { reset(emptyForm); setActiveTab("basic"); } }}>
                             <DialogTrigger asChild>
                                 <Button>
