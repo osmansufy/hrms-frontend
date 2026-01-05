@@ -72,11 +72,11 @@ export default function LeavePage() {
   const { data: leaves, isLoading: leavesLoading } = useMyLeaves(userId);
 
   // Pie chart data for monthly leaves
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getUTCMonth();
+  const currentYear = new Date().getUTCFullYear();
   const monthlyLeaves = (leaves || []).filter(l => {
     const start = new Date(l.startDate);
-    return start.getMonth() === currentMonth && start.getFullYear() === currentYear;
+    return start.getUTCMonth() === currentMonth && start.getUTCFullYear() === currentYear;
   });
   const leaveTypeMap: Record<string, { name: string; value: number; color: string }> = {};
   const colors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#8dd1e1", "#a4de6c", "#d0ed57", "#fa8072"];
@@ -126,9 +126,10 @@ export default function LeavePage() {
     }
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const startDate = new Date(watchedValues.startDate);
-    startDate.setHours(0, 0, 0, 0);
+    // Use UTC to ensure consistent notice period calculation across timezones
+    today.setUTCHours(0, 0, 0, 0);
+    startDate.setUTCHours(0, 0, 0, 0);
 
     const daysDifference = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -366,7 +367,7 @@ export default function LeavePage() {
       {/* Usage awareness: show leaves taken this year */}
       {leaves && (
         <div className="mb-2 text-xs text-gray-500">
-          Leaves taken this year: {leaves.filter(l => new Date(l.startDate).getFullYear() === new Date().getFullYear()).length}
+          Leaves taken this year: {leaves.filter(l => new Date(l.startDate).getUTCFullYear() === new Date().getUTCFullYear()).length}
         </div>
       )}
 

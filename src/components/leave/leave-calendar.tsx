@@ -26,8 +26,8 @@ export function LeaveCalendar({ leaves, leaveTypes = [] }: LeaveCalendarProps) {
     const [statusFilter, setStatusFilter] = useState("all");
     const [typeFilter, setTypeFilter] = useState("all");
 
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+    const year = currentDate.getUTCFullYear();
+    const month = currentDate.getUTCMonth();
 
     const filteredLeaves = useMemo(() => {
         let filtered = leaves;
@@ -181,7 +181,7 @@ export function LeaveCalendar({ leaves, leaveTypes = [] }: LeaveCalendarProps) {
                                                     hasLeaves && colors?.text
                                                 )}
                                             >
-                                                {day.date.getDate()}
+                                                {day.date.getUTCDate()}
                                             </span>
                                             {hasLeaves && (
                                                 <div className="flex-1 space-y-1">

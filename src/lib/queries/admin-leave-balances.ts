@@ -135,9 +135,15 @@ export function useExportBalances() {
  * @param filename - Optional filename (defaults to dated filename)
  */
 export function downloadCSV(blob: Blob, filename?: string) {
-  const defaultFilename = `leave_balances_${
-    new Date().toISOString().split("T")[0]
-  }.csv`;
+  // Use Asia/Dhaka timezone for consistent filename dates
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("en-CA", {
+    timeZone: "Asia/Dhaka",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const defaultFilename = `leave_balances_${dateStr}.csv`;
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

@@ -188,7 +188,8 @@ export function TeamCalendarTab() {
 
                                         // Check if leave is in the past, present, or future
                                         const today = new Date();
-                                        today.setHours(0, 0, 0, 0);
+                                        // Use UTC for consistent date comparisons
+                                        today.setUTCHours(0, 0, 0, 0);
                                         const isOngoing = startDate <= today && endDate >= today;
                                         const isPast = endDate < today;
 

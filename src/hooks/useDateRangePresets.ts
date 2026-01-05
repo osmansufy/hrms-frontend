@@ -61,16 +61,17 @@ export function getDateRangeForPreset(preset: DateRangePreset): DateRange {
 
     case "yesterday": {
       const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
+      // Use UTC for consistent date arithmetic
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
       const date = formatDate(yesterday);
       return { startDate: date, endDate: date };
     }
 
     case "this-week": {
       const startOfWeek = new Date(now);
-      const day = startOfWeek.getDay();
-      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday
-      startOfWeek.setDate(diff);
+      const day = startOfWeek.getUTCDay();
+      const diff = startOfWeek.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday
+      startOfWeek.setUTCDate(diff);
 
       return {
         startDate: formatDate(startOfWeek),
@@ -80,12 +81,12 @@ export function getDateRangeForPreset(preset: DateRangePreset): DateRange {
 
     case "last-week": {
       const lastWeekEnd = new Date(now);
-      const day = lastWeekEnd.getDay();
-      const diff = lastWeekEnd.getDate() - day + (day === 0 ? -6 : 1); // Monday of this week
-      lastWeekEnd.setDate(diff - 1); // Sunday of last week
+      const day = lastWeekEnd.getUTCDay();
+      const diff = lastWeekEnd.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday of this week
+      lastWeekEnd.setUTCDate(diff - 1); // Sunday of last week
 
       const lastWeekStart = new Date(lastWeekEnd);
-      lastWeekStart.setDate(lastWeekEnd.getDate() - 6); // Monday of last week
+      lastWeekStart.setUTCDate(lastWeekEnd.getUTCDate() - 6); // Monday of last week
 
       return {
         startDate: formatDate(lastWeekStart),
@@ -94,7 +95,9 @@ export function getDateRangeForPreset(preset: DateRangePreset): DateRange {
     }
 
     case "this-month": {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfMonth = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+      );
       return {
         startDate: formatDate(startOfMonth),
         endDate: formatDate(now),
@@ -102,8 +105,12 @@ export function getDateRangeForPreset(preset: DateRangePreset): DateRange {
     }
 
     case "last-month": {
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      const lastMonth = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)
+      );
+      const lastMonthEnd = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0)
+      );
       return {
         startDate: formatDate(lastMonth),
         endDate: formatDate(lastMonthEnd),
@@ -111,7 +118,7 @@ export function getDateRangeForPreset(preset: DateRangePreset): DateRange {
     }
 
     case "this-year": {
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const startOfYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
       return {
         startDate: formatDate(startOfYear),
         endDate: formatDate(now),
@@ -121,7 +128,9 @@ export function getDateRangeForPreset(preset: DateRangePreset): DateRange {
     case "custom":
     default: {
       // Default to this month
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfMonth = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+      );
       return {
         startDate: formatDate(startOfMonth),
         endDate: formatDate(now),

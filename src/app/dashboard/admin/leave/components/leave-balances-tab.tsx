@@ -100,7 +100,7 @@ interface GroupedBalance {
 }
 
 export function LeaveBalancesTab() {
-    const currentYear = new Date().getFullYear();
+    const currentYear = new Date().getUTCFullYear();
     const [page, setPage] = useState(1);
     const [pageSize] = useState(20);
     const [search, setSearch] = useState("");

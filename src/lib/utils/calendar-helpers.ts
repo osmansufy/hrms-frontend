@@ -21,32 +21,34 @@ export function generateCalendarGrid(
   year: number,
   month: number
 ): CalendarDay[][] {
-  const firstDayOfMonth = new Date(year, month, 1);
-  const lastDayOfMonth = new Date(year, month + 1, 0);
+  // Use UTC to avoid timezone issues in date calculations
+  const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
+  const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0));
 
   // Get the day of week (0 = Sunday, 6 = Saturday)
-  const startDay = firstDayOfMonth.getDay();
+  const startDay = firstDayOfMonth.getUTCDay();
 
   // Calculate start date (may be in previous month)
   const calendarStart = new Date(firstDayOfMonth);
-  calendarStart.setDate(calendarStart.getDate() - startDay);
+  calendarStart.setUTCDate(calendarStart.getUTCDate() - startDay);
 
   // Generate 42 days (6 weeks)
   const daysInCalendar = 42;
   const allDays: Date[] = [];
   for (let i = 0; i < daysInCalendar; i++) {
     const date = new Date(calendarStart);
-    date.setDate(calendarStart.getDate() + i);
+    date.setUTCDate(calendarStart.getUTCDate() + i);
     allDays.push(date);
   }
 
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Normalize to UTC midnight for consistent date comparisons
+  today.setUTCHours(0, 0, 0, 0);
 
   // Convert to CalendarDay objects
   const calendarDays: CalendarDay[] = allDays.map((date: Date) => ({
     date,
-    isCurrentMonth: date.getMonth() === month,
+    isCurrentMonth: date.getUTCMonth() === month,
     leaves: [],
     isPast: date < today,
   }));
@@ -74,11 +76,11 @@ export function mapLeavesToCalendar(
         const leaveStart = new Date(leave.startDate);
         const leaveEnd = new Date(leave.endDate);
 
-        // Normalize dates to midnight for comparison
+        // Normalize dates to UTC midnight for accurate comparisons
         const dayNormalized = new Date(day.date);
-        dayNormalized.setHours(0, 0, 0, 0);
-        leaveStart.setHours(0, 0, 0, 0);
-        leaveEnd.setHours(0, 0, 0, 0);
+        dayNormalized.setUTCHours(0, 0, 0, 0);
+        leaveStart.setUTCHours(0, 0, 0, 0);
+        leaveEnd.setUTCHours(0, 0, 0, 0);
 
         // Check if day falls within leave range
         return dayNormalized >= leaveStart && dayNormalized <= leaveEnd;
@@ -150,12 +152,12 @@ import { formatInDhakaTimezone, APP_TIMEZONE } from "../utils";
  * Get weekday names
  */
 export function getWeekdayNames(fmt: "short" | "long" = "short"): string[] {
-  const baseDate = new Date(2024, 0, 7); // A Sunday
+  const baseDate = new Date(Date.UTC(2024, 0, 7)); // A Sunday
   const days: string[] = [];
 
   for (let i = 0; i < 7; i++) {
     const date = new Date(baseDate);
-    date.setDate(baseDate.getDate() + i);
+    date.setUTCDate(baseDate.getUTCDate() + i);
     days.push(
       fmt === "short"
         ? formatInDhakaTimezone(date, { weekday: "short" })

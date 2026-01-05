@@ -39,7 +39,7 @@ export default function EmployeeDashboard() {
   // Attendance chart data for last 7 days
   const end = new Date();
   const start = new Date();
-  start.setDate(end.getDate() - 6);
+  start.setUTCDate(end.getUTCDate() - 6);
   const chartQueryParams = {
     startDate: start.toISOString().split("T")[0],
     endDate: end.toISOString().split("T")[0],
@@ -48,11 +48,11 @@ export default function EmployeeDashboard() {
   const { data: attendanceChartData } = useMyAttendanceRecords(userId, chartQueryParams);
   const attendanceBarData = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(start);
-    d.setDate(start.getDate() + i);
+    d.setUTCDate(start.getUTCDate() + i);
     const dateStr = formatDateInDhaka(d, "short");
     const rec = attendanceChartData?.data?.find(r => {
       const recDate = new Date(r.date);
-      return recDate.getFullYear() === d.getFullYear() && recDate.getMonth() === d.getMonth() && recDate.getDate() === d.getDate();
+      return recDate.getUTCFullYear() === d.getUTCFullYear() && recDate.getUTCMonth() === d.getUTCMonth() && recDate.getUTCDate() === d.getUTCDate();
     });
     return {
       date: dateStr,

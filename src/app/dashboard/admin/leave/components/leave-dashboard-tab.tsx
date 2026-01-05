@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 export function LeaveDashboardTab() {
-    const currentYear = new Date().getFullYear();
+    const currentYear = new Date().getUTCFullYear();
     const {
         data: summary,
         isLoading: summaryLoading,
