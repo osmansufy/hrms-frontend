@@ -1,30 +1,29 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, ArrowLeft, Users, Calendar, Clock, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import {
-    useWorkSchedules,
-    useCreateWorkSchedule,
-    useUpdateWorkSchedule,
-    useDeleteWorkSchedule
-} from "@/lib/queries/attendance";
-import { WorkSchedule, WorkScheduleDay, WorkScheduleDayInput } from "@/lib/api/attendance";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { WorkSchedule, WorkScheduleDay, WorkScheduleDayInput } from "@/lib/api/attendance";
+import {
+    useCreateWorkSchedule,
+    useDeleteWorkSchedule,
+    useUpdateWorkSchedule,
+    useWorkSchedules
+} from "@/lib/queries/attendance";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertTriangle, ArrowLeft, ChevronDown, ChevronUp, Clock, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { z } from "zod";
 
 const DAYS_OF_WEEK = [
     { value: "MONDAY", label: "Monday" },
