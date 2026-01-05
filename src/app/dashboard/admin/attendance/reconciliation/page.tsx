@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -8,11 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
-import { toast } from "sonner"; // or your toast library
+import { toast } from "sonner";
+import { useDepartments } from "@/lib/queries/departments";
+
 // Types for reconciliation requests
 interface AttendanceReconciliationRequest {
     id: string;
@@ -47,6 +50,11 @@ export default function AttendanceReconciliationAdminPage() {
     const [editingRequest, setEditingRequest] = useState<AttendanceReconciliationRequest | null>(null);
     const [correctedTime, setCorrectedTime] = useState("");
     const [reviewerComment, setReviewerComment] = useState("");
+    const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+
+    // Fetch departments
+    const { data: departments } = useDepartments();
 
     // Fetch all reconciliation requests (admin/HR)
     const { data, isLoading, refetch } = useQuery<AttendanceReconciliationRequest[]>({
@@ -56,6 +64,20 @@ export default function AttendanceReconciliationAdminPage() {
             return res.data;
         },
     });
+
+    // Filter data based on department and status
+    const filteredData = useMemo(() => {
+        if (!data) return [];
+
+        return data.filter((req) => {
+            const matchesDepartment = departmentFilter === "all" ||
+                req.user?.employee?.department?.name === departmentFilter;
+            const matchesStatus = statusFilter === "all" ||
+                req.status === statusFilter;
+
+            return matchesDepartment && matchesStatus;
+        });
+    }, [data, departmentFilter, statusFilter]);
 
     const handleApprove = async (id: string) => {
         await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "APPROVED" });
@@ -146,6 +168,40 @@ export default function AttendanceReconciliationAdminPage() {
                     <CardTitle>Attendance Reconciliation Requests</CardTitle>
                 </CardHeader>
                 <CardContent>
+                    {/* Filters */}
+                    <div className="flex gap-4 mb-6">
+                        <div className="w-64">
+                            <label className="text-sm font-medium mb-2 block">Department</label>
+                            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Departments" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Departments</SelectItem>
+                                    {departments?.map((dept) => (
+                                        <SelectItem key={dept.id} value={dept.name}>
+                                            {dept.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="w-48">
+                            <label className="text-sm font-medium mb-2 block">Status</label>
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem value="PENDING">Pending</SelectItem>
+                                    <SelectItem value="APPROVED">Approved</SelectItem>
+                                    <SelectItem value="REJECTED">Rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
                     {isLoading ? (
                         <div>Loading...</div>
                     ) : (
@@ -164,48 +220,56 @@ export default function AttendanceReconciliationAdminPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {data?.map((req) => (
-                                    <TableRow key={req.id}>
-                                        <TableCell>{formatDateInDhaka(req.date, "long")}</TableCell>
-                                        <TableCell>
-                                            {req.user?.employee
-                                                ? `${req.user.employee.firstName} ${req.user.employee.lastName}`
-                                                : req.userId}
-                                        </TableCell>
-                                        <TableCell>
-                                            {req.user?.employee?.department?.name || "-"}
-                                        </TableCell>
-                                        <TableCell>{req.type}</TableCell>
-                                        <TableCell className="text-sm">
-                                            {req.type === "SIGN_IN"
-                                                ? (req.originalSignIn ? formatTimeInDhaka(req.originalSignIn) : "Missing")
-                                                : (req.originalSignOut ? formatTimeInDhaka(req.originalSignOut) : "Missing")}
-                                        </TableCell>
-                                        <TableCell className="text-sm font-semibold">
-                                            {req.type === "SIGN_IN"
-                                                ? (req.requestedSignIn ? formatTimeInDhaka(req.requestedSignIn) : "-")
-                                                : (req.requestedSignOut ? formatTimeInDhaka(req.requestedSignOut) : "-")}
-                                        </TableCell>
-                                        <TableCell>{req.reason}</TableCell>
-                                        <TableCell>
-                                            <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
-                                                req.status === "REJECTED" ? "bg-red-100 text-red-800" :
-                                                    "bg-yellow-100 text-yellow-800"
-                                                }`}>
-                                                {req.status}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            {req.status === "PENDING" && (
-                                                <div className="flex gap-2">
-                                                    <Button size="sm" onClick={() => handleApprove(req.id)}>Approve</Button>
-                                                    <Button size="sm" variant="secondary" onClick={() => handleEditAndApprove(req)}>Edit & Approve</Button>
-                                                    <Button size="sm" variant="destructive" onClick={() => handleReject(req.id)}>Reject</Button>
-                                                </div>
-                                            )}
+                                {filteredData?.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                                            No reconciliation requests found
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                ) : (
+                                    filteredData?.map((req) => (
+                                        <TableRow key={req.id}>
+                                            <TableCell>{formatDateInDhaka(req.date, "long")}</TableCell>
+                                            <TableCell>
+                                                {req.user?.employee
+                                                    ? `${req.user.employee.firstName} ${req.user.employee.lastName}`
+                                                    : req.userId}
+                                            </TableCell>
+                                            <TableCell>
+                                                {req.user?.employee?.department?.name || "-"}
+                                            </TableCell>
+                                            <TableCell>{req.type}</TableCell>
+                                            <TableCell className="text-sm">
+                                                {req.type === "SIGN_IN"
+                                                    ? (req.originalSignIn ? formatTimeInDhaka(req.originalSignIn) : "Missing")
+                                                    : (req.originalSignOut ? formatTimeInDhaka(req.originalSignOut) : "Missing")}
+                                            </TableCell>
+                                            <TableCell className="text-sm font-semibold">
+                                                {req.type === "SIGN_IN"
+                                                    ? (req.requestedSignIn ? formatTimeInDhaka(req.requestedSignIn) : "-")
+                                                    : (req.requestedSignOut ? formatTimeInDhaka(req.requestedSignOut) : "-")}
+                                            </TableCell>
+                                            <TableCell>{req.reason}</TableCell>
+                                            <TableCell>
+                                                <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
+                                                    req.status === "REJECTED" ? "bg-red-100 text-red-800" :
+                                                        "bg-yellow-100 text-yellow-800"
+                                                    }`}>
+                                                    {req.status}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                {req.status === "PENDING" && (
+                                                    <div className="flex gap-2">
+                                                        <Button size="sm" onClick={() => handleApprove(req.id)}>Approve</Button>
+                                                        <Button size="sm" variant="secondary" onClick={() => handleEditAndApprove(req)}>Edit & Approve</Button>
+                                                        <Button size="sm" variant="destructive" onClick={() => handleReject(req.id)}>Reject</Button>
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     )}
