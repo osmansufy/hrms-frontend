@@ -97,12 +97,17 @@ export default function AttendanceReconciliationEmployeePage() {
                 </CardHeader>
                 <CardContent>
                     <form className="space-y-4" onSubmit={handleSubmit}>
-                        <Input
-                            type="date"
-                            value={form.date}
-                            onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                            required
-                        />
+                        <div>
+                            <label className="text-sm font-medium">Date</label>
+                            <Input
+                                type="date"
+                                value={form.date}
+                                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                                max={new Date().toISOString().split('T')[0]}
+                                required
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Only past dates can be selected</p>
+                        </div>
                         <Select
                             value={form.type}
                             onValueChange={(v) => setForm((f) => ({ ...f, type: v as "SIGN_IN" | "SIGN_OUT" }))}
