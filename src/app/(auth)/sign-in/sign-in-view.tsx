@@ -101,9 +101,8 @@ export function SignInView({
       toast.success("Welcome back");
       router.push(redirectTo);
     } catch (error) {
-      const message = error instanceof Error && error.message === "invalid-credentials"
-        ? "Invalid email or password"
-        : "Unable to sign in";
+      // Display the actual error message from the backend
+      const message = error instanceof Error ? error.message : "Unable to sign in";
       toast.error(message);
       console.error(error);
     } finally {

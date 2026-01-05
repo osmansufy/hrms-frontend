@@ -107,9 +107,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         { email, password },
       );
     } catch (err) {
-      const axiosErr = err as AxiosError;
+      const axiosErr = err as AxiosError<{ message: string }>;
       if (axiosErr.response?.status === 401) {
-        throw new Error("invalid-credentials");
+        // Pass through the actual error message from the backend
+        const errorMessage = axiosErr.response?.data?.message || "Invalid credentials";
+        throw new Error(errorMessage);
       }
       throw err;
     }
