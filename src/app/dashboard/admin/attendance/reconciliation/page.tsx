@@ -4,12 +4,15 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
-
+import { toast } from "sonner"; // or your toast library
 // Types for reconciliation requests
 interface AttendanceReconciliationRequest {
     id: string;
@@ -41,6 +44,9 @@ interface AttendanceReconciliationRequest {
 export default function AttendanceReconciliationAdminPage() {
     const router = useRouter();
     const [refresh, setRefresh] = useState(0);
+    const [editingRequest, setEditingRequest] = useState<AttendanceReconciliationRequest | null>(null);
+    const [correctedTime, setCorrectedTime] = useState("");
+    const [reviewerComment, setReviewerComment] = useState("");
 
     // Fetch all reconciliation requests (admin/HR)
     const { data, isLoading, refetch } = useQuery<AttendanceReconciliationRequest[]>({
@@ -55,9 +61,76 @@ export default function AttendanceReconciliationAdminPage() {
         await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "APPROVED" });
         setRefresh((r) => r + 1);
     };
+
     const handleReject = async (id: string) => {
         await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "REJECTED" });
         setRefresh((r) => r + 1);
+    };
+
+    const handleEditAndApprove = (req: AttendanceReconciliationRequest) => {
+        setEditingRequest(req);
+        // Pre-fill with employee's requested time - convert UTC to Asia/Dhaka local time
+        if (req.type === "SIGN_IN" && req.requestedSignIn) {
+            const utcDate = new Date(req.requestedSignIn);
+            // Convert UTC to Asia/Dhaka (UTC+6) for datetime-local input
+            const dhakaTime = new Date(utcDate.getTime() + (6 * 60 * 60 * 1000));
+            setCorrectedTime(dhakaTime.toISOString().slice(0, 16));
+        } else if (req.type === "SIGN_OUT" && req.requestedSignOut) {
+            const utcDate = new Date(req.requestedSignOut);
+            // Convert UTC to Asia/Dhaka (UTC+6) for datetime-local input
+            const dhakaTime = new Date(utcDate.getTime() + (6 * 60 * 60 * 1000));
+            setCorrectedTime(dhakaTime.toISOString().slice(0, 16));
+        } else {
+            setCorrectedTime("");
+        }
+        setReviewerComment("");
+    };
+
+    const handleSubmitCorrectedApproval = async () => {
+        if (!editingRequest) return;
+
+        // Validate that we have either corrected time or employee's requested time
+        const hasTime = correctedTime ||
+            (editingRequest.type === "SIGN_IN" && editingRequest.requestedSignIn) ||
+            (editingRequest.type === "SIGN_OUT" && editingRequest.requestedSignOut);
+
+        if (!hasTime) {
+            toast.error("Please provide a corrected time");
+            return;
+        }
+
+        try {
+            const payload: any = {
+                status: "APPROVED",
+                reviewerComment: reviewerComment || undefined,
+            };
+
+            // Add corrected time if provided - convert from Asia/Dhaka to UTC
+            if (correctedTime) {
+                // datetime-local gives us local time, we need to specify it's Asia/Dhaka (+06:00)
+                const dateTimeWithTz = correctedTime + ":00+06:00";
+                const correctedDate = new Date(dateTimeWithTz);
+
+                if (editingRequest.type === "SIGN_IN") {
+                    payload.correctedSignIn = correctedDate.toISOString();
+                    console.log({ payload });
+                } else if (editingRequest.type === "SIGN_OUT") {
+                    payload.correctedSignOut = correctedDate.toISOString();
+                }
+            }
+            await apiClient.put(`/attendance/reconciliation/${editingRequest.id}/status`, payload);
+            console.log("outcome:", { payload });
+            // Success feedback
+            toast.success("Reconciliation approved successfully");
+
+            setEditingRequest(null);
+            setCorrectedTime("");
+            setReviewerComment("");
+            setRefresh((r) => r + 1);
+        } catch (error) {
+            console.error("Failed to approve reconciliation:", error);
+            toast.error("Failed to approve reconciliation. Please try again.");
+        }
     };
 
     return (
@@ -124,10 +197,11 @@ export default function AttendanceReconciliationAdminPage() {
                                         </TableCell>
                                         <TableCell>
                                             {req.status === "PENDING" && (
-                                                <>
-                                                    <Button size="sm" onClick={() => handleApprove(req.id)} className="mr-2">Approve</Button>
+                                                <div className="flex gap-2">
+                                                    <Button size="sm" onClick={() => handleApprove(req.id)}>Approve</Button>
+                                                    <Button size="sm" variant="secondary" onClick={() => handleEditAndApprove(req)}>Edit & Approve</Button>
                                                     <Button size="sm" variant="destructive" onClick={() => handleReject(req.id)}>Reject</Button>
-                                                </>
+                                                </div>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -137,6 +211,71 @@ export default function AttendanceReconciliationAdminPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Edit Time Dialog */}
+            <Dialog open={!!editingRequest} onOpenChange={(open) => !open && setEditingRequest(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit & Approve Reconciliation</DialogTitle>
+                    </DialogHeader>
+                    {editingRequest && (
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-sm text-gray-600">Employee: {editingRequest.user?.employee
+                                    ? `${editingRequest.user.employee.firstName} ${editingRequest.user.employee.lastName}`
+                                    : editingRequest.userId}</p>
+                                <p className="text-sm text-gray-600">Date: {formatDateInDhaka(editingRequest.date, "long")}</p>
+                                <p className="text-sm text-gray-600">Type: {editingRequest.type}</p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Original Time</label>
+                                <p className="text-sm">
+                                    {editingRequest.type === "SIGN_IN"
+                                        ? (editingRequest.originalSignIn ? formatTimeInDhaka(editingRequest.originalSignIn) : "Missing")
+                                        : (editingRequest.originalSignOut ? formatTimeInDhaka(editingRequest.originalSignOut) : "Missing")}
+                                </p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Employee Requested Time</label>
+                                <p className="text-sm font-semibold text-blue-600">
+                                    {editingRequest.type === "SIGN_IN"
+                                        ? (editingRequest.requestedSignIn ? formatTimeInDhaka(editingRequest.requestedSignIn) : "-")
+                                        : (editingRequest.requestedSignOut ? formatTimeInDhaka(editingRequest.requestedSignOut) : "-")}
+                                </p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium block mb-2">
+                                    Corrected Time (Admin Override)
+                                    <span className="text-xs text-gray-500 ml-2">(Leave empty to use employee's requested time)</span>
+                                </label>
+                                <Input
+                                    type="datetime-local"
+                                    value={correctedTime}
+                                    onChange={(e) => setCorrectedTime(e.target.value)}
+                                    className="w-full"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Reason from Employee</label>
+                                <p className="text-sm text-gray-700">{editingRequest.reason}</p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium block mb-2">Reviewer Comment (Optional)</label>
+                                <Textarea
+                                    value={reviewerComment}
+                                    onChange={(e) => setReviewerComment(e.target.value)}
+                                    placeholder="Add your comment..."
+                                    className="w-full"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingRequest(null)}>Cancel</Button>
+                        <Button onClick={handleSubmitCorrectedApproval}>Approve with Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

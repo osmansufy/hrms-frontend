@@ -57,13 +57,23 @@ export default function AttendanceReconciliationEmployeePage() {
         if (!userId || !form.date || !form.reason) return;
         setSubmitting(true);
         try {
-            // Combine date and time for datetime fields
-            const requestedSignIn = form.type === "SIGN_IN" && form.requestedSignIn
-                ? `${form.date}T${form.requestedSignIn}:00`
-                : undefined;
-            const requestedSignOut = form.type === "SIGN_OUT" && form.requestedSignOut
-                ? `${form.date}T${form.requestedSignOut}:00`
-                : undefined;
+            // Properly construct datetime in Asia/Dhaka timezone and convert to UTC ISO string
+            let requestedSignIn: string | undefined;
+            let requestedSignOut: string | undefined;
+
+            if (form.type === "SIGN_IN" && form.requestedSignIn) {
+                // Create date in Dhaka timezone (UTC+6)
+                const dateTimeStr = `${form.date}T${form.requestedSignIn}:00+06:00`;
+                const date = new Date(dateTimeStr);
+                requestedSignIn = date.toISOString();
+            }
+
+            if (form.type === "SIGN_OUT" && form.requestedSignOut) {
+                // Create date in Dhaka timezone (UTC+6)
+                const dateTimeStr = `${form.date}T${form.requestedSignOut}:00+06:00`;
+                const date = new Date(dateTimeStr);
+                requestedSignOut = date.toISOString();
+            }
 
             await apiClient.post("/attendance/reconciliation", {
                 date: form.date,
