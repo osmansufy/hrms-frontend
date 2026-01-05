@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-
+import { formatDateInDhaka } from "@/lib/utils";
 export default function PolicyAssignmentsPage() {
     const router = useRouter();
     const { data: policies } = useAttendancePolicies({ isActive: true });
@@ -109,7 +109,7 @@ export default function PolicyAssignmentsPage() {
                                     <TableCell>{a.policy?.name}</TableCell>
                                     <TableCell>{a.user?.name || a.userId || "—"}</TableCell>
                                     <TableCell>{a.department?.name || a.departmentId || "—"}</TableCell>
-                                    import {formatDateInDhaka} from "@/lib/utils";
+
 
                                     <TableCell>{formatDateInDhaka(a.effectiveFrom, "long")}</TableCell>
                                     <TableCell>{a.effectiveTo ? formatDateInDhaka(a.effectiveTo, "long") : "—"}</TableCell>

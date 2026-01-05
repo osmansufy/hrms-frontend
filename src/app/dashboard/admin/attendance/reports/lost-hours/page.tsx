@@ -12,7 +12,7 @@ import { useLostHoursReport } from "@/lib/queries/attendance";
 import { toStartOfDayISO, toEndOfDayISO, formatMinutesToHours } from "@/lib/utils";
 import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePresets";
 import { Calendar, Download } from "lucide-react";
-
+import { formatDateInDhaka } from "@/lib/utils";
 export default function LostHoursReportPage() {
     const router = useRouter();
     const { preset, dateRange, setPreset, setCustomRange } = useDateRangePresets("this-month");
@@ -85,7 +85,7 @@ export default function LostHoursReportPage() {
                     {/* Selected Range Display */}
                     <div className="flex items-center justify-between text-sm text-muted-foreground pt-2 border-t">
                         <span>
-                            import {formatDateInDhaka} from "@/lib/utils";
+
 
                             Showing: <strong>{formatDateInDhaka(dateRange.startDate, "long")}</strong> to{" "}
                             <strong>{formatDateInDhaka(dateRange.endDate, "long")}</strong>

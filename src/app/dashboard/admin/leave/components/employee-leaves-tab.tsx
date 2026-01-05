@@ -30,7 +30,7 @@ import { useAllEmployeeLeaves } from "@/lib/queries/leave";
 import { Loader2, Search, Filter } from "lucide-react";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 
-import { formatDateInDhaka, formatInDhakaTimezone } from "@/lib/utils";
+import { formatDateInDhaka, formatInDhakaTimezone, formatTimeInDhaka } from "@/lib/utils";
 
 function formatDate(dateString: string) {
     return formatDateInDhaka(dateString, "long");
@@ -197,7 +197,7 @@ export function EmployeeLeavesTab() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-sm">
-                                                    {formatRange(leave.startDate, leave.endDate)}
+                                                    {formatDateRange(leave.startDate, leave.endDate)}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="secondary">{leaveDays} days</Badge>

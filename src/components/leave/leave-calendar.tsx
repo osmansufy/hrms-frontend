@@ -14,6 +14,7 @@ import {
 } from "@/lib/utils/calendar-helpers";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { formatInDhakaTimezone } from "@/lib/utils";
 
 type LeaveCalendarProps = {
     leaves: CalendarLeave[];
@@ -56,7 +57,6 @@ export function LeaveCalendar({ leaves, leaveTypes = [] }: LeaveCalendarProps) {
     }, [year, month, filteredLeaves]);
 
     const weekdays = getWeekdayNames("short");
-    import { formatInDhakaTimezone } from "@/lib/utils";
 
     const monthName = formatInDhakaTimezone(currentDate, {
         month: "long",
