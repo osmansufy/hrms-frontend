@@ -203,7 +203,11 @@ export type LeaveApproval = {
 
 export type LeaveWithApprovals = LeaveRecord & {
   approvals?: LeaveApproval[];
-
+  employee?: {
+    firstName: string;
+    lastName: string;
+    employeeCode: string;
+  };
   user: {
     name: string;
     employee?: {

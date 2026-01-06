@@ -251,14 +251,14 @@ export function PendingApprovalsTab() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {leavesInPending.map((leave) => {
+                                        {leavesInPending.map((leave: any) => {
                                             const startDate = new Date(leave.startDate);
                                             const endDate = new Date(leave.endDate);
                                             const duration = Math.ceil(
                                                 (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
                                             ) + 1;
-                                            const employeeName = leave.user?.employee
-                                                ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
+                                            const employeeName = leave?.employee
+                                                ? `${leave?.employee?.firstName} ${leave?.employee?.lastName}`
                                                 : "Unknown";
 
                                             return (
