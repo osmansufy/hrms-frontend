@@ -84,7 +84,10 @@ export default function DepartmentsPage() {
       toast.success("Department created");
       form.reset();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Unable to create department");
+      const errorMessage = typeof error?.response?.data?.message === 'string'
+        ? error.response.data.message
+        : error?.response?.data?.error || error?.message || "Unable to create department";
+      toast.error(errorMessage);
     }
   };
 
@@ -103,7 +106,10 @@ export default function DepartmentsPage() {
       setEditingDepartment(null);
       editForm.reset();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Unable to update department");
+      const errorMessage = typeof error?.response?.data?.message === 'string'
+        ? error.response.data.message
+        : error?.response?.data?.error || error?.message || "Unable to update department";
+      toast.error(errorMessage);
     }
   };
 
@@ -114,7 +120,10 @@ export default function DepartmentsPage() {
       toast.success("Department deleted");
       setDeletingDepartment(null);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Unable to delete department");
+      const errorMessage = typeof error?.response?.data?.message === 'string'
+        ? error.response.data.message
+        : error?.response?.data?.error || error?.message || "Unable to delete department";
+      toast.error(errorMessage);
     }
   };
 

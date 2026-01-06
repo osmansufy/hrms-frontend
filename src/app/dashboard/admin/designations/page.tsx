@@ -54,6 +54,7 @@ import type { Designation } from "@/lib/api/designations";
 const schema = z.object({
   title: z.string().min(2, "Title is required"),
   code: z.string().min(1, "Code is required"),
+  level: z.number().min(1, "Level must be at least 1").max(20, "Level must not exceed 20").int("Level must be a whole number"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -68,12 +69,12 @@ export default function DesignationsPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: "", code: "" },
+    defaultValues: { title: "", code: "", level: 1 },
   });
 
   const editForm = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: "", code: "" },
+    defaultValues: { title: "", code: "", level: 1 },
   });
 
   const updateMutation = useUpdateDesignation(editingDesignation?.id ?? "");
@@ -84,7 +85,10 @@ export default function DesignationsPage() {
       toast.success("Designation created");
       form.reset();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Unable to create designation");
+      const errorMessage = typeof error?.response?.data?.message === 'string'
+        ? error.response.data.message
+        : error?.response?.data?.error || error?.message || "Unable to create designation";
+      toast.error(errorMessage);
     }
   };
 
@@ -93,6 +97,7 @@ export default function DesignationsPage() {
     editForm.reset({
       title: designation.title || designation.name || "",
       code: designation.code || "",
+      level: designation.level || 1,
     });
   };
 
@@ -103,7 +108,10 @@ export default function DesignationsPage() {
       setEditingDesignation(null);
       editForm.reset();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Unable to update designation");
+      const errorMessage = typeof error?.response?.data?.message === 'string'
+        ? error.response.data.message
+        : error?.response?.data?.error || error?.message || "Unable to update designation";
+      toast.error(errorMessage);
     }
   };
 
@@ -114,7 +122,10 @@ export default function DesignationsPage() {
       toast.success("Designation deleted");
       setDeletingDesignation(null);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Unable to delete designation");
+      const errorMessage = typeof error?.response?.data?.message === 'string'
+        ? error.response.data.message
+        : error?.response?.data?.error || error?.message || "Unable to delete designation";
+      toast.error(errorMessage);
     }
   };
 
@@ -142,6 +153,7 @@ export default function DesignationsPage() {
                 <TableRow>
                   <TableHead>Title</TableHead>
                   <TableHead>Code</TableHead>
+                  <TableHead>Level</TableHead>
                   <TableHead className="w-25">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -150,6 +162,7 @@ export default function DesignationsPage() {
                   <TableRow key={des.id}>
                     <TableCell className="font-semibold">{des.title || des.name}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{des.code}</TableCell>
+                    <TableCell className="text-sm">{des.level || '-'}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
@@ -174,7 +187,7 @@ export default function DesignationsPage() {
                 ))}
                 {!isLoading && (data?.length ?? 0) === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
                       No designations yet.
                     </TableCell>
                   </TableRow>
@@ -214,6 +227,30 @@ export default function DesignationsPage() {
                       <FormControl>
                         <Input placeholder="SE" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="level"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Level (1-20)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="5"
+                          min={1}
+                          max={20}
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Hierarchy rank for career progression, salary bands, and reporting structure.
+                        Examples: 1-3 (Junior), 4-7 (Mid), 8-12 (Senior), 13-16 (Manager), 17-20 (Executive)
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -268,6 +305,30 @@ export default function DesignationsPage() {
                     <FormControl>
                       <Input placeholder="SE" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="level"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Level (1-20)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="5"
+                        min={1}
+                        max={20}
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Hierarchy rank for career progression, salary bands, and reporting structure.
+                      Examples: 1-3 (Junior), 4-7 (Mid), 8-12 (Senior), 13-16 (Manager), 17-20 (Executive)
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

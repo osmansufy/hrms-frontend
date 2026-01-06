@@ -5,11 +5,19 @@ export type Designation = {
   title?: string;
   name?: string;
   code?: string;
+  level?: number;
+  description?: string;
+  departmentId?: string;
+  isActive?: boolean;
 };
 
 export type CreateDesignationPayload = {
   title: string;
   code: string;
+  level: number;
+  description?: string;
+  departmentId?: string;
+  isActive?: boolean;
 };
 
 export type UpdateDesignationPayload = Partial<CreateDesignationPayload>;
