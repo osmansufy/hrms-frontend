@@ -90,8 +90,8 @@ export function ApprovedLeavesTab() {
                                         const duration = Math.ceil(
                                             (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
                                         ) + 1;
-                                        const employeeName = leave.employee
-                                            ? `${leave.employee.firstName} ${leave.employee.lastName}`
+                                        const employeeName = leave.user.employee
+                                            ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
                                             : "Unknown";
 
                                         // Find Step 1 approval

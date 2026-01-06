@@ -60,8 +60,8 @@ export function ComprehensiveHistoryTab() {
             if (signInTime && signOutTime) {
                 workedMinutes = Math.floor((signOutTime.getTime() - signInTime.getTime()) / 60000);
 
-                // Assuming 8-hour workday (480 minutes)
-                const expectedMinutes = 480;
+                // Assuming 9-hour workday (540 minutes)
+                const expectedMinutes = 540;
                 if (workedMinutes < expectedMinutes) {
                     lostMinutes = expectedMinutes - workedMinutes;
                 } else if (workedMinutes > expectedMinutes) {

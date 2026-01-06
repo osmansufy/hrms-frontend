@@ -69,8 +69,8 @@ export function TeamCalendarTab() {
         approved.forEach((leave1, i) => {
             const start1 = new Date(leave1.startDate);
             const end1 = new Date(leave1.endDate);
-            const emp1Name = leave1.employee
-                ? `${leave1.employee.firstName} ${leave1.employee.lastName}`
+            const emp1Name = leave1.user?.employee
+                ? `${leave1.user.employee.firstName} ${leave1.user.employee.lastName}`
                 : "Unknown";
 
             approved.forEach((leave2, j) => {
@@ -81,8 +81,8 @@ export function TeamCalendarTab() {
 
                 // Check if dates overlap
                 if (start1 <= end2 && start2 <= end1) {
-                    const emp2Name = leave2.employee
-                        ? `${leave2.employee.firstName} ${leave2.employee.lastName}`
+                    const emp2Name = leave2.user?.employee
+                        ? `${leave2.user.employee.firstName} ${leave2.user.employee.lastName}`
                         : "Unknown";
 
                     overlaps.push({
@@ -182,8 +182,8 @@ export function TeamCalendarTab() {
                                         const duration = Math.ceil(
                                             (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
                                         ) + 1;
-                                        const employeeName = leave.employee
-                                            ? `${leave.employee.firstName} ${leave.employee.lastName}`
+                                        const employeeName = leave.user?.employee
+                                            ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
                                             : "Unknown";
 
                                         // Check if leave is in the past, present, or future
