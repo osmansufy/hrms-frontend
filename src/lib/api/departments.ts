@@ -40,3 +40,8 @@ export async function updateDepartment(
   const res = await apiClient.patch<Department>(`/departments/${id}`, payload);
   return res.data;
 }
+
+export async function deleteDepartment(id: string) {
+  const res = await apiClient.delete(`/departments/${id}`);
+  return res.data;
+}

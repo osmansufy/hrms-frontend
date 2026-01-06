@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createDepartment,
+  deleteDepartment,
   getDepartment,
   listDepartments,
   updateDepartment,
@@ -44,7 +45,8 @@ export function useCreateDepartment() {
 export function useUpdateDepartment(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: UpdateDepartmentPayload) => updateDepartment(id, payload),
+    mutationFn: (payload: UpdateDepartmentPayload) =>
+      updateDepartment(id, payload),
     onSuccess: (data: Department) => {
       qc.setQueryData(departmentKeys.detail(id), data);
       qc.invalidateQueries({ queryKey: departmentKeys.list });
@@ -52,3 +54,12 @@ export function useUpdateDepartment(id: string) {
   });
 }
 
+export function useDeleteDepartment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteDepartment(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: departmentKeys.list });
+    },
+  });
+}

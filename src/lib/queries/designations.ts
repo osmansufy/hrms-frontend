@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createDesignation,
+  deleteDesignation,
   listDesignations,
   updateDesignation,
   type CreateDesignationPayload,
@@ -23,7 +24,8 @@ export function useDesignationsList() {
 export function useCreateDesignation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateDesignationPayload) => createDesignation(payload),
+    mutationFn: (payload: CreateDesignationPayload) =>
+      createDesignation(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: designationKeys.list });
     },
@@ -33,13 +35,23 @@ export function useCreateDesignation() {
 export function useUpdateDesignation(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: UpdateDesignationPayload) => updateDesignation(id, payload),
+    mutationFn: (payload: UpdateDesignationPayload) =>
+      updateDesignation(id, payload),
     onSuccess: (data: Designation) => {
       qc.setQueryData(designationKeys.list, (prev: Designation[] | undefined) =>
-        prev ? prev.map((d) => (d.id === data.id ? data : d)) : undefined,
+        prev ? prev.map((d) => (d.id === data.id ? data : d)) : undefined
       );
       qc.invalidateQueries({ queryKey: designationKeys.list });
     },
   });
 }
 
+export function useDeleteDesignation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteDesignation(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: designationKeys.list });
+    },
+  });
+}

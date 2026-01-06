@@ -24,8 +24,18 @@ export async function createDesignation(payload: CreateDesignationPayload) {
   return res.data;
 }
 
-export async function updateDesignation(id: string, payload: UpdateDesignationPayload) {
-  const res = await apiClient.patch<Designation>(`/designations/${id}`, payload);
+export async function updateDesignation(
+  id: string,
+  payload: UpdateDesignationPayload
+) {
+  const res = await apiClient.patch<Designation>(
+    `/designations/${id}`,
+    payload
+  );
   return res.data;
 }
 
+export async function deleteDesignation(id: string) {
+  const res = await apiClient.delete(`/designations/${id}`);
+  return res.data;
+}
