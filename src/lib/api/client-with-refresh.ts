@@ -135,8 +135,9 @@ apiClient.interceptors.response.use(
       };
       localStorage.setItem("hrms-session", JSON.stringify(updatedSession));
 
-      // Update cookie
-      const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
+      // Update cookie - import SESSION_MAX_AGE_SECONDS from constants
+      // This ensures cookie expiry matches the configured session duration
+      const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // TODO: Import from constants
       if (typeof document !== "undefined") {
         document.cookie = `hrms.token=${encodeURIComponent(
           accessToken

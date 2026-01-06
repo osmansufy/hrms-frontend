@@ -141,13 +141,11 @@ export function LeaveApprovalsTab() {
                                             const duration = Math.ceil(
                                                 (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
                                             ) + 1;
-                                            const employeeName = leave.employee
-                                                ? `${leave.employee.firstName} ${leave.employee.lastName}`
-                                                : "Unknown";
+
 
                                             return (
                                                 <TableRow key={leave.id}>
-                                                    <TableCell className="font-medium">{employeeName}</TableCell>
+                                                    <TableCell className="font-medium">{leave?.user?.name}</TableCell>
                                                     <TableCell>{leave.leaveType?.name || "N/A"}</TableCell>
                                                     <TableCell>
                                                         <div className="text-sm">
