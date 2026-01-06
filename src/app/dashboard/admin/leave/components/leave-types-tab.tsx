@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Plus, Edit, Trash2, AlertCircle } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, AlertCircle, ChevronDown, ChevronRight, Bell, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,8 @@ import {
     useUpdateLeaveType,
     useDeactivateLeaveType,
 } from "@/lib/queries/leave";
+import { getLeavePolicy } from "@/lib/api/leave";
+import type { LeavePolicy } from "@/lib/api/leave";
 import { toast } from "sonner";
 
 type LeaveTypeData = {
@@ -64,6 +66,8 @@ export function LeaveTypesTab() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [showInactive, setShowInactive] = useState(false);
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [loadedPolicies, setLoadedPolicies] = useState<Map<string, LeavePolicy>>(new Map());
 
     // Form state
     const [formData, setFormData] = useState({
@@ -162,6 +166,25 @@ export function LeaveTypesTab() {
             isPaid: true,
         });
         setEditingId(null);
+    };
+
+    const toggleRow = async (type: LeaveTypeData) => {
+        const newExpanded = new Set(expandedRows);
+        if (newExpanded.has(type.id)) {
+            newExpanded.delete(type.id);
+        } else {
+            newExpanded.add(type.id);
+            // Load policy details if not already loaded and policy exists
+            if (type.leavePolicy && !loadedPolicies.has(type.id)) {
+                try {
+                    const policy = await getLeavePolicy(type.id);
+                    setLoadedPolicies(new Map(loadedPolicies.set(type.id, policy)));
+                } catch (error) {
+                    console.error("Failed to load policy details", error);
+                }
+            }
+        }
+        setExpandedRows(newExpanded);
     };
 
     if (isLoading) {
@@ -335,30 +358,42 @@ export function LeaveTypesTab() {
             <Card>
                 <CardContent className="pt-6">
                     {leaveTypes && leaveTypes.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Code</TableHead>
-                                        <TableHead>Description</TableHead>
-                                        <TableHead>Config</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {leaveTypes.map((type: LeaveTypeData) => (
-                                        <TableRow key={type.id}>
-                                            <TableCell className="font-medium">{type.name}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline">{type.code}</Badge>
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">
-                                                {type.description || "-"}
-                                            </TableCell>
-                                            <TableCell className="text-sm">
-                                                <div className="flex gap-2 flex-wrap">
+                        <div className="space-y-2">
+                            {leaveTypes.map((type: LeaveTypeData) => {
+                                const isExpanded = expandedRows.has(type.id);
+                                const policy = loadedPolicies.get(type.id);
+                                const hasPolicy = !!type.leavePolicy;
+                                const hasNoticeRules = policy?.noticeRules && policy.noticeRules.length > 0;
+                                const hasAccrualRule = !!policy?.accrualRule;
+
+                                return (
+                                    <div key={type.id} className="rounded-lg border">
+                                        <div className="flex items-center justify-between p-4 hover:bg-muted/50">
+                                            <div className="flex items-center gap-4 flex-1">
+                                                {hasPolicy && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0"
+                                                        onClick={() => toggleRow(type)}
+                                                    >
+                                                        {isExpanded ? (
+                                                            <ChevronDown className="h-4 w-4" />
+                                                        ) : (
+                                                            <ChevronRight className="h-4 w-4" />
+                                                        )}
+                                                    </Button>
+                                                )}
+                                                <div className="flex-1">
+                                                    <div className="font-medium">{type.name}</div>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <Badge variant="outline">{type.code}</Badge>
+                                                        {type.description && (
+                                                            <span className="text-xs text-muted-foreground">{type.description}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
                                                     {type.requiresApproval && (
                                                         <Badge variant="secondary">Requires Approval</Badge>
                                                     )}
@@ -368,17 +403,11 @@ export function LeaveTypesTab() {
                                                     {type.allowOverlapPartial && (
                                                         <Badge variant="secondary">Overlap OK</Badge>
                                                     )}
+                                                    <Badge variant={type.isActive ? "default" : "outline"}>
+                                                        {type.isActive ? "Active" : "Inactive"}
+                                                    </Badge>
                                                 </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant={type.isActive ? "default" : "outline"}
-                                                >
-                                                    {type.isActive ? "Active" : "Inactive"}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex gap-2 justify-end">
+                                                <div className="flex gap-2">
                                                     <Dialog
                                                         open={isEditOpen && editingId === type.id}
                                                         onOpenChange={setIsEditOpen}
@@ -523,11 +552,157 @@ export function LeaveTypesTab() {
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                            </div>
+                                        </div>
+
+                                        {/* Expanded Policy Details */}
+                                        {isExpanded && hasPolicy && (
+                                            <div className="border-t bg-muted/20 p-4 space-y-4">
+                                                {/* Policy Summary */}
+                                                <div>
+                                                    <h4 className="font-semibold text-sm mb-3">Leave Policy</h4>
+                                                    <div className="grid grid-cols-2 gap-4 text-sm bg-background rounded-md p-3 border">
+                                                        <div>
+                                                            <span className="text-muted-foreground">Max Days: </span>
+                                                            {type.leavePolicy?.maxDays ? (
+                                                                <Badge variant="outline">{type.leavePolicy.maxDays}</Badge>
+                                                            ) : (
+                                                                <span className="text-muted-foreground">No limit</span>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-muted-foreground">Carry Forward: </span>
+                                                            {type.leavePolicy?.carryForwardCap ? (
+                                                                <Badge variant="outline">{type.leavePolicy.carryForwardCap}</Badge>
+                                                            ) : (
+                                                                <span className="text-muted-foreground">N/A</span>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-muted-foreground">Advance Leave: </span>
+                                                            <Badge variant={type.leavePolicy?.allowAdvance ? "default" : "secondary"}>
+                                                                {type.leavePolicy?.allowAdvance ? "Yes" : "No"}
+                                                            </Badge>
+                                                        </div>
+                                                        {policy?.requireDocThresholdDays && (
+                                                            <div>
+                                                                <span className="text-muted-foreground">Doc Required: </span>
+                                                                <span className="font-medium">≥ {policy.requireDocThresholdDays} days</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Notice Rules Section */}
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Bell className="h-4 w-4 text-muted-foreground" />
+                                                        <h4 className="font-semibold text-sm">Notice Rules</h4>
+                                                    </div>
+                                                    {hasNoticeRules ? (
+                                                        <div className="grid gap-2">
+                                                            {policy?.noticeRules?.map((rule, index) => (
+                                                                <div key={rule.id} className="flex items-center gap-4 text-sm bg-background rounded-md p-3 border">
+                                                                    <Badge variant="outline">Rule {index + 1}</Badge>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-muted-foreground">Duration:</span>
+                                                                        <span className="font-medium">
+                                                                            {rule.minLength && rule.maxLength
+                                                                                ? `${rule.minLength}-${rule.maxLength} days`
+                                                                                : rule.minLength
+                                                                                    ? `≥${rule.minLength} days`
+                                                                                    : rule.maxLength
+                                                                                        ? `≤${rule.maxLength} days`
+                                                                                        : "Any duration"}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-muted-foreground">Notice:</span>
+                                                                        <Badge variant="secondary">
+                                                                            {rule.noticeDays} days
+                                                                        </Badge>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-sm text-muted-foreground bg-background rounded-md p-3 border">
+                                                            No notice rules configured
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Accrual Rule Section */}
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                                        <h4 className="font-semibold text-sm">Accrual Rule</h4>
+                                                    </div>
+                                                    {hasAccrualRule ? (
+                                                        <div className="bg-background rounded-md p-3 border space-y-2">
+                                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                                                <div>
+                                                                    <span className="text-muted-foreground">Frequency: </span>
+                                                                    <Badge variant="outline">
+                                                                        {policy?.accrualRule?.frequency.replace("_", " ")}
+                                                                    </Badge>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-muted-foreground">Rate: </span>
+                                                                    <span className="font-medium">
+                                                                        {policy?.accrualRule?.ratePerPeriod} days/period
+                                                                    </span>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-muted-foreground">Strategy: </span>
+                                                                    <Badge variant="secondary">
+                                                                        {policy?.accrualRule?.accrualStrategy.replace("_", " ")}
+                                                                    </Badge>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-muted-foreground">Prorate: </span>
+                                                                    <Badge variant={policy?.accrualRule?.prorateFlag ? "default" : "outline"}>
+                                                                        {policy?.accrualRule?.prorateFlag ? "Yes" : "No"}
+                                                                    </Badge>
+                                                                </div>
+                                                                {policy?.accrualRule?.startAfterDays && (
+                                                                    <div>
+                                                                        <span className="text-muted-foreground">Start After: </span>
+                                                                        <span className="font-medium">
+                                                                            {policy.accrualRule.startAfterDays} days
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                                {policy?.accrualRule?.resetMonthDay && (
+                                                                    <div>
+                                                                        <span className="text-muted-foreground">Reset Day: </span>
+                                                                        <span className="font-medium">
+                                                                            Day {policy.accrualRule.resetMonthDay} of month
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-sm text-muted-foreground bg-background rounded-md p-3 border">
+                                                            No accrual rule configured
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* No Policy Message */}
+                                        {isExpanded && !hasPolicy && (
+                                            <div className="border-t bg-muted/20 p-4">
+                                                <div className="text-sm text-muted-foreground bg-background rounded-md p-3 border text-center">
+                                                    No policy configured for this leave type
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="text-center py-8 text-muted-foreground">
