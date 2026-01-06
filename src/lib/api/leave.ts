@@ -23,6 +23,15 @@ export type LeaveRecord = {
   startDate: string;
   endDate: string;
   createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    employee?: {
+      firstName: string;
+      lastName: string;
+      employeeCode: string;
+    };
+  };
 };
 
 export type LeaveApprovalStep = {

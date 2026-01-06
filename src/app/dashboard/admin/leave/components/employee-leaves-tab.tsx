@@ -166,7 +166,7 @@ export function EmployeeLeavesTab() {
                             <Table>
                                 <TableHeader>
                                     <TableRow className="bg-muted/50">
-                                        <TableHead>Leave ID</TableHead>
+                                        <TableHead>Employee Name</TableHead>
                                         <TableHead>Leave Type</TableHead>
                                         <TableHead>Period</TableHead>
                                         <TableHead>Days</TableHead>
@@ -184,7 +184,9 @@ export function EmployeeLeavesTab() {
                                         return (
                                             <TableRow key={leave.id} className="hover:bg-muted/50">
                                                 <TableCell className="font-mono text-xs">
-                                                    {leave.id.slice(0, 8)}...
+                                                    {leave?.user?.employee
+                                                        ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
+                                                        : "Unknown"}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
