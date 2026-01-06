@@ -241,8 +241,14 @@ export type WorkSchedule = {
   isFlexible: boolean;
   isActive: boolean;
   days?: WorkScheduleDay[];
+  attendancePolicies?: Array<{
+    id: string;
+    name: string;
+    isActive: boolean;
+  }>;
   _count?: {
     employees: number;
+    attendancePolicies: number;
   };
 };
 
@@ -256,7 +262,12 @@ export async function getWorkSchedule(id: string) {
     WorkSchedule & {
       days: WorkScheduleDay[];
       employees?: any[];
-      _count?: { employees: number };
+      attendancePolicies?: Array<{
+        id: string;
+        name: string;
+        isActive: boolean;
+      }>;
+      _count?: { employees: number; attendancePolicies: number };
     }
   >(`/work-schedules/${id}`);
   return response.data;

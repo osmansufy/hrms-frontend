@@ -171,7 +171,7 @@ export default function EmployeeDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-2">
-        <Badge variant="outline" className="text-base px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-400 text-blue-900 font-semibold tracking-wide rounded-full">
+        <Badge variant="outline" className="text-base px-4 py-2  from-blue-50 to-indigo-50 border-blue-400 text-blue-900 font-semibold tracking-wide rounded-full">
           {`Keep pushing! Your productivity matters${session?.user?.name ? ", " + session.user.name : ""}. 🚀`}
         </Badge>
       </div>
@@ -180,7 +180,7 @@ export default function EmployeeDashboard() {
           <span className="text-xs text-muted-foreground">Date</span>
           <span className="font-medium">{todayDate}</span>
         </div>
-        <div className="flex flex-col items-end px-4 py-3 rounded-lg bg-gradient-to-r from-green-100 to-emerald-100 border-2 border-green-400 shadow-md hover:shadow-lg transition-shadow">
+        <div className="flex flex-col items-end px-4 py-3 rounded-lg  from-green-100 to-emerald-100 border-2 border-green-400 shadow-md hover:shadow-lg transition-shadow">
           <span className="text-xs font-semibold text-green-700 uppercase tracking-widest">⏱️ Live Work Time</span>
           <span className="font-mono text-2xl font-bold text-green-700">{formatWorkedTime(workedSeconds)}</span>
         </div>

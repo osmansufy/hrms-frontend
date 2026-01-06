@@ -18,7 +18,7 @@ import {
     useWorkSchedules
 } from "@/lib/queries/attendance";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, ArrowLeft, ChevronDown, ChevronUp, Clock, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, ChevronUp, Clock, FileText, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -484,7 +484,24 @@ export default function WorkSchedulesPage() {
                                                             <span>{schedule._count.employees} employees</span>
                                                         </div>
                                                     )}
+                                                    {schedule._count?.attendancePolicies !== undefined && (
+                                                        <div className="flex items-center gap-1">
+                                                            <FileText className="size-3" />
+                                                            <span>{schedule._count.attendancePolicies} policies</span>
+                                                        </div>
+                                                    )}
                                                 </div>
+                                                {Array.isArray(schedule.attendancePolicies) && schedule.attendancePolicies.length > 0 && (
+                                                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                                        <span className="font-medium text-foreground">Policies:</span>
+                                                        {schedule.attendancePolicies.map((policy: any) => (
+                                                            <Badge key={policy.id} variant="outline" className="text-xs">
+                                                                {policy.name}
+                                                                {policy.isActive ? "" : " (inactive)"}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Button
