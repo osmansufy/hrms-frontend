@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Plus, Edit, Trash2, AlertCircle, ChevronDown, ChevronRight, Bell, TrendingUp } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2, Plus, Edit, Trash2, AlertCircle, ChevronDown, ChevronRight, Bell, TrendingUp, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +62,8 @@ type LeaveTypeData = {
 };
 
 export function LeaveTypesTab() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -560,7 +563,18 @@ export function LeaveTypesTab() {
                                             <div className="border-t bg-muted/20 p-4 space-y-4">
                                                 {/* Policy Summary */}
                                                 <div>
-                                                    <h4 className="font-semibold text-sm mb-3">Leave Policy</h4>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <h4 className="font-semibold text-sm">Leave Policy</h4>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => router.push('/dashboard/admin/leave?tab=policies')}
+                                                            className="h-8 gap-2"
+                                                        >
+                                                            <ExternalLink className="h-3 w-3" />
+                                                            View All Policies
+                                                        </Button>
+                                                    </div>
                                                     <div className="grid grid-cols-2 gap-4 text-sm bg-background rounded-md p-3 border">
                                                         <div>
                                                             <span className="text-muted-foreground">Max Days: </span>
@@ -595,9 +609,20 @@ export function LeaveTypesTab() {
 
                                                 {/* Notice Rules Section */}
                                                 <div>
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <Bell className="h-4 w-4 text-muted-foreground" />
-                                                        <h4 className="font-semibold text-sm">Notice Rules</h4>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <Bell className="h-4 w-4 text-muted-foreground" />
+                                                            <h4 className="font-semibold text-sm">Notice Rules</h4>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => router.push('/dashboard/admin/leave?tab=notice')}
+                                                            className="h-8 gap-2"
+                                                        >
+                                                            <ExternalLink className="h-3 w-3" />
+                                                            View All Notice Rules
+                                                        </Button>
                                                     </div>
                                                     {hasNoticeRules ? (
                                                         <div className="grid gap-2">
@@ -634,9 +659,20 @@ export function LeaveTypesTab() {
 
                                                 {/* Accrual Rule Section */}
                                                 <div>
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                                                        <h4 className="font-semibold text-sm">Accrual Rule</h4>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                                            <h4 className="font-semibold text-sm">Accrual Rule</h4>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => router.push('/dashboard/admin/leave?tab=accruals')}
+                                                            className="h-8 gap-2"
+                                                        >
+                                                            <ExternalLink className="h-3 w-3" />
+                                                            View All Accrual Rules
+                                                        </Button>
                                                     </div>
                                                     {hasAccrualRule ? (
                                                         <div className="bg-background rounded-md p-3 border space-y-2">

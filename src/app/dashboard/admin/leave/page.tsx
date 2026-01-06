@@ -1,4 +1,5 @@
 "use client";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     CalendarCheck,
@@ -30,6 +31,16 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 export default function AdminLeavePage() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const activeTab = searchParams?.get("tab") || "employees";
+
+    const handleTabChange = (value: string) => {
+        const params = new URLSearchParams(searchParams?.toString());
+        params.set("tab", value);
+        router.push(`/dashboard/admin/leave?${params.toString()}`);
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -44,7 +55,7 @@ export default function AdminLeavePage() {
                 <CalendarCheck className="size-8 text-primary" />
             </div>
 
-            <Tabs defaultValue="employees" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
                 <div className="space-y-4">
                     {/* Operations Section */}
                     <div>
