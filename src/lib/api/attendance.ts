@@ -26,6 +26,20 @@ export type ExtendedAttendanceRecord = AttendanceRecord & {
       profilePicture?: string | null;
     };
   };
+  workedMinutes?: number;
+  lostMinutes?: number;
+  overtimeMinutes?: number;
+  policy: Policy | null;
+};
+export type Policy = {
+  id: string;
+  name: string;
+  targetMinutes: number;
+  isActive: boolean;
+  breakMinutes?: number | null;
+  isDefault?: boolean;
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 export type AttendanceListParams = {

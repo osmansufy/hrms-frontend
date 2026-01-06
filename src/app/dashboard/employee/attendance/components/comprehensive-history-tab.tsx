@@ -50,34 +50,16 @@ export function ComprehensiveHistoryTab() {
     // Calculate daily metrics from attendance records
     const dailyRecords = useMemo(() => {
         return records.map(record => {
-            const signInTime = record.signIn ? new Date(record.signIn) : null;
-            const signOutTime = record.signOut ? new Date(record.signOut) : null;
-
-            let workedMinutes = 0;
-            let lostMinutes = 0;
-            let overtimeMinutes = 0;
-
-            if (signInTime && signOutTime) {
-                workedMinutes = Math.floor((signOutTime.getTime() - signInTime.getTime()) / 60000);
-
-                // Assuming 9-hour workday (540 minutes)
-                const expectedMinutes = 540;
-                if (workedMinutes < expectedMinutes) {
-                    lostMinutes = expectedMinutes - workedMinutes;
-                } else if (workedMinutes > expectedMinutes) {
-                    overtimeMinutes = workedMinutes - expectedMinutes;
-                }
-            } else if (signInTime && !signOutTime) {
-                // Not signed out yet - consider as potential lost hours
-                const now = new Date();
-                const isToday = new Date(record.date).toDateString() === now.toDateString();
-                if (!isToday) {
-                    lostMinutes = 480; // Full day lost if not completed and not today
-                }
-            }
+            const workedMinutes = record.workedMinutes || 0;
+            const lostMinutes = record.lostMinutes || 0;
+            const overtimeMinutes = record.overtimeMinutes || 0;
 
             return {
-                ...record,
+                id: record.id,
+                date: record.date,
+                signIn: record.signIn,
+                signOut: record.signOut,
+                isLate: record.isLate,
                 workedMinutes,
                 lostMinutes,
                 overtimeMinutes,
@@ -234,13 +216,13 @@ export function ComprehensiveHistoryTab() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="min-w-[120px]">Date</TableHead>
-                                        <TableHead className="min-w-[80px]">Sign In</TableHead>
-                                        <TableHead className="min-w-[80px]">Sign Out</TableHead>
-                                        <TableHead className="min-w-[90px]">Status</TableHead>
-                                        <TableHead className="min-w-[80px]">Worked</TableHead>
-                                        <TableHead className="min-w-[80px] text-red-600">Lost</TableHead>
-                                        <TableHead className="min-w-[80px] text-green-700">Overtime</TableHead>
+                                        <TableHead >Date</TableHead>
+                                        <TableHead >Sign In</TableHead>
+                                        <TableHead >Sign Out</TableHead>
+                                        <TableHead >Status</TableHead>
+                                        <TableHead >Worked</TableHead>
+                                        <TableHead >Lost</TableHead>
+                                        <TableHead >Overtime</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
