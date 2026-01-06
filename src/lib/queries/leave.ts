@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 // Import these for immediate use
-import { createLeaveType, updateLeaveType } from "@/lib/api/leave";
+import {
+  createLeaveType,
+  updateLeaveType,
+  overrideLeave,
+} from "@/lib/api/leave";
 import {
   adminBalanceKeys,
   useAdminLeaveBalances,
@@ -327,6 +331,27 @@ export function useRejectLeave() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => rejectLeave(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: adminLeaveKeys.pendingApprovals,
+      });
+      queryClient.invalidateQueries({ queryKey: leaveKeys.all });
+    },
+  });
+}
+
+export function useOverrideLeave() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      id: string;
+      data: {
+        startDate?: string;
+        endDate?: string;
+        reason?: string;
+        overrideReason: string;
+      };
+    }) => overrideLeave(payload.id, payload.data),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: adminLeaveKeys.pendingApprovals,

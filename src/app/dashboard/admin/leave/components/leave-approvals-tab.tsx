@@ -17,8 +17,18 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { useApproveLeave, usePendingHRApprovals, useRejectLeave } from "@/lib/queries/leave";
-import { AlertCircle, Check, Loader2, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { useApproveLeave, usePendingHRApprovals, useRejectLeave, useOverrideLeave } from "@/lib/queries/leave";
+import { AlertCircle, Check, Loader2, X, Edit } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -33,7 +43,15 @@ export function LeaveApprovalsTab() {
     const { data: pendingLeaves, isLoading } = usePendingHRApprovals();
     const approveMutation = useApproveLeave();
     const rejectMutation = useRejectLeave();
+    const overrideMutation = useOverrideLeave();
     const [selectedLeave, setSelectedLeave] = useState<{ id: string; action: "approve" | "reject" } | null>(null);
+    const [editingLeave, setEditingLeave] = useState<any | null>(null);
+    const [editFormData, setEditFormData] = useState({
+        startDate: "",
+        endDate: "",
+        reason: "",
+        overrideReason: "",
+    });
 
     const handleApprove = async (id: string) => {
         try {
@@ -76,6 +94,46 @@ export function LeaveApprovalsTab() {
             setSelectedLeave(null);
         } catch (error: any) {
             toast.error(error?.response?.data?.message || "Failed to reject leave");
+        }
+    };
+
+    const handleOpenEdit = (leave: any) => {
+        setEditingLeave(leave);
+        setEditFormData({
+            startDate: leave.startDate.split("T")[0],
+            endDate: leave.endDate.split("T")[0],
+            reason: leave.reason,
+            overrideReason: leave.overrideReason || "",
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingLeave || !editFormData.overrideReason.trim()) {
+            toast.error("Override reason is required");
+            return;
+        }
+
+        try {
+            const payload = {
+                id: editingLeave.id,
+                data: {
+                    startDate: editFormData.startDate,
+                    endDate: editFormData.endDate,
+                    reason: editFormData.reason,
+                    overrideReason: editFormData.overrideReason,
+                },
+            };
+            await overrideMutation.mutateAsync(payload);
+            toast.success("Leave updated successfully", {
+                description: "The leave details have been overridden with the new information.",
+            });
+            setEditingLeave(null);
+            setEditFormData({ startDate: "", endDate: "", reason: "", overrideReason: "" });
+        } catch (error: any) {
+            const errorMessage = error?.response?.data?.message || error?.message || "Failed to override leave";
+            toast.error("Override Failed", {
+                description: errorMessage,
+            });
         }
     };
 
@@ -167,9 +225,19 @@ export function LeaveApprovalsTab() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
+                                                                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                                                                onClick={() => handleOpenEdit(leave)}
+                                                                disabled={approveMutation.isPending || rejectMutation.isPending || overrideMutation.isPending}
+                                                            >
+                                                                <Edit className="mr-1 size-4" />
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
                                                                 className="border-green-600 text-green-600 hover:bg-green-50"
                                                                 onClick={() => setSelectedLeave({ id: leave.id, action: "approve" })}
-                                                                disabled={approveMutation.isPending || rejectMutation.isPending}
+                                                                disabled={approveMutation.isPending || rejectMutation.isPending || overrideMutation.isPending}
                                                             >
                                                                 <Check className="mr-1 size-4" />
                                                                 Approve
@@ -179,7 +247,7 @@ export function LeaveApprovalsTab() {
                                                                 variant="outline"
                                                                 className="border-red-600 text-red-600 hover:bg-red-50"
                                                                 onClick={() => setSelectedLeave({ id: leave.id, action: "reject" })}
-                                                                disabled={approveMutation.isPending || rejectMutation.isPending}
+                                                                disabled={approveMutation.isPending || rejectMutation.isPending || overrideMutation.isPending}
                                                             >
                                                                 <X className="mr-1 size-4" />
                                                                 Reject
@@ -196,6 +264,74 @@ export function LeaveApprovalsTab() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Edit Dialog */}
+            {editingLeave && (
+                <Dialog open={!!editingLeave} onOpenChange={(open) => !open && setEditingLeave(null)}>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit Leave Details</DialogTitle>
+                            <DialogDescription>
+                                Modify the leave dates and reason. Override reason is mandatory.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Start Date</label>
+                                    <Input
+                                        type="date"
+                                        value={editFormData.startDate}
+                                        onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">End Date</label>
+                                    <Input
+                                        type="date"
+                                        value={editFormData.endDate}
+                                        onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Reason</label>
+                                <Textarea
+                                    value={editFormData.reason}
+                                    onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
+                                    placeholder="Leave reason"
+                                    rows={3}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-red-600">Override Reason *</label>
+                                <Textarea
+                                    value={editFormData.overrideReason}
+                                    onChange={(e) => setEditFormData({ ...editFormData, overrideReason: e.target.value })}
+                                    placeholder="Why are you making these changes? (Required)"
+                                    rows={3}
+                                    className="border-red-200"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setEditingLeave(null)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSaveEdit}
+                                disabled={overrideMutation.isPending}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                {overrideMutation.isPending ? (
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                ) : null}
+                                Save Changes
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
 
             {/* Confirmation Dialog */}
             {selectedLeave && (

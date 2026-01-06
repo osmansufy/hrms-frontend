@@ -367,6 +367,22 @@ export async function rejectLeave(id: string) {
   return response.data;
 }
 
+export async function overrideLeave(
+  id: string,
+  payload: {
+    startDate?: string;
+    endDate?: string;
+    reason?: string;
+    overrideReason: string;
+  }
+) {
+  const response = await apiClient.patch<LeaveRecord>(
+    `/leave/${id}/override`,
+    payload
+  );
+  return response.data;
+}
+
 export async function bulkApproveLeaves(leaveIds: string[], comment?: string) {
   const response = await apiClient.post(`/leave/bulk/approve`, {
     leaveIds,
