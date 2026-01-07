@@ -93,7 +93,26 @@ export type ApplyLeavePayload = {
   reason: string;
   startDate: string;
   endDate: string;
+  supportingDocumentUrl?: string;
 };
+
+export async function uploadLeaveDocument(
+  file: File
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await apiClient.post<{ url: string }>(
+    "/leave/upload-document",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data;
+}
 
 export async function listLeaveTypes() {
   const response = await apiClient.get<LeaveType[]>("/leave/types");
@@ -917,6 +936,70 @@ export async function getAdminAdjustmentHistory(
     "/admin/leave-balances/adjustments",
     { params }
   );
+  return response.data;
+}
+
+/**
+ * Bulk apply all active leave types to all active employees
+ * @param payload - Fiscal year and options
+ * @returns Summary of the operation
+ */
+export async function bulkApplyLeaveTypes(payload: {
+  fiscalYear: number;
+  dryRun?: boolean;
+  overrideExisting?: boolean;
+}) {
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data: {
+      totalEmployees: number;
+      totalLeaveTypes: number;
+      successCount: number;
+      failureCount: number;
+      skippedCount: number;
+      totalBalancesCreated: number;
+      duration: number;
+      fiscalYear: number;
+      dryRun: boolean;
+      errors: Array<{
+        userId: string;
+        employeeName: string;
+        error: string;
+      }>;
+    };
+  }>("/leave/bulk/apply-leave-types", payload);
+  return response.data;
+}
+
+/**
+ * Bulk reset all leave balances (available → 0) via ADJUSTMENT entries
+ */
+export async function bulkResetLeaveBalances(payload: {
+  fiscalYear: number;
+  dryRun?: boolean;
+  includeInactiveLeaveTypes?: boolean;
+}) {
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data: {
+      totalEmployees: number;
+      totalLeaveTypes: number;
+      successCount: number;
+      failureCount: number;
+      skippedCount: number;
+      totalAdjustedEntries: number;
+      duration: number;
+      fiscalYear: number;
+      dryRun: boolean;
+      errors: Array<{
+        userId: string;
+        employeeName: string;
+        error: string;
+      }>;
+    };
+  }>("/leave/bulk/reset-leave-balances", payload);
   return response.data;
 }
 

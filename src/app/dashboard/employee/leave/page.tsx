@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, CalendarDays, Loader2, NotebookPen, Send, Info, ExternalLink } from "lucide-react";
+import { AlertTriangle, CalendarDays, Loader2, NotebookPen, Send, Info, ExternalLink, Upload, FileText, X } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useApplyLeave, useLeaveTypes, useMyLeaves, useUserBalances, useLeavePolicy } from "@/lib/queries/leave";
+import { uploadLeaveDocument } from "@/lib/api/leave";
 import { LeavePieChart } from "./leave-pie-chart";
 import { useBalanceDetails } from "@/lib/queries/leave-balance";
 import { formatInDhakaTimezone } from "@/lib/utils";
@@ -37,6 +39,7 @@ const schema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   reason: z.string().min(5, "Add a short reason"),
+  supportingDocumentUrl: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -59,6 +62,9 @@ export default function LeavePage() {
   const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState("");
   const [today, setToday] = useState("");
   const [maxDate, setMaxDate] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [documentUrl, setDocumentUrl] = useState<string>("");
 
   // Calculate dates on client side only to prevent hydration mismatch
   useEffect(() => {
@@ -105,6 +111,14 @@ export default function LeavePage() {
   });
 
   const watchedValues = form.watch();
+
+  // Get selected leave type details
+  const selectedLeaveType = useMemo(() => {
+    return leaveTypes?.find(lt => lt.id === watchedValues.leaveTypeId);
+  }, [leaveTypes, watchedValues.leaveTypeId]);
+
+  const isSickLeave = selectedLeaveType?.code === "SL";
+
   const selectedBalance = useMemo(() => {
     return balances?.find(b => b.leaveTypeId === watchedValues.leaveTypeId);
   }, [balances, watchedValues.leaveTypeId]);
@@ -118,6 +132,62 @@ export default function LeavePage() {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   }, [watchedValues.startDate, watchedValues.endDate]);
+
+  // Check if document is required (for sick leave 3+ days)
+  const documentRequired = useMemo(() => {
+    if (!isSickLeave) return false;
+    const threshold = leavePolicy?.requireDocThresholdDays ?? 2; // Default: 3+ days
+    return requestedDays > threshold;
+  }, [isSickLeave, leavePolicy, requestedDays]);
+
+  // Handle file selection
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Invalid file type", {
+        description: "Please upload PDF, JPG, or PNG files only"
+      });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("File too large", {
+        description: "Maximum file size is 5MB"
+      });
+      return;
+    }
+
+    setUploadedFile(file);
+
+    // Upload immediately
+    try {
+      setIsUploading(true);
+      const response = await uploadLeaveDocument(file);
+      setDocumentUrl(response.url);
+      form.setValue('supportingDocumentUrl', response.url);
+      toast.success("Document uploaded successfully");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Upload failed", {
+        description: "Could not upload document. Please try again."
+      });
+      setUploadedFile(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setUploadedFile(null);
+    setDocumentUrl("");
+    form.setValue('supportingDocumentUrl', undefined);
+  };
 
   // Check notice period requirement
   const noticeCheck = useMemo(() => {
@@ -248,6 +318,14 @@ export default function LeavePage() {
       return;
     }
 
+    // Check document requirement for sick leave
+    if (documentRequired && !documentUrl) {
+      toast.error("Document required", {
+        description: `Medical certificate is required for sick leave of ${requestedDays} days`
+      });
+      return;
+    }
+
     // Final validation checks before submission
     if (!balanceCheck.sufficient) {
       toast.error("Insufficient leave balance", {
@@ -271,12 +349,17 @@ export default function LeavePage() {
     }
 
     try {
-      await applyMutation.mutateAsync(values);
+      await applyMutation.mutateAsync({
+        ...values,
+        supportingDocumentUrl: documentUrl || undefined,
+      });
       toast.success("Leave request submitted", {
         description: "Your leave request has been submitted for approval"
       });
       form.reset();
       setSelectedLeaveTypeId("");
+      setUploadedFile(null);
+      setDocumentUrl("");
     } catch (error) {
       console.error(error);
 
@@ -437,14 +520,26 @@ export default function LeavePage() {
                     control={form.control}
                     name="startDate"
                     render={({ field }) => {
-                      const minDate = today;
-                      const maxDateValue = leavePolicy?.allowAdvance ? maxDate : today;
+                      // For sick leave: can only select past/current dates (not future)
+                      // For other leave: can select from today onwards
+                      const minDate = isSickLeave
+                        ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days back
+                        : today;
+                      const maxDateValue = isSickLeave
+                        ? today // Sick leave: max today
+                        : (leavePolicy?.allowAdvance ? maxDate : today);
+
                       return (
                         <FormItem>
                           <FormLabel>Start date</FormLabel>
                           <FormControl>
                             <Input type="date" min={minDate} max={maxDateValue} {...field} />
                           </FormControl>
+                          {isSickLeave && (
+                            <FormDescription className="text-xs text-muted-foreground">
+                              Sick leave: Past/current dates only
+                            </FormDescription>
+                          )}
                           <FormMessage />
                         </FormItem>
                       );
@@ -455,7 +550,10 @@ export default function LeavePage() {
                     name="endDate"
                     render={({ field }) => {
                       const minDate = watchedValues.startDate || today;
-                      const maxDateValue = leavePolicy?.allowAdvance ? maxDate : today;
+                      const maxDateValue = isSickLeave
+                        ? today // Sick leave: max today
+                        : (leavePolicy?.allowAdvance ? maxDate : today);
+
                       return (
                         <FormItem>
                           <FormLabel>End date</FormLabel>
@@ -481,6 +579,63 @@ export default function LeavePage() {
                     </FormItem>
                   )}
                 />
+
+                {/* Document Upload for Sick Leave (3+ days) */}
+                {isSickLeave && requestedDays > 0 && (
+                  <div className="space-y-2">
+                    <FormLabel>
+                      Medical Certificate
+                      {documentRequired && <span className="text-destructive ml-1">*</span>}
+                    </FormLabel>
+                    {documentRequired && (
+                      <FormDescription className="text-xs">
+                        Required for sick leave of {requestedDays} days
+                      </FormDescription>
+                    )}
+                    {!documentRequired && requestedDays > 0 && (
+                      <FormDescription className="text-xs">
+                        Optional for sick leave under 3 days
+                      </FormDescription>
+                    )}
+
+                    {!uploadedFile && !documentUrl && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleFileChange}
+                          disabled={isUploading}
+                          className="cursor-pointer"
+                        />
+                        {isUploading && <Loader2 className="size-4 animate-spin" />}
+                      </div>
+                    )}
+
+                    {uploadedFile && documentUrl && (
+                      <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3">
+                        <FileText className="size-4 text-green-600" />
+                        <span className="flex-1 text-sm text-green-700">
+                          {uploadedFile.name}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveFile}
+                          className="size-6 p-0"
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {documentRequired && !documentUrl && (
+                      <p className="text-xs text-destructive">
+                        Please upload a medical certificate to proceed
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Notice Period Info */}
                 {leavePolicy && noticeCheck.requiredDays > 0 && requestedDays > 0 && (

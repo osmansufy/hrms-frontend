@@ -9,3 +9,5 @@ export { AuditTrailTab } from "./audit-trail-tab";
 export { LeaveTypesTab } from "./leave-types-tab";
 export { WorkScheduleTab } from "./work-schedule-tab";
 export { EmployeeLeavesTab } from "./employee-leaves-tab";
+export { BulkApplyLeaveTypesDialog } from "./bulk-apply-leave-types-dialog";
+export { BulkResetLeaveBalancesDialog } from "./bulk-reset-leave-balances-dialog";

@@ -48,6 +48,7 @@ import {
     downloadCSV,
 } from "@/lib/queries/leave";
 import { useDepartments } from "@/lib/queries/departments";
+import { useLeaveTypes } from "@/lib/queries/leave";
 import {
     Search,
     Download,
@@ -63,6 +64,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+// Format numbers to up to 2 decimals, without trailing zeros
+const formatDays = (value: number) =>
+    new Intl.NumberFormat(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(value);
+
+import { BulkApplyLeaveTypesDialog } from "./bulk-apply-leave-types-dialog";
+import { BulkResetLeaveBalancesDialog } from "./bulk-reset-leave-balances-dialog";
 
 const adjustSchema = z.object({
     adjustment: z.string().min(1, "Adjustment is required").refine(
@@ -106,10 +116,13 @@ export function LeaveBalancesTab() {
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState<"low" | "normal" | "negative" | "">("");
     const [departmentId, setDepartmentId] = useState<string>("");
+    const [leaveTypeId, setLeaveTypeId] = useState<string>("");
     const [year, setYear] = useState(currentYear);
     const [viewMode, setViewMode] = useState<ViewMode>("cards");
     const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
     const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
+    const [bulkApplyDialogOpen, setBulkApplyDialogOpen] = useState(false);
+    const [bulkResetDialogOpen, setBulkResetDialogOpen] = useState(false);
     const [selectedBalance, setSelectedBalance] = useState<{
         userId: string;
         leaveTypeId: string;
@@ -124,10 +137,12 @@ export function LeaveBalancesTab() {
         search: search || undefined,
         status: status || undefined,
         departmentId: departmentId || undefined,
+        leaveTypeId: leaveTypeId || undefined,
         year,
     });
 
     const { data: departments } = useDepartments();
+    const { data: leaveTypes } = useLeaveTypes();
 
     const exportMutation = useExportBalances();
     const adjustMutation = useAdjustBalance();
@@ -145,6 +160,8 @@ export function LeaveBalancesTab() {
             toast.info("Preparing export...");
             const blob = await exportMutation.mutateAsync({
                 year,
+                leaveTypeId: leaveTypeId || undefined,
+                departmentId: departmentId || undefined,
             });
             downloadCSV(blob, `leave_balances_${year}.csv`);
             toast.success("Export downloaded successfully");
@@ -284,9 +301,9 @@ export function LeaveBalancesTab() {
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
                             {/* Search */}
-                            <div className="relative">
+                            <div className="relative lg:col-span-2">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Search by name or email..."
@@ -339,6 +356,27 @@ export function LeaveBalancesTab() {
                                 </SelectContent>
                             </Select>
 
+                            {/* Leave Type Filter */}
+                            <Select
+                                value={leaveTypeId || "all"}
+                                onValueChange={(value) => {
+                                    setLeaveTypeId(value === "all" ? "" : value);
+                                    setPage(1);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Leave Types" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Leave Types</SelectItem>
+                                    {leaveTypes?.map((lt) => (
+                                        <SelectItem key={lt.id} value={lt.id}>
+                                            {lt.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
                             {/* Year Filter */}
                             <Select
                                 value={year.toString()}
@@ -358,7 +396,10 @@ export function LeaveBalancesTab() {
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
 
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
                             {/* Export Button */}
                             <Button
                                 onClick={handleExport}
@@ -367,6 +408,22 @@ export function LeaveBalancesTab() {
                             >
                                 <Download className="mr-2 h-4 w-4" />
                                 {exportMutation.isPending ? "Exporting..." : "Export CSV"}
+                            </Button>
+
+                            {/* Bulk Apply Leave Types Button */}
+                            <Button
+                                onClick={() => setBulkApplyDialogOpen(true)}
+                                variant="default"
+                            >
+                                Apply Leave Types to All
+                            </Button>
+
+                            {/* Reset Balances Button */}
+                            <Button
+                                onClick={() => setBulkResetDialogOpen(true)}
+                                variant="destructive"
+                            >
+                                Reset Balances
                             </Button>
                         </div>
 
@@ -477,21 +534,21 @@ export function LeaveBalancesTab() {
                                             <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
                                                 <p className="text-xs text-muted-foreground mb-1">Total Available</p>
                                                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                                    {employee.totalAvailable}
+                                                    {formatDays(employee.totalAvailable)}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">days</p>
                                             </div>
                                             <div className="bg-orange-50 dark:bg-orange-950/20 rounded-lg p-4">
                                                 <p className="text-xs text-muted-foreground mb-1">Total Used</p>
                                                 <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                                                    {employee.totalUsed}
+                                                    {formatDays(employee.totalUsed)}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">days</p>
                                             </div>
                                             <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg p-4">
                                                 <p className="text-xs text-muted-foreground mb-1">Total Allocated</p>
                                                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                                                    {employee.totalAllocated}
+                                                    {formatDays(employee.totalAllocated)}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">days</p>
                                             </div>
@@ -546,13 +603,13 @@ export function LeaveBalancesTab() {
                                                                     </h4>
                                                                     <div className="flex gap-4 text-sm">
                                                                         <span className="text-muted-foreground">
-                                                                            Available: <strong className="text-foreground">{leaveType.available}</strong>
+                                                                            Available: <strong className="text-foreground">{formatDays(leaveType.available)}</strong>
                                                                         </span>
                                                                         <span className="text-muted-foreground">
-                                                                            Used: <strong className="text-foreground">{leaveType.used}</strong>
+                                                                            Used: <strong className="text-foreground">{formatDays(leaveType.used)}</strong>
                                                                         </span>
                                                                         <span className="text-muted-foreground">
-                                                                            Allocated: <strong className="text-foreground">{leaveType.allocated}</strong>
+                                                                            Allocated: <strong className="text-foreground">{formatDays(leaveType.allocated)}</strong>
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -659,17 +716,19 @@ export function LeaveBalancesTab() {
                                                     <TableCell>{balance.leaveType.name}</TableCell>
                                                     <TableCell className="text-right">
                                                         <span className="font-semibold text-base">
-                                                            {balance.balances.available}
+                                                            {formatDays(balance.balances.available)}
                                                         </span>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        {balance.balances.used}
+                                                        {formatDays(balance.balances.used)}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        {balance.balances.openingBalance +
+                                                        {formatDays(
+                                                            balance.balances.openingBalance +
                                                             balance.balances.accrued +
                                                             balance.balances.carried +
-                                                            balance.balances.adjusted}
+                                                            balance.balances.adjusted
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         <Badge
@@ -764,7 +823,7 @@ export function LeaveBalancesTab() {
                     {selectedBalance && (
                         <div className="rounded-md bg-muted p-3 text-sm">
                             Current balance:{" "}
-                            <strong>{selectedBalance.currentBalance} days</strong>
+                            <strong>{formatDays(selectedBalance.currentBalance)} days</strong>
                         </div>
                     )}
                     <Form {...adjustForm}>
@@ -834,6 +893,25 @@ export function LeaveBalancesTab() {
                     </Form>
                 </DialogContent>
             </Dialog>
+
+            {/* Bulk Apply Leave Types Dialog */}
+            <BulkApplyLeaveTypesDialog
+                open={bulkApplyDialogOpen}
+                onOpenChange={setBulkApplyDialogOpen}
+                onSuccess={() => {
+                    // Refresh the data
+                    window.location.reload();
+                }}
+            />
+
+            {/* Bulk Reset Leave Balances Dialog */}
+            <BulkResetLeaveBalancesDialog
+                open={bulkResetDialogOpen}
+                onOpenChange={setBulkResetDialogOpen}
+                onSuccess={() => {
+                    window.location.reload();
+                }}
+            />
         </div>
     );
 }

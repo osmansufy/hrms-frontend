@@ -190,10 +190,10 @@ export function AuditTrailTab() {
                                             <TableCell>
                                                 <div className="flex flex-col">
                                                     <span className="text-sm">
-                                                        {adjustment.admin.name}
+                                                        {adjustment.admin?.name}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        {adjustment.admin.email}
+                                                        {adjustment.admin?.email}
                                                     </span>
                                                 </div>
                                             </TableCell>

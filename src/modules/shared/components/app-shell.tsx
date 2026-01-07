@@ -177,8 +177,12 @@ function MobileNav() {
 
   const navItems = useMemo(() => {
     const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
-    // Hide Team Leave if user has no subordinates
+    // Filter to only include items with href (exclude parent items with children)
+    // and hide Team Leave if user has no subordinates
     return filtered.filter(item => {
+      if (!item.href) {
+        return false;
+      }
       if (item.href === "/dashboard/employee/leave-manager") {
         return hasSubordinates;
       }
@@ -212,8 +216,8 @@ function MobileNav() {
             const active = pathname === item.href;
             return (
               <Link
-                key={item?.href}
-                href={item?.href!}
+                key={item.href}
+                href={item?.href || "#"}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
