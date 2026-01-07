@@ -48,6 +48,8 @@ const schema = z.object({
   dateOfBirth: z.string().min(1),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]),
   phone: z.string().min(3),
+  departmentId: z.string().optional(),
+  designationId: z.string().optional(),
   employmentType: z.enum(["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN", "TEMPORARY", "CONSULTANT"]),
   joiningDate: z.string().min(1),
   personalEmail: z.string().email().optional().or(z.literal("")),

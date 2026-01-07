@@ -35,6 +35,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee, useEmployeeSubordinates } from "@/lib/queries/employees";
+import { useDepartments } from "@/lib/queries/departments";
+import { useDesignationsList } from "@/lib/queries/designations";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import { ChangeWorkScheduleDialog } from "@/components/change-work-schedule-dialog";
@@ -48,6 +50,8 @@ const schema = z.object({
   joiningDate: z.string().optional(),
   departmentId: z.string().optional(),
   designationId: z.string().optional(),
+  department: z.string().optional(),
+  designation: z.string().optional(),
   reportingManagerId: z.string().optional(),
 });
 
@@ -82,6 +86,8 @@ export default function AdminEmployeeDetailPage() {
   const updateMutation = useUpdateEmployee(id || "");
   const deleteMutation = useDeleteEmployee();
   const { data: subordinates = [] } = useEmployeeSubordinates(id);
+  const { data: departments = [] } = useDepartments();
+  const { data: designations = [] } = useDesignationsList();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -290,15 +296,20 @@ export default function AdminEmployeeDetailPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Department</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Department name"
-                          value={data?.department?.name || ""}
-                          disabled
-                          readOnly
-                        />
-                      </FormControl>
-                      <input type="hidden" {...field} />
+                      <Select onValueChange={field.onChange} value={field.value || data?.departmentId || ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {departments?.map((dept: any) => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -309,15 +320,20 @@ export default function AdminEmployeeDetailPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Designation</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Job title"
-                          value={data?.designation?.title || data?.designation?.name || ""}
-                          disabled
-                          readOnly
-                        />
-                      </FormControl>
-                      <input type="hidden" {...field} />
+                      <Select onValueChange={field.onChange} value={field.value || data?.designationId || ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select designation" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {designations?.map((des: any) => (
+                            <SelectItem key={des.id} value={des.id}>
+                              {des.title || des.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -98,6 +98,8 @@ export type CreateEmployeePayload = {
     zipCode?: string;
     country?: string;
   };
+  department?: string;
+  designation?: string;
 };
 
 export type UpdateEmployeePayload = Partial<
@@ -121,7 +123,10 @@ export async function createEmployee(payload: CreateEmployeePayload) {
   return response.data;
 }
 export async function bulkCreateEmployees(payload: CreateEmployeePayload[]) {
-  const response = await apiClient.post<ApiEmployee[]>("/employees/bulk", payload);
+  const response = await apiClient.post<ApiEmployee[]>(
+    "/employees/bulk",
+    payload
+  );
   return response.data;
 }
 

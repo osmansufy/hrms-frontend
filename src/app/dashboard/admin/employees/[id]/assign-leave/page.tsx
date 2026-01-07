@@ -262,7 +262,7 @@ export default function AssignLeavePage() {
                             </div>
                         ) : (
                             <>
-                                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                                <div className="space-y-2  overflow-y-auto">
                                     {leaveAssignments.map((leave) => (
                                         <div
                                             key={leave.id}
