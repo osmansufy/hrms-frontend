@@ -18,6 +18,7 @@ import {
   getMyAttendanceRecords,
   createAttendanceRecord,
   updateAttendanceRecord,
+  deleteAttendanceRecord,
   getAttendancePolicies,
   createAttendancePolicy,
   updateAttendancePolicy,
@@ -154,6 +155,33 @@ export function useUpdateAttendanceRecord() {
     onError: (error) => {
       toast.error(
         error instanceof Error ? error.message : "Failed to update record"
+      );
+    },
+  });
+}
+
+export function useDeleteAttendanceRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteAttendanceRecord(id),
+    onSuccess: () => {
+      // Invalidate all attendance records queries (admin and employee)
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "admin", "records"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["attendance", "my-records"] });
+      // Invalidate stats queries
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "admin", "stats"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "admin", "today"],
+      });
+      toast.success("Attendance record deleted");
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete record"
       );
     },
   });

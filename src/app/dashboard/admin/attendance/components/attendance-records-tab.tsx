@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Filter, Edit, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
-import { useAttendanceRecords, useUpdateAttendanceRecord } from "@/lib/queries/attendance";
+import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
+import { useAttendanceRecords, useUpdateAttendanceRecord, useDeleteAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
 import { toStartOfDayISO, toEndOfDayISO, formatTimeInDhaka, formatDateInDhaka } from "@/lib/utils";
@@ -33,7 +33,19 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogFooter,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -257,7 +269,12 @@ export function AttendanceRecordsTab() {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {record.signIn && <EditRecordDialog record={record} />}
+                                        <div className="flex items-center justify-end gap-2">
+                                            {record.signIn && <EditRecordDialog record={record} />}
+                                            {
+                                                record.signIn && <DeleteRecordDialog record={record} />
+                                            }
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -373,4 +390,47 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
             </DialogContent>
         </Dialog>
     )
+}
+function DeleteRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
+    const deleteMutation = useDeleteAttendanceRecord();
+
+    const handleDelete = async () => {
+        try {
+            await deleteMutation.mutateAsync(record.id);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Attendance Record</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure you want to delete the attendance record for {record.user.name} on {formatDateInDhaka(record.date, "long")}? This action cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={handleDelete}
+                        disabled={deleteMutation.isPending}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
 }

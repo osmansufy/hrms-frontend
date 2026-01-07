@@ -148,6 +148,13 @@ export async function updateAttendanceRecord(
   return response.data;
 }
 
+export async function deleteAttendanceRecord(id: string) {
+  const response = await apiClient.delete<{ message: string }>(
+    `/attendance/admin/records/${id}`
+  );
+  return response.data;
+}
+
 // For now, replacing getAttendanceHistory/List with getAttendanceRecords
 
 export async function exportAttendanceReport(params: {
