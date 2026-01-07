@@ -216,6 +216,7 @@ export function AttendanceRecordsTab() {
                             <TableHead>Date</TableHead>
                             <TableHead>Sign In</TableHead>
                             <TableHead>Sign Out</TableHead>
+                            <TableHead>Lost Time</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -259,6 +260,9 @@ export function AttendanceRecordsTab() {
                                     <TableCell>{formatDateInDhaka(record.date, "long")}</TableCell>
                                     <TableCell>{formatTime(record.signIn)}</TableCell>
                                     <TableCell>{formatTime(record.signOut)}</TableCell>
+                                    <TableCell>
+                                        {record.lostMinutes != null ? `${record.lostMinutes} mins` : "—"}
+                                    </TableCell>
                                     <TableCell>
                                         {!record.signIn ? (
                                             <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">Absent</Badge>
