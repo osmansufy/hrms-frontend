@@ -35,6 +35,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEmployees } from "@/lib/queries/employees";
 import { useCreateAttendanceRecord } from "@/lib/queries/attendance";
+import { AxiosError } from "axios";
 
 const formSchema = z.object({
     userId: z.string().min(1, "User is required"),
@@ -90,7 +91,11 @@ export function CreateRecordDialog() {
             form.reset();
         } catch (error) {
             console.error(error);
-            toast.error("Failed to create record");
+            if (error instanceof AxiosError) {
+                toast.error(error.response?.data?.message?.message || "Failed to create record");
+            } else {
+                toast.error("Failed to create record");
+            }
         }
     }
 

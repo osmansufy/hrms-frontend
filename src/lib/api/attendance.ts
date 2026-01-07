@@ -126,11 +126,15 @@ export async function createAttendanceRecord(payload: {
   signOutLocation?: string | null;
   isLate?: boolean;
 }) {
-  const response = await apiClient.post<AttendanceRecord>(
-    `/attendance/admin/records`,
-    payload
-  );
-  return response.data;
+  try {
+    const response = await apiClient.post<AttendanceRecord>(
+      `/attendance/admin/records`,
+      payload
+    );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
 export async function updateAttendanceRecord(
