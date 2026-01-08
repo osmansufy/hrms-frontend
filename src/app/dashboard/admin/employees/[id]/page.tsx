@@ -40,6 +40,7 @@ import { useDesignationsList } from "@/lib/queries/designations";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import { ChangeWorkScheduleDialog } from "@/components/change-work-schedule-dialog";
+import { EmployeeLeaveBalanceCard } from "@/components/employee-leave-balance-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const schema = z.object({
@@ -379,6 +380,8 @@ export default function AdminEmployeeDetailPage() {
             </Form>
           </CardContent>
         </Card>
+
+        <EmployeeLeaveBalanceCard employeeId={id || ""} userId={data.userId} />
       </div>
 
       {subordinates && subordinates.length > 0 && (

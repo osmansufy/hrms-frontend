@@ -21,6 +21,7 @@ import {
   listLeaveTypes,
   listLeavesByUser,
   getUserBalances,
+  getUserLeaveBalance,
   getBalanceDetails,
   getAllUsersBalances,
   adjustBalance,
@@ -431,6 +432,20 @@ export function useAllUsersBalances() {
   return useQuery({
     queryKey: balanceKeys.allUsersBalances(),
     queryFn: () => getAllUsersBalances(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Hook to get employee leave balance by userId (for admin dashboard)
+export function useEmployeeLeaveBalance(
+  userId: string,
+  leaveTypeId: string,
+  leaveYear?: string
+) {
+  return useQuery({
+    queryKey: ["leave-balance", "employee", userId, leaveTypeId, leaveYear],
+    queryFn: () => getUserLeaveBalance(userId, leaveTypeId, leaveYear),
+    enabled: Boolean(userId) && Boolean(leaveTypeId),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

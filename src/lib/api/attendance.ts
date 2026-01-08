@@ -20,6 +20,7 @@ export type ExtendedAttendanceRecord = AttendanceRecord & {
     name: string;
     email: string;
     employee?: {
+      employeeId: string;
       employeeCode: string;
       department?: { id: string; name: string };
       designation?: { id: string; title: string };
@@ -30,6 +31,18 @@ export type ExtendedAttendanceRecord = AttendanceRecord & {
   lostMinutes?: number;
   overtimeMinutes?: number;
   policy: Policy | null;
+  isOnLeave?: boolean;
+  leave?: {
+    id: string;
+    leaveType: {
+      id: string;
+      name: string;
+      code: string;
+    };
+    reason: string;
+    startDate: string;
+    endDate: string;
+  } | null;
 };
 export type Policy = {
   id: string;
@@ -84,6 +97,7 @@ export async function getAttendanceStats(date: string, departmentId?: string) {
     present: number;
     late: number;
     absent: number;
+    onLeave: number;
     totalActive: number;
     date: string;
   }>(`/attendance/admin/stats`, {

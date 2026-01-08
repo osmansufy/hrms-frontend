@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, UserCheck, Clock, UserX } from "lucide-react";
+import { Users, UserCheck, Clock, UserX, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAttendanceStats } from "@/lib/queries/attendance";
 
@@ -59,15 +59,21 @@ export function StatsCards() {
             icon: Clock,
         },
         {
+            title: "On Leave",
+            value: data?.onLeave ?? 0,
+            description: "Employees on approved leave",
+            icon: Calendar,
+        },
+        {
             title: "Absent",
             value: data?.absent ?? 0,
-            description: "Employees not checked in",
+            description: "Employees not checked in (excluding leave)",
             icon: UserX,
         },
     ];
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {stats.map((stat) => (
                 <StatCard
                     key={stat.title}

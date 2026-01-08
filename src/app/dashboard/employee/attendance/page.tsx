@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTodayAttendance } from "@/lib/queries/attendance";
 import { AttendanceStatsCard } from "./components/stats-card";
 import { ComprehensiveHistoryTab } from "./components/comprehensive-history-tab";
+import Link from "next/link";
 
 export default function AttendancePage() {
   const { session } = useSession();
@@ -34,9 +35,9 @@ export default function AttendancePage() {
         </Badge>
       </div>
       <div className="flex gap-2">
-        <a href="/dashboard/employee/attendance/reconciliation">
+        <Link href="/dashboard/employee/attendance/reconciliation">
           <button className="btn btn-secondary">Reconciliation Requests</button>
-        </a>
+        </Link>
       </div>
 
       <AttendanceStatsCard />

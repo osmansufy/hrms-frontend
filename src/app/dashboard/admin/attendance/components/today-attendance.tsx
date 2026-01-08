@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Clock, Search, Filter, X } from "lucide-react";
+import { Loader2, Clock, Search, Filter, X, CalendarDays } from "lucide-react";
 import { useAttendanceRecords } from "@/lib/queries/attendance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toStartOfDayISO, toEndOfDayISO, formatTimeInDhaka } from "@/lib/utils";
@@ -25,7 +25,7 @@ function getInitials(name: string) {
         .slice(0, 2);
 }
 
-type FilterStatus = "all" | "present" | "signedOut" | "late" | "absent";
+type FilterStatus = "all" | "present" | "signedOut" | "late" | "absent" | "onleave";
 
 export function TodayAttendanceCard() {
     const today = new Date().toISOString().split("T")[0];
@@ -87,7 +87,9 @@ export function TodayAttendanceCard() {
                     case "late":
                         return record.isLate;
                     case "absent":
-                        return !record.signIn;
+                        return !record.signIn && !record.isOnLeave;
+                    case "onleave":
+                        return record.isOnLeave === true;
                     default:
                         return true;
                 }
@@ -100,6 +102,7 @@ export function TodayAttendanceCard() {
     const present = records.filter(r => r.signIn && !r.signOut);
     const signedOut = records.filter(r => r.signIn && r.signOut);
     const late = records.filter(r => r.isLate);
+    const onLeave = records.filter(r => r.isOnLeave === true);
     return (
         <Card>
             <CardHeader>
@@ -191,6 +194,14 @@ export function TodayAttendanceCard() {
                                 >
                                     Late
                                 </Button>
+                                <Button
+                                    variant={filterStatus === "onleave" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setFilterStatus("onleave")}
+                                >
+                                    <CalendarDays className="mr-1 h-3 w-3" />
+                                    On Leave
+                                </Button>
                             </div>
                         </div>
 
@@ -207,6 +218,10 @@ export function TodayAttendanceCard() {
                                 <div className="flex items-center gap-2">
                                     <div className="h-2 w-2 rounded-full bg-red-500" />
                                     <span className="text-muted-foreground">Late: {late.length}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                    <span className="text-muted-foreground">On Leave: {onLeave.length}</span>
                                 </div>
                             </div>
                             {(searchQuery || filterStatus !== "all" || selectedDepartment !== "all") && (
@@ -262,22 +277,36 @@ export function TodayAttendanceCard() {
                                                     {formatTime(record.signOut)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {!record.signIn ? (
-                                                        <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
-                                                            Absent
-                                                        </Badge>
-                                                    ) : record.signOut ? (
-                                                        <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
-                                                            Signed Out
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
-                                                            Signed In
-                                                        </Badge>
-                                                    )}
-                                                    {record.isLate && (
-                                                        <Badge variant="destructive" className="ml-2">Late</Badge>
-                                                    )}
+                                                    <div className="flex flex-col gap-1">
+                                                        {!record.signIn ? (
+                                                            record.isOnLeave ? (
+                                                                <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
+                                                                    <CalendarDays className="mr-1 h-3 w-3" />
+                                                                    On Leave
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
+                                                                    Absent
+                                                                </Badge>
+                                                            )
+                                                        ) : record.signOut ? (
+                                                            <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
+                                                                Signed Out
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
+                                                                Signed In
+                                                            </Badge>
+                                                        )}
+                                                        {record.isLate && (
+                                                            <Badge variant="destructive" className="ml-2">Late</Badge>
+                                                        )}
+                                                        {record.isOnLeave && record.leave && (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {record.leave.leaveType.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))

@@ -106,6 +106,20 @@ export type UpdateEmployeePayload = Partial<
   Omit<CreateEmployeePayload, "email" | "password">
 >;
 
+export type UpdatePersonalInfoPayload = {
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  gender?: "MALE" | "FEMALE" | "OTHER";
+  maritalStatus?: "SINGLE" | "MARRIED";
+  bloodGroup?: string;
+  nationality?: string;
+  personalEmail?: string;
+  phone?: string;
+  alternatePhone?: string;
+};
+
 export async function listEmployees(params?: ListEmployeesParams) {
   const response = await apiClient.get<ApiEmployee[]>("/employees", {
     params,
@@ -136,6 +150,17 @@ export async function updateEmployeeApi(
 ) {
   const response = await apiClient.patch<ApiEmployee>(
     `/employees/${id}`,
+    payload
+  );
+  return response.data;
+}
+
+export async function updatePersonalInfo(
+  id: string,
+  payload: UpdatePersonalInfoPayload
+) {
+  const response = await apiClient.patch<ApiEmployee>(
+    `/employees/${id}/personal-info`,
     payload
   );
   return response.data;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
+import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar, CalendarDays } from "lucide-react";
 import { useAttendanceRecords, useUpdateAttendanceRecord, useDeleteAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
@@ -51,13 +51,23 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ExtendedAttendanceRecord } from "@/lib/api/attendance";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from "next/link";
+import { EmployeeLeaveBalanceDetails } from "@/components/employee-leave-balance-details";
+import { Info } from "lucide-react";
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
 
 export function AttendanceRecordsTab() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [departmentId, setDepartmentId] = useState<string>("all");
     const [employeeId, setEmployeeId] = useState<string>("all");
-    const [statusFilter, setStatusFilter] = useState<string>("all"); // "all", "late", "ontime", "absent"
+    const [statusFilter, setStatusFilter] = useState<string>("all"); // "all", "late", "ontime", "absent", "onleave"
 
     // Use date range presets hook
     const { preset, dateRange, setPreset, setCustomRange } = useDateRangePresets("today");
@@ -79,11 +89,14 @@ export function AttendanceRecordsTab() {
 
     const { data: recordsData, isLoading } = useAttendanceRecords(queryParams);
 
-    // Client-side filter for absent status (since backend doesn't have this filter)
+    // Client-side filter for absent and on leave status (since backend doesn't have these filters)
     const filteredRecords = useMemo(() => {
         if (!recordsData?.data) return [];
         if (statusFilter === "absent") {
-            return recordsData.data.filter(record => !record.signIn);
+            return recordsData.data.filter(record => !record.signIn && !record.isOnLeave);
+        }
+        if (statusFilter === "onleave") {
+            return recordsData.data.filter(record => record.isOnLeave === true);
         }
         return recordsData.data;
     }, [recordsData?.data, statusFilter]);
@@ -103,213 +116,259 @@ export function AttendanceRecordsTab() {
         setPage(1);
     };
 
+    const [selectedEmployee, setSelectedEmployee] = useState<{ userId: string; name: string } | null>(null);
+
     return (
-        <div className="space-y-4">
-            {/* Date Range Quick Filters */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Calendar className="h-4 w-4" />
-                        Date Range
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-                        {DATE_RANGE_PRESETS.map((option) => (
-                            <Button
-                                key={option.value}
-                                variant={preset === option.value ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setPreset(option.value)}
-                                className="w-full"
-                            >
-                                {option.label}
-                            </Button>
-                        ))}
-                    </div>
-
-                    {preset === "custom" && (
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                            <div>
-                                <Input
-                                    type="date"
-                                    value={dateRange.startDate}
-                                    max={new Date().toISOString().split("T")[0]}
-                                    onChange={(e) => setCustomRange({ startDate: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <Input
-                                    type="date"
-                                    value={dateRange.endDate}
-                                    max={new Date().toISOString().split("T")[0]}
-                                    onChange={(e) => setCustomRange({ endDate: e.target.value })}
-                                />
-                            </div>
+        <>
+            <div className="space-y-4">
+                {/* Date Range Quick Filters */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Calendar className="h-4 w-4" />
+                            Date Range
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                            {DATE_RANGE_PRESETS.map((option) => (
+                                <Button
+                                    key={option.value}
+                                    variant={preset === option.value ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setPreset(option.value)}
+                                    className="w-full"
+                                >
+                                    {option.label}
+                                </Button>
+                            ))}
                         </div>
-                    )}
-                </CardContent>
-            </Card>
 
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-4 rounded-lg border p-4 shadow-sm">
-                <div className="flex-1 min-w-[200px]">
-                    <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search by name, email, code..."
-                            value={search}
-                            onChange={handleSearch}
-                            className="pl-8"
-                        />
+                        {preset === "custom" && (
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                                <div>
+                                    <Input
+                                        type="date"
+                                        value={dateRange.startDate}
+                                        max={new Date().toISOString().split("T")[0]}
+                                        onChange={(e) => setCustomRange({ startDate: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <Input
+                                        type="date"
+                                        value={dateRange.endDate}
+                                        max={new Date().toISOString().split("T")[0]}
+                                        onChange={(e) => setCustomRange({ endDate: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-4 rounded-lg border p-4 shadow-sm">
+                    <div className="flex-1 min-w-[200px]">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search by name, email, code..."
+                                value={search}
+                                onChange={handleSearch}
+                                className="pl-8"
+                            />
+                        </div>
                     </div>
+
+                    <Select value={departmentId} onValueChange={handleDepartmentChange}>
+                        <SelectTrigger >
+                            <SelectValue placeholder="Department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Departments</SelectItem>
+                            {departments?.map((dept) => (
+                                <SelectItem key={dept.id} value={dept.id}>
+                                    {dept.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={employeeId} onValueChange={handleEmployeeChange}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Employee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Employees</SelectItem>
+                            {employees?.map((emp) => (
+                                <SelectItem key={emp.userId} value={emp.userId || ""}>
+                                    {emp.name} ({emp.employeeCode})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPage(1); }}>
+                        <SelectTrigger >
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="late">Late</SelectItem>
+                            <SelectItem value="ontime">On Time</SelectItem>
+                            <SelectItem value="onleave">On Leave</SelectItem>
+                            <SelectItem value="absent">Absent</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
-                <Select value={departmentId} onValueChange={handleDepartmentChange}>
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Departments</SelectItem>
-                        {departments?.map((dept) => (
-                            <SelectItem key={dept.id} value={dept.id}>
-                                {dept.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                <Select value={employeeId} onValueChange={handleEmployeeChange}>
-                    <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Employee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Employees</SelectItem>
-                        {employees?.map((emp) => (
-                            <SelectItem key={emp.userId} value={emp.userId || ""}>
-                                {emp.name} ({emp.employeeCode})
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPage(1); }}>
-                    <SelectTrigger className="w-[130px]">
-                        <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="late">Late</SelectItem>
-                        <SelectItem value="ontime">On Time</SelectItem>
-                        <SelectItem value="absent">Absent</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-
-            {/* Table */}
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Employee</TableHead>
-                            <TableHead>Department</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Sign In</TableHead>
-                            <TableHead>Sign Out</TableHead>
-                            <TableHead>Lost Time</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
+                {/* Table */}
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
-                                    Loading...
-                                </TableCell>
+                                <TableHead>Employee</TableHead>
+                                <TableHead>Department</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Sign In</TableHead>
+                                <TableHead>Sign Out</TableHead>
+                                <TableHead>Lost Time</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                        ) : filteredRecords.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
-                                    No records found.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            filteredRecords.map((record) => (
-                                <TableRow key={record.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src={record.user.employee?.profilePicture || undefined} />
-                                                <AvatarFallback>{record.user.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex flex-col">
-                                                <a
-                                                    href={`/dashboard/admin/employees/${record.user.id}`}
-                                                    className="font-medium text-primary hover:underline"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    {record.user.name}
-                                                </a>
-                                                <span className="text-xs text-muted-foreground">{record.user.employee?.employeeCode}</span>
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>{record.user.employee?.department?.name || "—"}</TableCell>
-                                    <TableCell>{formatDateInDhaka(record.date, "long")}</TableCell>
-                                    <TableCell>{formatTime(record.signIn)}</TableCell>
-                                    <TableCell>{formatTime(record.signOut)}</TableCell>
-                                    <TableCell>
-                                        {record.lostMinutes != null ? `${record.lostMinutes} mins` : "—"}
-                                    </TableCell>
-                                    <TableCell>
-                                        {!record.signIn ? (
-                                            <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">Absent</Badge>
-                                        ) : record.isLate ? (
-                                            <Badge variant="destructive">Late</Badge>
-                                        ) : (
-                                            <Badge variant="secondary">On Time</Badge>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {record.signIn && <EditRecordDialog record={record} />}
-                                            {
-                                                record.signIn && <DeleteRecordDialog record={record} />
-                                            }
-                                        </div>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="h-24 text-center">
+                                        Loading...
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : filteredRecords.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="h-24 text-center">
+                                        No records found.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredRecords.map((record) => (
+                                    <TableRow key={record.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={record.user.employee?.profilePicture || undefined} />
+                                                    <AvatarFallback>{record.user.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col">
+                                                    <Link
+                                                        href={`/dashboard/admin/employees/${record.user.employee?.employeeId}`}
+                                                        className="font-medium text-primary hover:underline"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        {record.user.name}
+                                                    </Link>
+                                                    <span className="text-xs text-muted-foreground">{record.user.employee?.employeeCode}</span>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{record.user.employee?.department?.name || "—"}</TableCell>
+                                        <TableCell>{formatDateInDhaka(record.date, "long")}</TableCell>
+                                        <TableCell>{formatTime(record.signIn)}</TableCell>
+                                        <TableCell>{formatTime(record.signOut)}</TableCell>
+                                        <TableCell>
+                                            {record.lostMinutes != null ? `${record.lostMinutes} mins` : "—"}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-1">
+                                                {!record.signIn ? (
+                                                    record.isOnLeave ? (
+                                                        <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
+                                                            <CalendarDays className="mr-1 h-3 w-3" />
+                                                            On Leave
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">Absent</Badge>
+                                                    )
+                                                ) : record.isLate ? (
+                                                    <Badge variant="destructive">Late</Badge>
+                                                ) : (
+                                                    <Badge variant="secondary">On Time</Badge>
+                                                )}
+                                                {record.isOnLeave && record.leave && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {record.leave.leaveType.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setSelectedEmployee({ userId: record.user.id, name: record.user.name })}
+                                                    title="View leave balance"
+                                                >
+                                                    <Info className="h-4 w-4" />
+                                                </Button>
+                                                {record.signIn && <EditRecordDialog record={record} />}
+                                                {
+                                                    record.signIn && <DeleteRecordDialog record={record} />
+                                                }
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-end space-x-2 py-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((old) => Math.max(old - 1, 1))}
+                        disabled={page === 1 || isLoading}
+                    >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Previous
+                    </Button>
+                    <div className="text-sm font-medium">Page {page}</div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((old) => old + 1)}
+                        disabled={isLoading || !recordsData || recordsData.data.length < 10}
+                    >
+                        Next
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </div>
             </div>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((old) => Math.max(old - 1, 1))}
-                    disabled={page === 1 || isLoading}
-                >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Previous
-                </Button>
-                <div className="text-sm font-medium">Page {page}</div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((old) => old + 1)}
-                    disabled={isLoading || !recordsData || recordsData.data.length < 10}
-                >
-                    Next
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-            </div>
-        </div>
+            {/* Leave Balance Details Sheet */}
+            <Sheet open={!!selectedEmployee} onOpenChange={(open) => !open && setSelectedEmployee(null)}>
+                <SheetContent className="w-full max-w-4xl overflow-y-auto">
+                    <SheetHeader>
+                        <SheetTitle>Leave Balance Details</SheetTitle>
+                        <SheetDescription>
+                            {selectedEmployee?.name}'s comprehensive leave balance information
+                        </SheetDescription>
+                    </SheetHeader>
+                    {selectedEmployee && (
+                        <div className="mt-6">
+                            <EmployeeLeaveBalanceDetails
+                                userId={selectedEmployee.userId}
+                                employeeName={selectedEmployee.name}
+                            />
+                        </div>
+                    )}
+                </SheetContent>
+            </Sheet>
+        </>
     );
 }
 

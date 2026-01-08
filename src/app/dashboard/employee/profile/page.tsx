@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { User, Mail, Phone, Briefcase, Calendar, Building2, Users, Heart, Globe, Droplet, Loader2, KeyRound } from "lucide-react";
+import { User, Mail, Phone, Briefcase, Calendar, Building2, Users, Heart, Globe, Droplet, Loader2, KeyRound, Edit } from "lucide-react";
 import { useSession } from "@/components/auth/session-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -118,11 +118,21 @@ export default function ProfilePage() {
         {/* Personal Information */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Personal Information
-            </CardTitle>
-            <CardDescription>Your personal and contact details</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Personal Information
+                </CardTitle>
+                <CardDescription>Your personal and contact details</CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/employee/profile/edit">
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <InfoRow
