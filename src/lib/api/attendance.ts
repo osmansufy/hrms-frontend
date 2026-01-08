@@ -78,6 +78,9 @@ export async function getTodayAttendance(userId: string) {
 
 export async function signIn(payload: {
   location?: string | null;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
   screenWidth?: number;
   screenHeight?: number;
   hasTouchScreen?: boolean;
@@ -91,6 +94,9 @@ export async function signIn(payload: {
 
 export async function signOut(payload: {
   location?: string | null;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
   screenWidth?: number;
   screenHeight?: number;
   hasTouchScreen?: boolean;

@@ -22,6 +22,12 @@ interface EmployeeLeaveBalanceDetailsProps {
     employeeName?: string;
 }
 
+// Helper function to safely format numbers
+const formatNumber = (value: number | null | undefined, decimals: number = 1): string => {
+    const num = Number(value) || 0;
+    return num.toFixed(decimals);
+};
+
 export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLeaveBalanceDetailsProps) {
     const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes();
 
@@ -73,9 +79,19 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
         );
     }
 
-    const totalAvailable = employeeBalances.reduce((sum, b) => sum + (b.available + b.carried), 0);
-    const totalUsed = employeeBalances.reduce((sum, b) => sum + b.used, 0);
-    const totalLapsed = employeeBalances.reduce((sum, b) => sum + b.lapsed, 0);
+    const totalAvailable = employeeBalances.reduce((sum, b) => {
+        const available = Number(b.available) || 0;
+        const carried = Number(b.carried) || 0;
+        return sum + available + carried;
+    }, 0);
+    const totalUsed = employeeBalances.reduce((sum, b) => {
+        const used = Number(b.used) || 0;
+        return sum + used;
+    }, 0);
+    const totalLapsed = employeeBalances.reduce((sum, b) => {
+        const lapsed = Number(b.lapsed) || 0;
+        return sum + lapsed;
+    }, 0);
 
     return (
         <Card>
@@ -91,7 +107,7 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Available Days</p>
-                                    <p className="text-2xl font-bold text-green-700">{totalAvailable.toFixed(1)}</p>
+                                    <p className="text-2xl font-bold text-green-700">{formatNumber(totalAvailable)}</p>
                                 </div>
                                 <TrendingUp className="h-8 w-8 text-green-600 opacity-50" />
                             </div>
@@ -103,7 +119,7 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Used Days</p>
-                                    <p className="text-2xl font-bold text-yellow-700">{totalUsed.toFixed(1)}</p>
+                                    <p className="text-2xl font-bold text-yellow-700">{formatNumber(totalUsed)}</p>
                                 </div>
                                 <CheckCircle2 className="h-8 w-8 text-yellow-600 opacity-50" />
                             </div>
@@ -115,7 +131,7 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Lapsed Days</p>
-                                    <p className="text-2xl font-bold text-red-700">{totalLapsed.toFixed(1)}</p>
+                                    <p className="text-2xl font-bold text-red-700">{formatNumber(totalLapsed)}</p>
                                 </div>
                                 <TrendingDown className="h-8 w-8 text-red-600 opacity-50" />
                             </div>
@@ -141,8 +157,11 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                         <TableBody>
                             {employeeBalances.map((balance) => {
                                 const leaveType = leaveTypes?.find(lt => lt.id === balance.leaveTypeId);
-                                const totalAllocated = balance.available + balance.carried + balance.used;
-                                const utilization = totalAllocated > 0 ? (balance.used / totalAllocated) * 100 : 0;
+                                const available = Number(balance.available) || 0;
+                                const carried = Number(balance.carried) || 0;
+                                const used = Number(balance.used) || 0;
+                                const totalAllocated = available + carried + used;
+                                const utilization = totalAllocated > 0 ? (used / totalAllocated) * 100 : 0;
 
                                 let statusColor = "default";
                                 let statusText = "Good";
@@ -167,24 +186,24 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right font-semibold text-green-600">
-                                            {balance.available.toFixed(1)}
+                                            {formatNumber(balance.available)}
                                         </TableCell>
                                         <TableCell className="text-right text-blue-600">
-                                            {balance.carried > 0 ? balance.carried.toFixed(1) : "—"}
+                                            {balance.carried > 0 ? formatNumber(balance.carried) : "—"}
                                         </TableCell>
                                         <TableCell className="text-right text-yellow-600">
-                                            {balance.used.toFixed(1)}
+                                            {formatNumber(balance.used)}
                                         </TableCell>
                                         <TableCell className="text-right text-purple-600">
-                                            {balance.accrued > 0 ? balance.accrued.toFixed(1) : "—"}
+                                            {balance.accrued > 0 ? formatNumber(balance.accrued) : "—"}
                                         </TableCell>
                                         <TableCell className="text-right text-red-600">
-                                            {balance.lapsed > 0 ? balance.lapsed.toFixed(1) : "—"}
+                                            {balance.lapsed > 0 ? formatNumber(balance.lapsed) : "—"}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {balance.adjusted !== 0 ? (
                                                 <span className={balance.adjusted > 0 ? "text-green-600" : "text-red-600"}>
-                                                    {balance.adjusted > 0 ? "+" : ""}{balance.adjusted.toFixed(1)}
+                                                    {balance.adjusted > 0 ? "+" : ""}{formatNumber(balance.adjusted)}
                                                 </span>
                                             ) : (
                                                 "—"
@@ -204,8 +223,11 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                 <div className="grid gap-4 md:grid-cols-2">
                     {employeeBalances.map((balance) => {
                         const leaveType = leaveTypes?.find(lt => lt.id === balance.leaveTypeId);
-                        const totalAllocated = balance.available + balance.carried + balance.used;
-                        const percentage = totalAllocated > 0 ? (balance.used / totalAllocated) * 100 : 0;
+                        const available = Number(balance.available) || 0;
+                        const carried = Number(balance.carried) || 0;
+                        const used = Number(balance.used) || 0;
+                        const totalAllocated = available + carried + used;
+                        const percentage = totalAllocated > 0 ? (used / totalAllocated) * 100 : 0;
 
                         return (
                             <Card key={balance.id} className="border">
@@ -220,15 +242,15 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-sm">
                                             <span className="text-muted-foreground">Utilization</span>
-                                            <span className="font-semibold">{percentage.toFixed(1)}%</span>
+                                            <span className="font-semibold">{formatNumber(percentage)}%</span>
                                         </div>
                                         <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
                                             <div
                                                 className={`h-full transition-all ${percentage >= 75
-                                                        ? "bg-red-500"
-                                                        : percentage >= 50
-                                                            ? "bg-yellow-500"
-                                                            : "bg-green-500"
+                                                    ? "bg-red-500"
+                                                    : percentage >= 50
+                                                        ? "bg-yellow-500"
+                                                        : "bg-green-500"
                                                     }`}
                                                 style={{ width: `${Math.min(percentage, 100)}%` }}
                                             />
@@ -240,20 +262,20 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                                         <div className="rounded-lg bg-green-50 p-2">
                                             <p className="text-muted-foreground">Available</p>
                                             <p className="text-lg font-semibold text-green-700">
-                                                {balance.available.toFixed(1)}
+                                                {formatNumber(balance.available)}
                                             </p>
                                         </div>
                                         <div className="rounded-lg bg-yellow-50 p-2">
                                             <p className="text-muted-foreground">Used</p>
                                             <p className="text-lg font-semibold text-yellow-700">
-                                                {balance.used.toFixed(1)}
+                                                {formatNumber(balance.used)}
                                             </p>
                                         </div>
                                         {balance.carried > 0 && (
                                             <div className="rounded-lg bg-blue-50 p-2">
                                                 <p className="text-muted-foreground">Carry Forward</p>
                                                 <p className="text-lg font-semibold text-blue-700">
-                                                    {balance.carried.toFixed(1)}
+                                                    {formatNumber(balance.carried)}
                                                 </p>
                                             </div>
                                         )}
@@ -261,7 +283,7 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                                             <div className="rounded-lg bg-purple-50 p-2">
                                                 <p className="text-muted-foreground">Accrued</p>
                                                 <p className="text-lg font-semibold text-purple-700">
-                                                    {balance.accrued.toFixed(1)}
+                                                    {formatNumber(balance.accrued)}
                                                 </p>
                                             </div>
                                         )}
@@ -269,25 +291,25 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                                             <div className="rounded-lg bg-red-50 p-2">
                                                 <p className="text-muted-foreground">Lapsed</p>
                                                 <p className="text-lg font-semibold text-red-700">
-                                                    {balance.lapsed.toFixed(1)}
+                                                    {formatNumber(balance.lapsed)}
                                                 </p>
                                             </div>
                                         )}
                                         {balance.adjusted !== 0 && (
                                             <div
                                                 className={`rounded-lg p-2 ${balance.adjusted > 0
-                                                        ? "bg-green-50"
-                                                        : "bg-red-50"
+                                                    ? "bg-green-50"
+                                                    : "bg-red-50"
                                                     }`}
                                             >
                                                 <p className="text-muted-foreground">Adjusted</p>
                                                 <p
                                                     className={`text-lg font-semibold ${balance.adjusted > 0
-                                                            ? "text-green-700"
-                                                            : "text-red-700"
+                                                        ? "text-green-700"
+                                                        : "text-red-700"
                                                         }`}
                                                 >
-                                                    {balance.adjusted > 0 ? "+" : ""}{balance.adjusted.toFixed(1)}
+                                                    {balance.adjusted > 0 ? "+" : ""}{formatNumber(balance.adjusted)}
                                                 </p>
                                             </div>
                                         )}

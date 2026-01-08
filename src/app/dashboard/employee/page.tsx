@@ -70,6 +70,14 @@ export default function EmployeeDashboard() {
 
   // Location state
   const [location, setLocation] = useState("");
+  const [geolocation, setGeolocation] = useState<{
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+  }>({});
+  const [geolocationError, setGeolocationError] = useState<string | null>(null);
+  const [geolocationStatus, setGeolocationStatus] = useState<"checking" | "available" | "denied" | "unavailable" | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false); // Prevent concurrent calls
 
   // Device detection for attendance restriction
   const [deviceInfo, setDeviceInfo] = useState<ReturnType<typeof detectDevice> | null>(null);
@@ -80,6 +88,150 @@ export default function EmployeeDashboard() {
     setDeviceInfo(device);
     setIsDeviceAllowed(isDeviceAllowedForAttendance());
   }, []);
+
+
+
+  // Function to get current geolocation
+  const getCurrentLocation = useCallback(async (): Promise<{
+    latitude: number;
+    longitude: number;
+    address?: string;
+  } | null> => {
+    // If we already have cached geolocation and it's recent, return it
+    if (geolocation.latitude && geolocation.longitude && geolocationStatus === "available") {
+      console.log("Using cached geolocation:", geolocation);
+      return {
+        latitude: geolocation.latitude,
+        longitude: geolocation.longitude,
+        address: geolocation.address,
+      };
+    }
+
+    // Prevent concurrent calls
+    if (isGettingLocation) {
+      console.log("Geolocation request already in progress, waiting...");
+      // Wait for the current request to complete
+      let attempts = 0;
+      while (isGettingLocation && attempts < 30) { // Wait up to 3 seconds
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+        // If we got geolocation while waiting, return it
+        if (geolocation.latitude && geolocation.longitude) {
+          console.log("Got geolocation while waiting:", geolocation);
+          return {
+            latitude: geolocation.latitude,
+            longitude: geolocation.longitude,
+            address: geolocation.address,
+          };
+        }
+      }
+      // If still in progress or no data, return cached or null
+      if (geolocation.latitude && geolocation.longitude) {
+        return {
+          latitude: geolocation.latitude,
+          longitude: geolocation.longitude,
+          address: geolocation.address,
+        };
+      }
+      return null;
+    }
+
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        console.warn("Geolocation is not supported by your browser");
+        setGeolocationStatus("unavailable");
+        setGeolocationError("Geolocation is not supported by your browser");
+        resolve(null);
+        return;
+      }
+
+      setIsGettingLocation(true);
+      console.log("Requesting geolocation (new request)...");
+      setGeolocationStatus("checking");
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            console.log("Geolocation success:", { latitude, longitude });
+
+            // Try to reverse geocode to get address
+            let address: string | undefined;
+            try {
+              // Using OpenStreetMap Nominatim API (free, no API key required)
+              const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18`,
+                {
+                  headers: {
+                    'User-Agent': 'HRMS Attendance System', // Required by Nominatim
+                  },
+                }
+              );
+
+              if (response.ok) {
+                const data = await response.json();
+                if (data.display_name) {
+                  address = data.display_name;
+                  console.log("Reverse geocoded address:", address);
+                }
+              } else {
+                console.warn("Reverse geocoding failed:", response.status);
+              }
+            } catch (error) {
+              console.warn("Failed to reverse geocode:", error);
+              // Continue without address
+            }
+
+            const geoData = { latitude, longitude, address };
+            console.log("Final geoData (resolving promise):", geoData);
+            setGeolocation(geoData);
+            setGeolocationError(null);
+            setGeolocationStatus("available");
+            setIsGettingLocation(false);
+            resolve(geoData);
+          } catch (error) {
+            console.error("Error processing geolocation:", error);
+            setGeolocationStatus("unavailable");
+            setGeolocationError("Error processing location data");
+            setIsGettingLocation(false);
+            reject(error);
+          }
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          let errorMessage = "Failed to get location";
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              console.error("Permission denied");
+              setGeolocationStatus("denied");
+              errorMessage = "Location access denied. Please enable location access to mark attendance.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              console.error("Position unavailable");
+              setGeolocationStatus("unavailable");
+              errorMessage = "Location information unavailable";
+              break;
+            case error.TIMEOUT:
+              console.error("Geolocation timeout");
+              setGeolocationStatus("unavailable");
+              errorMessage = "Location request timed out";
+              break;
+            default:
+              console.error("Unknown geolocation error:", error);
+              setGeolocationStatus("unavailable");
+          }
+          setGeolocationError(errorMessage);
+          setIsGettingLocation(false);
+          resolve(null); // Resolve with null instead of rejecting to allow sign-in without location
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000, // Increased timeout to 15 seconds
+          maximumAge: 60000, // Accept cached position up to 1 minute old
+        }
+      );
+    });
+  }, [isGettingLocation, geolocation]);
 
   // Attendance queries
   const { data: todayAttendance, isLoading: attendanceLoading, isFetching: attendanceFetching } = useTodayAttendance(userId);
@@ -166,16 +318,80 @@ export default function EmployeeDashboard() {
       return;
     }
 
+    // Get geolocation - wait for it to complete
+    console.log("Getting geolocation for sign-in...");
+    let geoData: { latitude: number; longitude: number; address?: string } | null = null;
+
+    try {
+      // Call getCurrentLocation and wait for the actual result
+      geoData = await getCurrentLocation();
+      console.log("Geolocation result after await:", geoData);
+
+      // Check the result directly (don't rely on state which might not be updated yet)
+      if (!geoData) {
+        console.log("No geoData returned from getCurrentLocation");
+        // Check if we have cached geolocation from state
+        if (geolocation.latitude && geolocation.longitude) {
+          console.log("Using cached geolocation from state:", geolocation);
+          geoData = {
+            latitude: geolocation.latitude,
+            longitude: geolocation.longitude,
+            address: geolocation.address,
+          };
+        } else {
+          // Check status to determine if it's denied or just unavailable
+          // Wait a bit for state to update
+          await new Promise(resolve => setTimeout(resolve, 100));
+          const currentStatus = geolocationStatus;
+          console.log("Current geolocation status:", currentStatus);
+
+          if (currentStatus === "denied") {
+            toast.error("Geolocation access is required. Please enable location permissions to mark attendance.");
+            return; // Don't proceed without location if it's required
+          } else {
+            toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
+          }
+        }
+      } else {
+        console.log("Successfully got geolocation data:", geoData);
+      }
+    } catch (error) {
+      console.error("Error getting geolocation:", error);
+      // Try to use cached geolocation if available
+      if (geolocation.latitude && geolocation.longitude) {
+        console.log("Using cached geolocation after error:", geolocation);
+        geoData = {
+          latitude: geolocation.latitude,
+          longitude: geolocation.longitude,
+          address: geolocation.address,
+        };
+      } else {
+        toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
+      }
+    }
+
     // Get device info to send screen/touch metadata for enhanced validation
     const deviceInfo = detectDevice();
     const payload: {
       location?: string;
+      latitude?: number;
+      longitude?: number;
+      address?: string;
       screenWidth?: number;
       screenHeight?: number;
       hasTouchScreen?: boolean;
     } = {
       location: location || undefined,
     };
+
+    // Include geolocation data if available
+    if (geoData) {
+      payload.latitude = geoData.latitude;
+      payload.longitude = geoData.longitude;
+      if (geoData.address) {
+        payload.address = geoData.address;
+      }
+    }
 
     // Include screen/touch info if available (for backend validation)
     if (deviceInfo.screenWidth !== undefined) {
@@ -188,20 +404,27 @@ export default function EmployeeDashboard() {
       payload.hasTouchScreen = deviceInfo.hasTouchScreen;
     }
 
+    console.log("Final payload before API call:", payload);
     try {
       await signInMutation.mutateAsync(payload);
       toast.success("Signed in successfully");
       setLocation("");
+      setGeolocation({});
+      setGeolocationError(null);
     } catch (err: any) {
-      console.error(err);
+      console.error("Sign-in error:", err);
       // Check if error is device-related
       if (err?.response?.status === 403 || err?.message?.includes("desktop") || err?.message?.includes("laptop")) {
         toast.error(err?.response?.data?.message || "Attendance is only allowed from desktop or laptop computers.");
+      } else if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
+        toast.error("Network error: Please check if the backend server is running and accessible.");
+      } else if (err?.response?.data?.message) {
+        toast.error(err.response.data.message);
       } else {
-        toast.error("Sign-in failed");
+        toast.error(err?.message || "Sign-in failed. Please try again.");
       }
     }
-  }, [signInMutation, location]);
+  }, [signInMutation, location, getCurrentLocation, geolocationStatus]);
 
   const handleSignOut = useCallback(async () => {
     // Check device before attempting sign-out
@@ -211,16 +434,47 @@ export default function EmployeeDashboard() {
       return;
     }
 
+    // Get geolocation
+    console.log("Getting geolocation for sign-out...");
+    let geoData: { latitude: number; longitude: number; address?: string } | null = null;
+    try {
+      geoData = await getCurrentLocation();
+      console.log("Geolocation result for sign-out:", { geoData, geolocationStatus });
+    } catch (error) {
+      console.error("Error getting geolocation for sign-out:", error);
+      toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
+    }
+
+    // Warn if geolocation is not available
+    if (!geoData && geolocationStatus === "denied") {
+      toast.error("Geolocation access is required. Please enable location permissions to mark attendance.");
+      return;
+    } else if (!geoData && geolocationStatus === "unavailable") {
+      toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
+    }
+
     // Get device info to send screen/touch metadata for enhanced validation
     const deviceInfo = detectDevice();
     const payload: {
       location?: string;
+      latitude?: number;
+      longitude?: number;
+      address?: string;
       screenWidth?: number;
       screenHeight?: number;
       hasTouchScreen?: boolean;
     } = {
       location: location || undefined,
     };
+
+    // Include geolocation data if available
+    if (geoData) {
+      payload.latitude = geoData.latitude;
+      payload.longitude = geoData.longitude;
+      if (geoData.address) {
+        payload.address = geoData.address;
+      }
+    }
 
     // Include screen/touch info if available (for backend validation)
     if (deviceInfo.screenWidth !== undefined) {
@@ -237,16 +491,22 @@ export default function EmployeeDashboard() {
       await signOutMutation.mutateAsync(payload);
       toast.success("Signed out successfully");
       setLocation("");
+      setGeolocation({});
+      setGeolocationError(null);
     } catch (err: any) {
-      console.error(err);
+      console.error("Sign-out error:", err);
       // Check if error is device-related
       if (err?.response?.status === 403 || err?.message?.includes("desktop") || err?.message?.includes("laptop")) {
         toast.error(err?.response?.data?.message || "Attendance is only allowed from desktop or laptop computers.");
+      } else if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
+        toast.error("Network error: Please check if the backend server is running and accessible.");
+      } else if (err?.response?.data?.message) {
+        toast.error(err.response.data.message);
       } else {
-        toast.error("Sign-out failed");
+        toast.error(err?.message || "Sign-out failed. Please try again.");
       }
     }
-  }, [signOutMutation, location]);
+  }, [signOutMutation, location, getCurrentLocation, geolocationStatus]);
 
   // Leave-related queries and calculations removed from dashboard (now only on leave page)
 
@@ -286,18 +546,18 @@ export default function EmployeeDashboard() {
       <div>
         <h2 className="text-lg font-semibold mb-3">Attendance</h2>
         <Card className="border-2">
-          <CardHeader className="space-y-1 pb-4">
+          <CardHeader className="space-y-1 pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle>Today&apos;s Attendance</CardTitle>
+              <CardTitle className="text-lg">Today&apos;s Attendance</CardTitle>
               <Badge
                 variant={todayAttendance?.isLate ? "destructive" : "secondary"}
-                className="text-sm px-3 py-1"
+                className="text-xs px-2.5 py-0.5"
               >
-                <Clock className="mr-1 size-4" />
+                <Clock className="mr-1 size-3.5" />
                 {attendanceStatus}
               </Badge>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Sign in when you start and sign out when you finish. View full history on the{" "}
               <Link href="/dashboard/employee/attendance" className="text-primary hover:underline">
                 attendance page
@@ -308,112 +568,157 @@ export default function EmployeeDashboard() {
           <CardContent className="space-y-4">
             {/* Device Restriction Alert */}
             {deviceInfo && !isDeviceAllowed && (
-              <Alert variant="destructive" className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+              <Alert variant="destructive" className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 py-2.5">
                 <Monitor className="h-4 w-4" />
-                <AlertDescription className="font-medium">
+                <AlertDescription className="font-medium text-sm">
                   {getDeviceRestrictionMessage(deviceInfo.type)}
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* Sign In / Sign Out Action Buttons - Prominent */}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className={cn(
-                "rounded-lg border-2 p-4 transition-all",
-                !todayAttendance?.signIn
-                  ? "border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/20"
-                  : "border-muted bg-muted/30"
-              )}>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Sign In</h3>
-                    {todayAttendance?.signIn && (
-                      <Badge variant="outline" className="text-xs">
-                        {formatTimeInDhaka(todayAttendance.signIn)}
-                      </Badge>
-                    )}
-                  </div>
-                  <Button
-                    onClick={handleSignIn}
-                    disabled={attendanceLoading || signInMutation.isPending || Boolean(todayAttendance?.signIn) || !isDeviceAllowed}
-                    className={cn(
-                      "w-full h-12 text-base font-semibold",
-                      !todayAttendance?.signIn && isDeviceAllowed
-                        ? "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 dark:shadow-green-900/30"
-                        : ""
-                    )}
-                    size="lg"
-                  >
-                    <CheckCircle2 className="mr-2 size-5" />
-                    {!isDeviceAllowed
-                      ? "PC Required"
-                      : !todayAttendance?.signIn
-                        ? "Sign In Now"
-                        : "Already Signed In"}
-                  </Button>
-                </div>
-              </div>
+            {/* Geolocation Status Alert - Only shown when getting location during sign-in/sign-out */}
+            {geolocationStatus === "checking" && (
+              <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 py-2.5">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <AlertDescription className="font-medium text-sm">
+                  Getting your location...
+                </AlertDescription>
+              </Alert>
+            )}
 
-              <div className={cn(
-                "rounded-lg border-2 p-4 transition-all",
-                todayAttendance && !todayAttendance.signOut
-                  ? "border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/20"
-                  : "border-muted bg-muted/30"
-              )}>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Sign Out</h3>
+            {geolocationStatus === "denied" && (
+              <Alert variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-950/20 py-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="space-y-1">
+                  <p className="font-semibold text-sm">Geolocation Access Required</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Location access is required to mark attendance. Please enable location permissions in your browser settings.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <strong>How to enable:</strong> Click the location icon in your browser's address bar and select "Allow" or go to your browser settings → Privacy → Location → Allow for this site.
+                  </p>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {geolocationStatus === "unavailable" && geolocationError && (
+              <Alert variant="destructive" className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 py-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <p className="font-semibold text-sm">Geolocation Unavailable</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {geolocationError}
+                  </p>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Enhanced Circular Button Design */}
+            <div className={cn(
+              "relative rounded-xl p-6 transition-all duration-300",
+              !todayAttendance?.signIn && isDeviceAllowed
+                ? "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border border-green-200 dark:border-green-900/50"
+                : todayAttendance && !todayAttendance.signOut && isDeviceAllowed
+                  ? "bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border border-orange-200 dark:border-orange-900/50"
+                  : "bg-muted/30 border border-muted"
+            )}>
+              <div className="flex flex-col items-center justify-center">
+                {/* Time Display - More Prominent */}
+                {(todayAttendance?.signIn || todayAttendance?.signOut) && (
+                  <div className="flex items-center gap-5 mb-5 text-sm">
+                    {todayAttendance?.signIn && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800">
+                        <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
+                        <span className="text-muted-foreground">In:</span>
+                        <span className="font-semibold text-green-700 dark:text-green-300">{formatTimeInDhaka(todayAttendance.signIn)}</span>
+                      </div>
+                    )}
                     {todayAttendance?.signOut && (
-                      <Badge variant="outline" className="text-xs">
-                        {formatTimeInDhaka(todayAttendance.signOut)}
-                      </Badge>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800">
+                        <LogOut className="size-4 text-orange-600 dark:text-orange-400" />
+                        <span className="text-muted-foreground">Out:</span>
+                        <span className="font-semibold text-orange-700 dark:text-orange-300">{formatTimeInDhaka(todayAttendance.signOut)}</span>
+                      </div>
                     )}
                   </div>
-                  <Button
-                    onClick={handleSignOut}
-                    disabled={!todayAttendance || Boolean(todayAttendance?.signOut) || signOutMutation.isPending || !isDeviceAllowed}
-                    variant={todayAttendance && !todayAttendance.signOut ? "default" : "outline"}
-                    className={cn(
-                      "w-full h-12 text-base font-semibold",
-                      todayAttendance && !todayAttendance.signOut && isDeviceAllowed
-                        ? "bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-200 dark:shadow-orange-900/30"
-                        : ""
-                    )}
-                    size="lg"
-                  >
-                    <LogOut className="mr-2 size-5" />
-                    {!isDeviceAllowed
-                      ? "PC Required"
+                )}
+
+                {/* Enhanced Circular Toggle Button */}
+                <Button
+                  onClick={!todayAttendance?.signIn ? handleSignIn : handleSignOut}
+                  disabled={
+                    attendanceLoading ||
+                    signInMutation.isPending ||
+                    signOutMutation.isPending ||
+                    Boolean(todayAttendance?.signOut) ||
+                    !isDeviceAllowed
+                  }
+                  className={cn(
+                    "rounded-full w-24 h-24 p-0 transition-all duration-300",
+                    "shadow-2xl hover:shadow-2xl hover:scale-110 active:scale-95",
+                    "ring-4",
+                    !todayAttendance?.signIn && isDeviceAllowed
+                      ? "bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-500/50 dark:shadow-green-900/50 ring-green-200/50 dark:ring-green-900/30"
+                      : todayAttendance && !todayAttendance.signOut && isDeviceAllowed
+                        ? "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/50 dark:shadow-orange-900/50 ring-orange-200/50 dark:ring-orange-900/30"
+                        : "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
+                  )}
+                >
+                  {attendanceLoading || signInMutation.isPending || signOutMutation.isPending ? (
+                    <Loader2 className="size-7 animate-spin text-white" />
+                  ) : !isDeviceAllowed ? (
+                    <Monitor className="size-7 text-white" />
+                  ) : !todayAttendance?.signIn ? (
+                    <CheckCircle2 className="size-7 text-white" />
+                  ) : todayAttendance?.signOut ? (
+                    <CheckCircle2 className="size-7 text-white" />
+                  ) : (
+                    <LogOut className="size-7 text-white" />
+                  )}
+                </Button>
+
+                {/* Button Label with Better Typography */}
+                <p className={cn(
+                  "mt-4 text-base font-semibold transition-colors",
+                  !todayAttendance?.signIn && isDeviceAllowed
+                    ? "text-green-700 dark:text-green-300"
+                    : todayAttendance && !todayAttendance.signOut && isDeviceAllowed
+                      ? "text-orange-700 dark:text-orange-300"
+                      : "text-muted-foreground"
+                )}>
+                  {!isDeviceAllowed
+                    ? "PC Required"
+                    : !todayAttendance?.signIn
+                      ? "Sign In"
                       : todayAttendance?.signOut
-                        ? "Already Signed Out"
-                        : "Sign Out Now"}
-                  </Button>
-                </div>
+                        ? "Signed Out"
+                        : "Sign Out"}
+                </p>
               </div>
             </div>
 
-            <Separator />
+            <Separator className="my-4" />
 
-            {/* Location Input */}
+            {/* Enhanced Location Input */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <MapPin className="size-4 text-muted-foreground" />
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <MapPin className="size-4" />
                 <label htmlFor="location">Location (optional)</label>
               </div>
               <Input
                 id="location"
-                placeholder="e.g., Remote, Office, Client Site, Home"
+                placeholder="e.g., Remote, Office, Client Site"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="h-11"
+                className="h-10 text-sm"
               />
             </div>
 
-            {/* Status Message */}
+            {/* Enhanced Status Message */}
             {(attendanceFetching || signInMutation.isPending || signOutMutation.isPending) && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2.5 rounded-lg border border-muted">
                 <Loader2 className="size-4 animate-spin" />
-                <p>Updating attendance…</p>
+                <p className="font-medium">Updating attendance…</p>
               </div>
             )}
           </CardContent>
