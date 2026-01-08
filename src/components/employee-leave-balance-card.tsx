@@ -4,12 +4,12 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLeaveTypes } from "@/lib/queries/leave";
-import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, TrendingDown, TrendingUp } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getAllUsersBalances, getUserBalances, type LeaveBalance, type UserBalanceWithEmployee } from "@/lib/api/leave";
 import { Progress } from "@/components/ui/progress";
+import { useAdminLeaveBalances } from "@/lib/queries/admin-leave-balances";
+import type { LeaveBalance } from "@/lib/api/leave";
+import type { AdminLeaveBalanceItem } from "@/lib/api/leave";
 
 interface EmployeeLeaveBalanceCardProps {
     employeeId: string;
@@ -17,56 +17,39 @@ interface EmployeeLeaveBalanceCardProps {
 }
 
 export function EmployeeLeaveBalanceCard({ employeeId, userId }: EmployeeLeaveBalanceCardProps) {
-    const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes();
+    // Fetch balances using admin endpoint with userId filter
+    const { data: adminBalancesResponse, isLoading } = useAdminLeaveBalances(
+        userId
+            ? {
+                userId: userId,
+                pageSize: 100, // Get all leave types for this user
+            }
+            : undefined
+    );
 
-    // Try to fetch balances - use admin endpoint if available, otherwise use current user endpoint
-    const { data: allUserBalances, isLoading: allBalancesLoading } = useQuery({
-        queryKey: ["all-users-balances"],
-        queryFn: () => getAllUsersBalances(),
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        retry: false, // Don't retry if admin endpoint fails
-    });
-
-    const { data: currentUserBalances, isLoading: currentBalancesLoading } = useQuery({
-        queryKey: ["user-balances"],
-        queryFn: () => getUserBalances(),
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        enabled: !allUserBalances, // Only fetch if admin endpoint didn't work
-        retry: false,
-    });
-
-    // Determine which balances to use and filter by userId
+    // Transform AdminLeaveBalanceItem[] to LeaveBalance[] format
     const balances: LeaveBalance[] = React.useMemo(() => {
-        if (allUserBalances && userId) {
-            // Filter admin balances by userId
-            return allUserBalances
-                .filter((b: UserBalanceWithEmployee) => b.userId === userId)
-                .map((b: UserBalanceWithEmployee) => ({
-                    leaveTypeId: b.leaveTypeId,
-                    leaveTypeName: b.leaveTypeName,
-                    leaveTypeCode: b.leaveTypeCode,
-                    leaveYear: b.leaveYear,
-                    available: b.available,
-                    carried: b.carried,
-                    used: b.used,
-                    openingBalance: b.openingBalance,
-                    accrued: b.accrued,
-                    lapsed: b.lapsed,
-                    adjusted: b.adjusted,
-                    ledgerEntries: b.ledgerEntries,
-                    policy: b.policy,
-                }));
-        } else if (currentUserBalances && userId) {
-            // If using current user balances, only show if it's for the same user
-            // This is a fallback - ideally we'd have an admin endpoint
-            return currentUserBalances.filter((b: LeaveBalance) =>
-                b.userId === userId
-            );
+        if (!adminBalancesResponse?.data || !userId) {
+            return [];
         }
-        return [];
-    }, [allUserBalances, currentUserBalances, userId]);
 
-    const isLoading = typesLoading || allBalancesLoading || currentBalancesLoading;
+        // API already filters by userId, so we can directly map the results
+        return adminBalancesResponse.data.map((item: AdminLeaveBalanceItem) => ({
+            leaveTypeId: item.leaveType.id,
+            leaveTypeName: item.leaveType.name,
+            leaveTypeCode: item.leaveType.code,
+            leaveYear: item.leaveYear.toString(),
+            available: item.balances.available,
+            carried: item.balances.carried,
+            used: item.balances.used,
+            openingBalance: item.balances.openingBalance,
+            accrued: item.balances.accrued,
+            lapsed: item.balances.lapsed,
+            adjusted: item.balances.adjusted,
+            ledgerEntries: 0, // Not provided by admin endpoint
+            policy: undefined, // Not provided by admin endpoint
+        }));
+    }, [adminBalancesResponse, userId]);
 
     if (isLoading) {
         return (

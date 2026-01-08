@@ -674,6 +674,7 @@ export type AdminLeaveBalancesParams = {
   year?: number;
   status?: "low" | "normal" | "negative";
   search?: string;
+  userId?: string;
 };
 
 export type AdminBalanceSummaryResponse = {
