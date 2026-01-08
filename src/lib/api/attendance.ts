@@ -76,7 +76,12 @@ export async function getTodayAttendance(userId: string) {
   return response.data;
 }
 
-export async function signIn(payload: { location?: string | null }) {
+export async function signIn(payload: {
+  location?: string | null;
+  screenWidth?: number;
+  screenHeight?: number;
+  hasTouchScreen?: boolean;
+}) {
   const response = await apiClient.post<AttendanceRecord>(
     "/attendance/sign-in",
     payload
@@ -84,7 +89,12 @@ export async function signIn(payload: { location?: string | null }) {
   return response.data;
 }
 
-export async function signOut(payload: { location?: string | null }) {
+export async function signOut(payload: {
+  location?: string | null;
+  screenWidth?: number;
+  screenHeight?: number;
+  hasTouchScreen?: boolean;
+}) {
   const response = await apiClient.post<AttendanceRecord>(
     "/attendance/sign-out",
     payload

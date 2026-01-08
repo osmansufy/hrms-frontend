@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback, useState, useEffect } from "react";
 import Link from "next/link";
-import { Calendar, TrendingUp, AlertCircle, Clock, CheckCircle, XCircle, Loader2, ClockAlert, CheckCircle2, LogOut, MapPin } from "lucide-react";
+import { Calendar, TrendingUp, AlertCircle, Clock, CheckCircle, XCircle, Loader2, ClockAlert, CheckCircle2, LogOut, MapPin, Monitor } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +21,12 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { LeaveBalance, LeaveRecord } from "@/lib/api/leave";
 import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
+import {
+  detectDevice,
+  isDeviceAllowedForAttendance,
+  getDeviceRestrictionMessage,
+  DeviceType,
+} from "@/lib/utils/device-detection";
 
 
 // Helper function for calculating balance percentage
@@ -64,6 +70,16 @@ export default function EmployeeDashboard() {
 
   // Location state
   const [location, setLocation] = useState("");
+
+  // Device detection for attendance restriction
+  const [deviceInfo, setDeviceInfo] = useState<ReturnType<typeof detectDevice> | null>(null);
+  const [isDeviceAllowed, setIsDeviceAllowed] = useState(true);
+
+  useEffect(() => {
+    const device = detectDevice();
+    setDeviceInfo(device);
+    setIsDeviceAllowed(isDeviceAllowedForAttendance());
+  }, []);
 
   // Attendance queries
   const { data: todayAttendance, isLoading: attendanceLoading, isFetching: attendanceFetching } = useTodayAttendance(userId);
@@ -143,24 +159,92 @@ export default function EmployeeDashboard() {
 
   // Attendance handlers
   const handleSignIn = useCallback(async () => {
+    // Check device before attempting sign-in
+    if (!isDeviceAllowedForAttendance()) {
+      const device = detectDevice();
+      toast.error(getDeviceRestrictionMessage(device.type));
+      return;
+    }
+
+    // Get device info to send screen/touch metadata for enhanced validation
+    const deviceInfo = detectDevice();
+    const payload: {
+      location?: string;
+      screenWidth?: number;
+      screenHeight?: number;
+      hasTouchScreen?: boolean;
+    } = {
+      location: location || undefined,
+    };
+
+    // Include screen/touch info if available (for backend validation)
+    if (deviceInfo.screenWidth !== undefined) {
+      payload.screenWidth = deviceInfo.screenWidth;
+    }
+    if (deviceInfo.screenHeight !== undefined) {
+      payload.screenHeight = deviceInfo.screenHeight;
+    }
+    if (deviceInfo.hasTouchScreen !== undefined) {
+      payload.hasTouchScreen = deviceInfo.hasTouchScreen;
+    }
+
     try {
-      await signInMutation.mutateAsync({ location: location || undefined });
+      await signInMutation.mutateAsync(payload);
       toast.success("Signed in successfully");
       setLocation("");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Sign-in failed");
+      // Check if error is device-related
+      if (err?.response?.status === 403 || err?.message?.includes("desktop") || err?.message?.includes("laptop")) {
+        toast.error(err?.response?.data?.message || "Attendance is only allowed from desktop or laptop computers.");
+      } else {
+        toast.error("Sign-in failed");
+      }
     }
   }, [signInMutation, location]);
 
   const handleSignOut = useCallback(async () => {
+    // Check device before attempting sign-out
+    if (!isDeviceAllowedForAttendance()) {
+      const device = detectDevice();
+      toast.error(getDeviceRestrictionMessage(device.type));
+      return;
+    }
+
+    // Get device info to send screen/touch metadata for enhanced validation
+    const deviceInfo = detectDevice();
+    const payload: {
+      location?: string;
+      screenWidth?: number;
+      screenHeight?: number;
+      hasTouchScreen?: boolean;
+    } = {
+      location: location || undefined,
+    };
+
+    // Include screen/touch info if available (for backend validation)
+    if (deviceInfo.screenWidth !== undefined) {
+      payload.screenWidth = deviceInfo.screenWidth;
+    }
+    if (deviceInfo.screenHeight !== undefined) {
+      payload.screenHeight = deviceInfo.screenHeight;
+    }
+    if (deviceInfo.hasTouchScreen !== undefined) {
+      payload.hasTouchScreen = deviceInfo.hasTouchScreen;
+    }
+
     try {
-      await signOutMutation.mutateAsync({ location: location || undefined });
+      await signOutMutation.mutateAsync(payload);
       toast.success("Signed out successfully");
       setLocation("");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Sign-out failed");
+      // Check if error is device-related
+      if (err?.response?.status === 403 || err?.message?.includes("desktop") || err?.message?.includes("laptop")) {
+        toast.error(err?.response?.data?.message || "Attendance is only allowed from desktop or laptop computers.");
+      } else {
+        toast.error("Sign-out failed");
+      }
     }
   }, [signOutMutation, location]);
 
@@ -222,6 +306,16 @@ export default function EmployeeDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Device Restriction Alert */}
+            {deviceInfo && !isDeviceAllowed && (
+              <Alert variant="destructive" className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+                <Monitor className="h-4 w-4" />
+                <AlertDescription className="font-medium">
+                  {getDeviceRestrictionMessage(deviceInfo.type)}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Sign In / Sign Out Action Buttons - Prominent */}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className={cn(
@@ -241,17 +335,21 @@ export default function EmployeeDashboard() {
                   </div>
                   <Button
                     onClick={handleSignIn}
-                    disabled={attendanceLoading || signInMutation.isPending || Boolean(todayAttendance?.signIn)}
+                    disabled={attendanceLoading || signInMutation.isPending || Boolean(todayAttendance?.signIn) || !isDeviceAllowed}
                     className={cn(
                       "w-full h-12 text-base font-semibold",
-                      !todayAttendance?.signIn
+                      !todayAttendance?.signIn && isDeviceAllowed
                         ? "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 dark:shadow-green-900/30"
                         : ""
                     )}
                     size="lg"
                   >
                     <CheckCircle2 className="mr-2 size-5" />
-                    {!todayAttendance?.signIn ? "Sign In Now" : "Already Signed In"}
+                    {!isDeviceAllowed
+                      ? "PC Required"
+                      : !todayAttendance?.signIn
+                        ? "Sign In Now"
+                        : "Already Signed In"}
                   </Button>
                 </div>
               </div>
@@ -273,18 +371,22 @@ export default function EmployeeDashboard() {
                   </div>
                   <Button
                     onClick={handleSignOut}
-                    disabled={!todayAttendance || Boolean(todayAttendance?.signOut) || signOutMutation.isPending}
+                    disabled={!todayAttendance || Boolean(todayAttendance?.signOut) || signOutMutation.isPending || !isDeviceAllowed}
                     variant={todayAttendance && !todayAttendance.signOut ? "default" : "outline"}
                     className={cn(
                       "w-full h-12 text-base font-semibold",
-                      todayAttendance && !todayAttendance.signOut
+                      todayAttendance && !todayAttendance.signOut && isDeviceAllowed
                         ? "bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-200 dark:shadow-orange-900/30"
                         : ""
                     )}
                     size="lg"
                   >
                     <LogOut className="mr-2 size-5" />
-                    {todayAttendance?.signOut ? "Already Signed Out" : "Sign Out Now"}
+                    {!isDeviceAllowed
+                      ? "PC Required"
+                      : todayAttendance?.signOut
+                        ? "Already Signed Out"
+                        : "Sign Out Now"}
                   </Button>
                 </div>
               </div>
