@@ -9,6 +9,12 @@ export type AttendanceRecord = {
   isLate: boolean;
   signInLocation?: string | null;
   signOutLocation?: string | null;
+  signInAddress?: string | null;
+  signOutAddress?: string | null;
+  signInLatitude?: number | null;
+  signInLongitude?: number | null;
+  signOutLatitude?: number | null;
+  signOutLongitude?: number | null;
   timezone?: string | null;
   createdAt?: string;
   updatedAt?: string;

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Clock, Search, Filter, X, CalendarDays } from "lucide-react";
+import { Loader2, Clock, Search, Filter, X, CalendarDays, MapPin } from "lucide-react";
 import { useAttendanceRecords } from "@/lib/queries/attendance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toStartOfDayISO, toEndOfDayISO, formatTimeInDhaka } from "@/lib/utils";
@@ -239,13 +239,14 @@ export function TodayAttendanceCard() {
                                         <TableHead>Department</TableHead>
                                         <TableHead>Sign In</TableHead>
                                         <TableHead>Sign Out</TableHead>
+                                        <TableHead>Location</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredRecords.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                                            <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                                                 No records found matching your search or filter criteria.
                                             </TableCell>
                                         </TableRow>
@@ -275,6 +276,20 @@ export function TodayAttendanceCard() {
                                                 </TableCell>
                                                 <TableCell>
                                                     {formatTime(record.signOut)}
+                                                </TableCell>
+                                                <TableCell className="max-w-xs">
+                                                    {(record.signInAddress || record.signInLocation || record.signOutAddress || record.signOutLocation) ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                                            <span className="text-xs text-muted-foreground truncate" title={
+                                                                [record.signInAddress, record.signOutAddress].filter(Boolean).join(" | ")
+                                                            }>
+                                                                {record.signInAddress || record.signInLocation || "Location"}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">—</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">

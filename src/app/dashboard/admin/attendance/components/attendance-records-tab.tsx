@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar, CalendarDays } from "lucide-react";
+import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar, CalendarDays, MapPin } from "lucide-react";
 import { useAttendanceRecords, useUpdateAttendanceRecord, useDeleteAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
@@ -10,7 +10,7 @@ import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePre
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Select,
     SelectContent,
@@ -116,7 +116,11 @@ export function AttendanceRecordsTab() {
         setPage(1);
     };
 
-    const [selectedEmployee, setSelectedEmployee] = useState<{ userId: string; name: string } | null>(null);
+    const [selectedEmployee, setSelectedEmployee] = useState<{
+        userId: string;
+        name: string;
+        record?: ExtendedAttendanceRecord;
+    } | null>(null);
 
     return (
         <>
@@ -241,13 +245,13 @@ export function AttendanceRecordsTab() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center">
+                                    <TableCell colSpan={8} className="h-24 text-center">
                                         Loading...
                                     </TableCell>
                                 </TableRow>
                             ) : filteredRecords.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center">
+                                    <TableCell colSpan={8} className="h-24 text-center">
                                         No records found.
                                     </TableCell>
                                 </TableRow>
@@ -276,6 +280,7 @@ export function AttendanceRecordsTab() {
                                         <TableCell>{formatDateInDhaka(record.date, "long")}</TableCell>
                                         <TableCell>{formatTime(record.signIn)}</TableCell>
                                         <TableCell>{formatTime(record.signOut)}</TableCell>
+
                                         <TableCell>
                                             {record.lostMinutes != null ? `${record.lostMinutes} mins` : "—"}
                                         </TableCell>
@@ -307,7 +312,11 @@ export function AttendanceRecordsTab() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => setSelectedEmployee({ userId: record.user.id, name: record.user.name })}
+                                                    onClick={() => setSelectedEmployee({
+                                                        userId: record.user.id,
+                                                        name: record.user.name,
+                                                        record: record
+                                                    })}
                                                     title="View leave balance"
                                                 >
                                                     <Info className="h-4 w-4" />
@@ -349,17 +358,96 @@ export function AttendanceRecordsTab() {
                 </div>
             </div>
 
-            {/* Leave Balance Details Sheet */}
+            {/* Employee Details Sheet */}
             <Sheet open={!!selectedEmployee} onOpenChange={(open) => !open && setSelectedEmployee(null)}>
                 <SheetContent className="w-full max-w-4xl overflow-y-auto">
                     <SheetHeader>
-                        <SheetTitle>Leave Balance Details</SheetTitle>
+                        <SheetTitle>Employee Details</SheetTitle>
                         <SheetDescription>
-                            {selectedEmployee?.name}'s comprehensive leave balance information
+                            {selectedEmployee?.name}'s comprehensive attendance and leave information
                         </SheetDescription>
                     </SheetHeader>
                     {selectedEmployee && (
-                        <div className="mt-6">
+                        <div className="mt-6 space-y-6">
+                            {/* Attendance Information */}
+                            {selectedEmployee.record && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Attendance Information</CardTitle>
+                                        <CardDescription>Location and time details for this attendance record</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <div className="text-sm font-medium text-muted-foreground mb-2">Sign In</div>
+                                                <div className="space-y-2">
+                                                    <div className="text-sm">{formatTime(selectedEmployee.record.signIn)}</div>
+                                                    {selectedEmployee.record.signInAddress && (
+                                                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                                                            <MapPin className="h-3.5 w-3.5 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+                                                            <span>{selectedEmployee.record.signInAddress}</span>
+                                                        </div>
+                                                    )}
+                                                    {selectedEmployee.record.signInLocation && !selectedEmployee.record.signInAddress && (
+                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                            <MapPin className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                                                            <span>{selectedEmployee.record.signInLocation}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-medium text-muted-foreground mb-2">Sign Out</div>
+                                                <div className="space-y-2">
+                                                    <div className="text-sm">{formatTime(selectedEmployee.record.signOut) || "—"}</div>
+                                                    {selectedEmployee.record.signOutAddress && (
+                                                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                                                            <MapPin className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 mt-0.5 shrink-0" />
+                                                            <span>{selectedEmployee.record.signOutAddress}</span>
+                                                        </div>
+                                                    )}
+                                                    {selectedEmployee.record.signOutLocation && !selectedEmployee.record.signOutAddress && (
+                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                            <MapPin className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 shrink-0" />
+                                                            <span>{selectedEmployee.record.signOutLocation}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Time Metrics */}
+                                        <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                                            <div>
+                                                <div className="text-sm font-medium text-muted-foreground mb-1">Lost Time</div>
+                                                <div className="text-lg font-semibold text-red-600 dark:text-red-400">
+                                                    {selectedEmployee.record.lostMinutes != null
+                                                        ? `${Math.floor(selectedEmployee.record.lostMinutes / 60)}h ${selectedEmployee.record.lostMinutes % 60}m`
+                                                        : "—"}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-medium text-muted-foreground mb-1">Overtime</div>
+                                                <div className="text-lg font-semibold text-green-600 dark:text-green-400">
+                                                    {selectedEmployee.record.overtimeMinutes != null
+                                                        ? `${Math.floor(selectedEmployee.record.overtimeMinutes / 60)}h ${selectedEmployee.record.overtimeMinutes % 60}m`
+                                                        : "—"}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-medium text-muted-foreground mb-1">Worked</div>
+                                                <div className="text-lg font-semibold">
+                                                    {selectedEmployee.record.workedMinutes != null
+                                                        ? `${Math.floor(selectedEmployee.record.workedMinutes / 60)}h ${selectedEmployee.record.workedMinutes % 60}m`
+                                                        : "—"}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Leave Balance Details */}
                             <EmployeeLeaveBalanceDetails
                                 userId={selectedEmployee.userId}
                                 employeeName={selectedEmployee.name}
