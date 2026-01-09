@@ -6,42 +6,53 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Converts a date string (YYYY-MM-DD) to ISO DateTime string at start of day in user's timezone
+ * Converts a date string (YYYY-MM-DD) to ISO DateTime string at start of day in business timezone (Asia/Dhaka)
  * @param dateString - Date in format YYYY-MM-DD (e.g., "2025-12-22")
- * @returns ISO 8601 DateTime string (e.g., "2025-12-22T00:00:00.000Z" or "2025-12-21T18:30:00.000Z" for GMT+5:30)
+ * @returns ISO 8601 DateTime string at start of day in Asia/Dhaka timezone (UTC+6)
  *
  * @example
- * // User in GMT+5:30 (India) selects Dec 22, 2025
- * toStartOfDayISO("2025-12-22")
- * // Returns: "2025-12-21T18:30:00.000Z" (which is Dec 22 00:00 in India)
+ * // For Jan 9, 2026 in Asia/Dhaka (UTC+6)
+ * toStartOfDayISO("2026-01-09")
+ * // Returns: "2026-01-08T18:00:00.000Z" (which is Jan 9 00:00 in Dhaka)
  */
 export function toStartOfDayISO(dateString: string): string {
   if (!dateString) return "";
 
-  // Create date in user's local timezone at midnight
-  const date = new Date(dateString + "T00:00:00");
+  // Parse the date string (YYYY-MM-DD)
+  const [year, month, day] = dateString.split("-").map(Number);
 
-  // Convert to ISO string (UTC)
+  // Create date at midnight in Asia/Dhaka timezone (UTC+6)
+  // We need to create a UTC date that represents midnight in Dhaka
+  // Dhaka is UTC+6, so midnight in Dhaka = 18:00 previous day in UTC
+  const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  // Subtract 6 hours to get the UTC time that represents midnight in Dhaka
+  date.setUTCHours(date.getUTCHours() - 6);
+
   return date.toISOString();
 }
 
 /**
- * Converts a date string (YYYY-MM-DD) to ISO DateTime string at end of day in user's timezone
+ * Converts a date string (YYYY-MM-DD) to ISO DateTime string at end of day in business timezone (Asia/Dhaka)
  * @param dateString - Date in format YYYY-MM-DD (e.g., "2025-12-22")
- * @returns ISO 8601 DateTime string at 23:59:59.999
+ * @returns ISO 8601 DateTime string at end of day (23:59:59.999) in Asia/Dhaka timezone (UTC+6)
  *
  * @example
- * // User in GMT+5:30 (India) selects Dec 22, 2025
- * toEndOfDayISO("2025-12-22")
- * // Returns: "2025-12-22T18:29:59.999Z" (which is Dec 22 23:59:59.999 in India)
+ * // For Jan 9, 2026 in Asia/Dhaka (UTC+6)
+ * toEndOfDayISO("2026-01-09")
+ * // Returns: "2026-01-09T17:59:59.999Z" (which is Jan 9 23:59:59.999 in Dhaka)
  */
 export function toEndOfDayISO(dateString: string): string {
   if (!dateString) return "";
 
-  // Create date in user's local timezone at 23:59:59.999
-  const date = new Date(dateString + "T23:59:59.999");
+  // Parse the date string (YYYY-MM-DD)
+  const [year, month, day] = dateString.split("-").map(Number);
 
-  // Convert to ISO string (UTC)
+  // Create date at end of day (23:59:59.999) in Asia/Dhaka timezone (UTC+6)
+  // Dhaka is UTC+6, so 23:59:59.999 in Dhaka = 17:59:59.999 same day in UTC
+  const date = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  // Subtract 6 hours to get the UTC time that represents end of day in Dhaka
+  date.setUTCHours(date.getUTCHours() - 6);
+
   return date.toISOString();
 }
 

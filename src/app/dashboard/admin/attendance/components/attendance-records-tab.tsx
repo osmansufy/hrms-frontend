@@ -301,9 +301,17 @@ export function AttendanceRecordsTab() {
                                                     <Badge variant="secondary">On Time</Badge>
                                                 )}
                                                 {record.isOnLeave && record.leave && (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {record.leave.leaveType.name}
-                                                    </span>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {record.leave.leaveType.name}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {formatDateInDhaka(record.leave.startDate, "short")}
+                                                            {record.leave.startDate !== record.leave.endDate && (
+                                                                <> - {formatDateInDhaka(record.leave.endDate, "short")}</>
+                                                            )}
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
                                         </TableCell>
