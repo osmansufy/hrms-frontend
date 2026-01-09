@@ -19,7 +19,7 @@ export const API_BASE_URL =
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 50_000,
+  timeout: 30_000,
 });
 
 // Token refresh state management
