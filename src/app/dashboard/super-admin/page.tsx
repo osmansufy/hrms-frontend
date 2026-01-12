@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, Shield, Mail, Lock, User, Building, Briefcase, Code, Loader2, RefreshCw } from "lucide-react";
+import { Users, UserPlus, Shield, Mail, Lock, User, Building, Briefcase, Code, Loader2, RefreshCw, Filter, X } from "lucide-react";
 import { useUsers, useCreateUser, useToggleUserStatus, useDeleteUser, useUpdateUserRole } from "@/lib/queries/users";
 import { useDepartments } from "@/lib/queries/departments";
 import { useDesignations } from "@/lib/queries/employees";
@@ -30,6 +30,7 @@ export default function SuperAdminDashboard() {
     currentRole: "",
   });
   const [newRole, setNewRole] = useState<"ADMIN" | "HR_MANAGER" | "EMPLOYEE">("ADMIN");
+  const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -92,6 +93,12 @@ export default function SuperAdminDashboard() {
     active: users?.filter(u => u.isActive).length || 0,
   };
 
+  // Filter users by role
+  const filteredUsers = users?.filter((user) => {
+    if (roleFilter === "ALL") return true;
+    return user.role === roleFilter;
+  }) || [];
+
   return (
     <div className="container space-y-6">
       <div className="flex items-center justify-between">
@@ -148,8 +155,37 @@ export default function SuperAdminDashboard() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>System Users</CardTitle>
-          <CardDescription>Manage administrative and HR user accounts</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>System Users</CardTitle>
+              <CardDescription>Manage administrative and HR user accounts</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Roles</SelectItem>
+                  <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="HR_MANAGER">HR Manager</SelectItem>
+                  <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                </SelectContent>
+              </Select>
+              {roleFilter !== "ALL" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRoleFilter("ALL")}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -169,12 +205,12 @@ export default function SuperAdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.length === 0 ? (
+                {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">No users found</TableCell>
+                    <TableCell colSpan={6} className="text-center">No users found{roleFilter !== "ALL" ? ` with role ${roleFilter.replace("_", " ")}` : ""}</TableCell>
                   </TableRow>
                 ) : (
-                  users?.map((user) => (
+                  filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
                         {user.employee?.firstName} {user.employee?.lastName}
