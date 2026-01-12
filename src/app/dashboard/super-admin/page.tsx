@@ -29,7 +29,7 @@ export default function SuperAdminDashboard() {
     userId: "",
     currentRole: "",
   });
-  const [newRole, setNewRole] = useState<"ADMIN" | "HR_MANAGER">("ADMIN");
+  const [newRole, setNewRole] = useState<"ADMIN" | "HR_MANAGER" | "EMPLOYEE">("ADMIN");
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -200,7 +200,14 @@ export default function SuperAdminDashboard() {
                                     userId: user.id,
                                     currentRole: user.role,
                                   });
-                                  setNewRole(user.role === "ADMIN" ? "HR_MANAGER" : "ADMIN");
+                                  // Set default to first available role that's not the current one
+                                  if (user.role === "ADMIN") {
+                                    setNewRole("HR_MANAGER");
+                                  } else if (user.role === "HR_MANAGER") {
+                                    setNewRole("ADMIN");
+                                  } else {
+                                    setNewRole("ADMIN");
+                                  }
                                 }}
                                 disabled={updateRoleMutation.isPending}
                               >
@@ -418,7 +425,7 @@ export default function SuperAdminDashboard() {
               </Label>
               <Select
                 value={newRole}
-                onValueChange={(value: "ADMIN" | "HR_MANAGER") => setNewRole(value)}
+                onValueChange={(value: "ADMIN" | "HR_MANAGER" | "EMPLOYEE") => setNewRole(value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -426,6 +433,7 @@ export default function SuperAdminDashboard() {
                 <SelectContent>
                   <SelectItem value="ADMIN">Admin</SelectItem>
                   <SelectItem value="HR_MANAGER">HR Manager</SelectItem>
+                  <SelectItem value="EMPLOYEE">Employee</SelectItem>
                 </SelectContent>
               </Select>
             </div>
