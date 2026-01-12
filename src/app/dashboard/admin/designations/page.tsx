@@ -130,7 +130,7 @@ export default function DesignationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">Admin · Organization</p>

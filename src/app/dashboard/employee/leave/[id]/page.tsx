@@ -27,7 +27,7 @@ export default function LeaveDetailPage({ params }: PageProps) {
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
+            <div className="container space-y-6">
                 <div className="flex items-center gap-4">
                     <Button
                         variant="ghost"
@@ -50,7 +50,7 @@ export default function LeaveDetailPage({ params }: PageProps) {
 
     if (error || !leave) {
         return (
-            <div className="space-y-6">
+            <div className="container space-y-6">
                 <div className="flex items-center gap-4">
                     <Button
                         variant="ghost"
@@ -75,7 +75,7 @@ export default function LeaveDetailPage({ params }: PageProps) {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             {/* Header */}
             <div className="flex items-center gap-4">
                 <Button

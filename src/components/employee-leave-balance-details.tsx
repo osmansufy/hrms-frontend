@@ -22,10 +22,10 @@ interface EmployeeLeaveBalanceDetailsProps {
     employeeName?: string;
 }
 
-// Helper function to safely format numbers
-const formatNumber = (value: number | null | undefined, decimals: number = 1): string => {
+// Helper function to safely format numbers as whole numbers
+const formatNumber = (value: number | null | undefined, decimals: number = 0): string => {
     const num = Number(value) || 0;
-    return num.toFixed(decimals);
+    return Math.round(num).toFixed(decimals);
 };
 
 export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLeaveBalanceDetailsProps) {

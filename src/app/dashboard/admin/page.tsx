@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">Welcome back</p>
         <h1 className="text-2xl font-semibold">Admin Dashboard</h1>

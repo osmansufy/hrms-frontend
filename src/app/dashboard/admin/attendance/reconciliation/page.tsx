@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
 import { toast } from "sonner";
@@ -45,22 +46,102 @@ interface AttendanceReconciliationRequest {
 
 export default function AttendanceReconciliationAdminPage() {
     const router = useRouter();
-    const [refresh, setRefresh] = useState(0);
+    const queryClient = useQueryClient();
     const [editingRequest, setEditingRequest] = useState<AttendanceReconciliationRequest | null>(null);
     const [correctedTime, setCorrectedTime] = useState("");
     const [reviewerComment, setReviewerComment] = useState("");
     const [departmentFilter, setDepartmentFilter] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
     // Fetch departments
     const { data: departments } = useDepartments();
 
     // Fetch all reconciliation requests (admin/HR)
-    const { data, isLoading, refetch } = useQuery<AttendanceReconciliationRequest[]>({
-        queryKey: ["attendance-reconciliation-requests", refresh],
+    const { data, isLoading } = useQuery<AttendanceReconciliationRequest[]>({
+        queryKey: ["attendance-reconciliation-requests"],
         queryFn: async () => {
             const res = await apiClient.get("/attendance/reconciliation");
             return res.data;
+        },
+    });
+
+    // Approve mutation
+    const approveMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "APPROVED" });
+            return res.data;
+        },
+        onMutate: (id: string) => {
+            setPendingRequestId(id);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["attendance-reconciliation-requests"] });
+            toast.success("Reconciliation approved successfully");
+            setPendingRequestId(null);
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || "Failed to approve reconciliation";
+            toast.error(message);
+            setPendingRequestId(null);
+        },
+    });
+
+    // Reject mutation
+    const rejectMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "REJECTED" });
+            return res.data;
+        },
+        onMutate: (id: string) => {
+            setPendingRequestId(id);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["attendance-reconciliation-requests"] });
+            toast.success("Reconciliation rejected successfully");
+            setPendingRequestId(null);
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || "Failed to reject reconciliation";
+            toast.error(message);
+            setPendingRequestId(null);
+        },
+    });
+
+    // Edit and approve mutation
+    const editAndApproveMutation = useMutation({
+        mutationFn: async (payload: { id: string; correctedSignIn?: string; correctedSignOut?: string; reviewerComment?: string }) => {
+            const { id, ...rest } = payload;
+            const mutationPayload: any = {
+                status: "APPROVED",
+                reviewerComment: rest.reviewerComment || undefined,
+            };
+
+            if (rest.correctedSignIn) {
+                mutationPayload.correctedSignIn = rest.correctedSignIn;
+            }
+            if (rest.correctedSignOut) {
+                mutationPayload.correctedSignOut = rest.correctedSignOut;
+            }
+
+            const res = await apiClient.put(`/attendance/reconciliation/${id}/status`, mutationPayload);
+            return res.data;
+        },
+        onMutate: (payload: { id: string; correctedSignIn?: string; correctedSignOut?: string; reviewerComment?: string }) => {
+            setPendingRequestId(payload.id);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["attendance-reconciliation-requests"] });
+            toast.success("Reconciliation approved successfully");
+            setEditingRequest(null);
+            setCorrectedTime("");
+            setReviewerComment("");
+            setPendingRequestId(null);
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || "Failed to approve reconciliation. Please try again.";
+            toast.error(message);
+            setPendingRequestId(null);
         },
     });
 
@@ -78,14 +159,12 @@ export default function AttendanceReconciliationAdminPage() {
         });
     }, [data, departmentFilter, statusFilter]);
 
-    const handleApprove = async (id: string) => {
-        await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "APPROVED" });
-        setRefresh((r) => r + 1);
+    const handleApprove = (id: string) => {
+        approveMutation.mutate(id);
     };
 
-    const handleReject = async (id: string) => {
-        await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "REJECTED" });
-        setRefresh((r) => r + 1);
+    const handleReject = (id: string) => {
+        rejectMutation.mutate(id);
     };
 
     const handleEditAndApprove = (req: AttendanceReconciliationRequest) => {
@@ -107,7 +186,7 @@ export default function AttendanceReconciliationAdminPage() {
         setReviewerComment("");
     };
 
-    const handleSubmitCorrectedApproval = async () => {
+    const handleSubmitCorrectedApproval = () => {
         if (!editingRequest) return;
 
         // Validate that we have either corrected time or employee's requested time
@@ -120,42 +199,33 @@ export default function AttendanceReconciliationAdminPage() {
             return;
         }
 
-        try {
-            const payload: any = {
-                status: "APPROVED",
-                reviewerComment: reviewerComment || undefined,
-            };
+        // Prepare payload
+        let correctedSignIn: string | undefined;
+        let correctedSignOut: string | undefined;
 
-            // Add corrected time if provided - convert from Asia/Dhaka to UTC
-            if (correctedTime) {
-                // datetime-local gives us local time, we need to specify it's Asia/Dhaka (+06:00)
-                const dateTimeWithTz = correctedTime + ":00+06:00";
-                const correctedDate = new Date(dateTimeWithTz);
+        // Add corrected time if provided - convert from Asia/Dhaka to UTC
+        if (correctedTime) {
+            // datetime-local gives us local time, we need to specify it's Asia/Dhaka (+06:00)
+            const dateTimeWithTz = correctedTime + ":00+06:00";
+            const correctedDate = new Date(dateTimeWithTz);
 
-                if (editingRequest.type === "SIGN_IN") {
-                    payload.correctedSignIn = correctedDate.toISOString();
-                    console.log({ payload });
-                } else if (editingRequest.type === "SIGN_OUT") {
-                    payload.correctedSignOut = correctedDate.toISOString();
-                }
+            if (editingRequest.type === "SIGN_IN") {
+                correctedSignIn = correctedDate.toISOString();
+            } else if (editingRequest.type === "SIGN_OUT") {
+                correctedSignOut = correctedDate.toISOString();
             }
-            await apiClient.put(`/attendance/reconciliation/${editingRequest.id}/status`, payload);
-            console.log("outcome:", { payload });
-            // Success feedback
-            toast.success("Reconciliation approved successfully");
-
-            setEditingRequest(null);
-            setCorrectedTime("");
-            setReviewerComment("");
-            setRefresh((r) => r + 1);
-        } catch (error) {
-            console.error("Failed to approve reconciliation:", error);
-            toast.error("Failed to approve reconciliation. Please try again.");
         }
+
+        editAndApproveMutation.mutate({
+            id: editingRequest.id,
+            correctedSignIn,
+            correctedSignOut,
+            reviewerComment: reviewerComment || undefined,
+        });
     };
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => router.back()} title="Back">
                     <ArrowLeft className="h-5 w-5" />
@@ -248,7 +318,22 @@ export default function AttendanceReconciliationAdminPage() {
                                                     ? (req.requestedSignIn ? formatTimeInDhaka(req.requestedSignIn) : "-")
                                                     : (req.requestedSignOut ? formatTimeInDhaka(req.requestedSignOut) : "-")}
                                             </TableCell>
-                                            <TableCell>{req.reason}</TableCell>
+                                            <TableCell className="max-w-xs">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <p className="truncate text-sm cursor-help">
+                                                                {req.reason}
+                                                            </p>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-md">
+                                                            <p className="whitespace-normal">
+                                                                {req.reason}
+                                                            </p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </TableCell>
                                             <TableCell>
                                                 <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
                                                     req.status === "REJECTED" ? "bg-red-100 text-red-800" :
@@ -260,9 +345,43 @@ export default function AttendanceReconciliationAdminPage() {
                                             <TableCell>
                                                 {req.status === "PENDING" && (
                                                     <div className="flex gap-2">
-                                                        <Button size="sm" onClick={() => handleApprove(req.id)}>Approve</Button>
-                                                        <Button size="sm" variant="secondary" onClick={() => handleEditAndApprove(req)}>Edit & Approve</Button>
-                                                        <Button size="sm" variant="destructive" onClick={() => handleReject(req.id)}>Reject</Button>
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => handleApprove(req.id)}
+                                                            disabled={!!pendingRequestId}
+                                                        >
+                                                            {pendingRequestId === req.id && approveMutation.isPending ? (
+                                                                <>
+                                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                    Approving...
+                                                                </>
+                                                            ) : (
+                                                                "Approve"
+                                                            )}
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            onClick={() => handleEditAndApprove(req)}
+                                                            disabled={!!pendingRequestId}
+                                                        >
+                                                            Edit & Approve
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            onClick={() => handleReject(req.id)}
+                                                            disabled={!!pendingRequestId}
+                                                        >
+                                                            {pendingRequestId === req.id && rejectMutation.isPending ? (
+                                                                <>
+                                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                    Rejecting...
+                                                                </>
+                                                            ) : (
+                                                                "Reject"
+                                                            )}
+                                                        </Button>
                                                     </div>
                                                 )}
                                             </TableCell>
@@ -334,8 +453,26 @@ export default function AttendanceReconciliationAdminPage() {
                         </div>
                     )}
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingRequest(null)}>Cancel</Button>
-                        <Button onClick={handleSubmitCorrectedApproval}>Approve with Changes</Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setEditingRequest(null)}
+                            disabled={editAndApproveMutation.isPending}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSubmitCorrectedApproval}
+                            disabled={editAndApproveMutation.isPending}
+                        >
+                            {editAndApproveMutation.isPending ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Approving...
+                                </>
+                            ) : (
+                                "Approve with Changes"
+                            )}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

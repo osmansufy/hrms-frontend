@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">Workspace</p>
         <h1 className="text-2xl font-semibold">Settings</h1>

@@ -91,7 +91,7 @@ export default function PasswordChangePage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             <div>
                 <p className="text-sm text-muted-foreground">Account Security</p>
                 <h1 className="text-2xl font-semibold">Change Password</h1>

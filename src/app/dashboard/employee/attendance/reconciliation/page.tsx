@@ -9,6 +9,8 @@ import { useSession } from "@/components/auth/session-provider";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AttendanceReconciliationRequest {
     id: string;
@@ -90,7 +92,7 @@ export default function AttendanceReconciliationEmployeePage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle>Submit Attendance Reconciliation Request</CardTitle>
@@ -142,12 +144,12 @@ export default function AttendanceReconciliationEmployeePage() {
                                 />
                             </div>
                         )}
-                        <Input
-                            type="text"
+                        <Textarea
                             placeholder="Reason"
                             value={form.reason}
                             onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                             required
+                            rows={3}
                         />
                         <Button type="submit" disabled={submitting}>Submit Request</Button>
                     </form>
@@ -187,7 +189,22 @@ export default function AttendanceReconciliationEmployeePage() {
                                                 ? (req.requestedSignIn ? formatTimeInDhaka(req.requestedSignIn) : "-")
                                                 : (req.requestedSignOut ? formatTimeInDhaka(req.requestedSignOut) : "-")}
                                         </TableCell>
-                                        <TableCell>{req.reason}</TableCell>
+                                        <TableCell className="max-w-xs">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <p className="truncate text-sm cursor-help">
+                                                            {req.reason}
+                                                        </p>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-md">
+                                                        <p className="whitespace-normal">
+                                                            {req.reason}
+                                                        </p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
                                                 req.status === "REJECTED" ? "bg-red-100 text-red-800" :

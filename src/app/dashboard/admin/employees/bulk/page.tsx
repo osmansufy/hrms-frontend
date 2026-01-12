@@ -279,7 +279,7 @@ jane.smith@example.com,SecurePass456,Jane,,Smith,2024-02-01,FEMALE,1234567891,PA
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="container space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Bulk Create Employees</h1>

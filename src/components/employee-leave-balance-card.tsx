@@ -146,12 +146,12 @@ export function EmployeeLeaveBalanceCard({ employeeId, userId }: EmployeeLeaveBa
                                     </span>
                                     <Badge variant={statusColor as any} className="text-xs">
                                         {statusIcon}
-                                        {available.toFixed(1)} days
+                                        {Math.round(available)} days
                                     </Badge>
                                 </div>
                                 <div className="text-right text-xs text-muted-foreground">
-                                    <div>Used: {used.toFixed(1)}</div>
-                                    <div>Total: {totalAllocated.toFixed(1)}</div>
+                                    <div>Used: {Math.round(used)}</div>
+                                    <div>Total: {Math.round(totalAllocated)}</div>
                                 </div>
                             </div>
 
@@ -163,19 +163,19 @@ export function EmployeeLeaveBalanceCard({ employeeId, userId }: EmployeeLeaveBa
                             <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">
                                 <div>
                                     <div className="font-medium">Opening</div>
-                                    <div>{openingBalance.toFixed(1)}</div>
+                                    <div>{Math.round(openingBalance)}</div>
                                 </div>
                                 <div>
                                     <div className="font-medium">Accrued</div>
-                                    <div>{accrued.toFixed(1)}</div>
+                                    <div>{Math.round(accrued)}</div>
                                 </div>
                                 <div>
                                     <div className="font-medium">Carried</div>
-                                    <div>{carried.toFixed(1)}</div>
+                                    <div>{Math.round(carried)}</div>
                                 </div>
                                 <div>
                                     <div className="font-medium">Lapsed</div>
-                                    <div>{lapsed.toFixed(1)}</div>
+                                    <div>{Math.round(lapsed)}</div>
                                 </div>
                             </div>
                         </div>

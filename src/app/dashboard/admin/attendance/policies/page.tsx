@@ -263,7 +263,7 @@ export default function AttendancePoliciesPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => router.back()} title="Back">
                     <ArrowLeft className="h-5 w-5" />

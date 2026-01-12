@@ -107,7 +107,7 @@ export default function CreateEmployeePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6">
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="sm" className="px-2">
           <Link href="/dashboard/admin/employees">

@@ -169,7 +169,7 @@ export default function AdminEmployeeDetailPage() {
   const status = formatStatus(data.user?.status);
 
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="sm" className="px-2">

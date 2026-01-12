@@ -82,7 +82,7 @@ export default function AdminCommunicationsPage() {
     };
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="container p-6 space-y-6">
             <h1 className="text-xl font-semibold">Admin Communications</h1>
 
             {/* Rate Limit Warning */}

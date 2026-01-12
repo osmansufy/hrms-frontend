@@ -158,7 +158,7 @@ export default function AssignLeavePage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             {/* Header */}
             <div className="flex items-center gap-4">
                 <Link href={`/dashboard/admin/employees/${employeeId}`}>

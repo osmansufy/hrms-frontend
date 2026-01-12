@@ -19,7 +19,7 @@ export default function LeaveManagerPage() {
     // If error indicates no subordinates or not a manager
     if (error && !isLoading) {
         return (
-            <div className="space-y-6">
+            <div className="container space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
                         <h1 className="text-2xl font-semibold tracking-tight">Team Leave Management</h1>
@@ -57,7 +57,7 @@ export default function LeaveManagerPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
                     <h1 className="text-2xl font-semibold tracking-tight">Team Leave Management</h1>

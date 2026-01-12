@@ -37,7 +37,7 @@ export default function LineManagerManagementPage() {
         : [...employeesWithoutManager, ...employeesWithManager];
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             <div>
                 <p className="text-sm text-muted-foreground">Admin · Management</p>
                 <h1 className="text-3xl font-bold">Line Manager Assignment</h1>

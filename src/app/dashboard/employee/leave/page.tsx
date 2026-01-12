@@ -414,7 +414,7 @@ export default function LeavePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">Time away</p>
@@ -504,11 +504,11 @@ export default function LeavePage() {
                   <div className="rounded border bg-muted/50 p-2 mt-2">
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>Leave balance (subject to policy)</span>
-                      <span className="font-semibold">{selectedBalance.available} days</span>
+                      <span className="font-semibold">{Math.round(selectedBalance.available)} days</span>
                     </div>
                     {selectedBalance.carried > 0 && (
                       <div className="text-xs text-muted-foreground">
-                        Includes {selectedBalance.carried} carried forward days
+                        Includes {Math.round(selectedBalance.carried)} carried forward days
                       </div>
                     )}
                   </div>

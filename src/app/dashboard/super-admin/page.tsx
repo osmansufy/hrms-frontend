@@ -93,7 +93,7 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Super Admin Dashboard</h1>

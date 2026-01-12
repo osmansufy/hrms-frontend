@@ -64,12 +64,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
-// Format numbers to up to 2 decimals, without trailing zeros
+// Format numbers to whole numbers (no decimals)
 const formatDays = (value: number) =>
     new Intl.NumberFormat(undefined, {
         minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-    }).format(value);
+        maximumFractionDigits: 0,
+    }).format(Math.round(value));
 
 import { BulkApplyLeaveTypesDialog } from "./bulk-apply-leave-types-dialog";
 import { BulkResetLeaveBalancesDialog } from "./bulk-reset-leave-balances-dialog";

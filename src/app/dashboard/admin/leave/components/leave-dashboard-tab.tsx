@@ -78,13 +78,13 @@ export function LeaveDashboardTab() {
         },
         {
             title: "Days Allocated",
-            value: summary.overview.totalDaysAllocated,
+            value: Math.round(summary.overview.totalDaysAllocated),
             icon: Calendar,
             color: "text-green-600",
         },
         {
             title: "Days Used",
-            value: `${summary.overview.totalDaysUsed} (${summary.overview.overallUtilizationRate.toFixed(1)}%)`,
+            value: `${Math.round(summary.overview.totalDaysUsed)} (${summary.overview.overallUtilizationRate.toFixed(1)}%)`,
             icon: TrendingUp,
             color: "text-purple-600",
         },
@@ -300,15 +300,15 @@ export function LeaveDashboardTab() {
                                     <div className="grid grid-cols-4 gap-2 text-sm">
                                         <div>
                                             <p className="text-muted-foreground">Allocated</p>
-                                            <p className="font-semibold">{dept.allocated}</p>
+                                            <p className="font-semibold">{Math.round(dept.allocated)}</p>
                                         </div>
                                         <div>
                                             <p className="text-muted-foreground">Used</p>
-                                            <p className="font-semibold">{dept.used}</p>
+                                            <p className="font-semibold">{Math.round(dept.used)}</p>
                                         </div>
                                         <div>
                                             <p className="text-muted-foreground">Available</p>
-                                            <p className="font-semibold">{dept.available}</p>
+                                            <p className="font-semibold">{Math.round(dept.available)}</p>
                                         </div>
                                         <div>
                                             <p className="text-muted-foreground">Utilization</p>
@@ -343,15 +343,15 @@ export function LeaveDashboardTab() {
                                     <div className="grid grid-cols-4 gap-2 text-sm">
                                         <div>
                                             <p className="text-muted-foreground">Allocated</p>
-                                            <p className="font-semibold">{type.allocated}</p>
+                                            <p className="font-semibold">{Math.round(type.allocated)}</p>
                                         </div>
                                         <div>
                                             <p className="text-muted-foreground">Used</p>
-                                            <p className="font-semibold">{type.used}</p>
+                                            <p className="font-semibold">{Math.round(type.used)}</p>
                                         </div>
                                         <div>
                                             <p className="text-muted-foreground">Available</p>
-                                            <p className="font-semibold">{type.available}</p>
+                                            <p className="font-semibold">{Math.round(type.available)}</p>
                                         </div>
                                         <div>
                                             <p className="text-muted-foreground">Utilization</p>

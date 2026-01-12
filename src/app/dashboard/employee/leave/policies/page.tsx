@@ -31,7 +31,7 @@ export default function LeavePoliciesPage() {
 
     if (error) {
         return (
-            <div className="space-y-6">
+            <div className="container space-y-6">
                 <div className="flex items-start gap-3">
                     <BookOpen className="size-6 text-blue-600 mt-1" />
                     <div>
@@ -51,7 +51,7 @@ export default function LeavePoliciesPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="container space-y-6">
             <div className="flex items-start gap-3">
                 <BookOpen className="size-6 text-blue-600 mt-1" />
                 <div>

@@ -513,7 +513,7 @@ export default function EmployeeDashboard() {
   // Leave status icon/badge helpers removed from dashboard
 
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6">
       <div className="flex justify-between items-center mb-2">
         <Badge variant="outline" className="text-base px-4 py-2  from-blue-50 to-indigo-50 border-blue-400 text-blue-900 font-semibold tracking-wide rounded-full">
           {`Keep pushing! Your productivity matters${session?.user?.name ? ", " + session.user.name : ""}. 🚀`}
