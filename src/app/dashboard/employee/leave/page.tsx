@@ -33,6 +33,7 @@ import { useBalanceDetails } from "@/lib/queries/leave-balance";
 import { formatInDhakaTimezone } from "@/lib/utils";
 import { LeaveBalanceCard } from "@/components/leave/leave-balance-card";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
+import { handleLeaveError } from "@/lib/utils/error-handler";
 
 const schema = z.object({
   leaveTypeId: z.string().min(1, "Choose a leave type"),
@@ -307,6 +308,12 @@ export default function LeavePage() {
     return { sufficient: true, warning: null, error: null };
   }, [selectedBalance, requestedDays]);
 
+  // Check for pending leaves
+  const hasPendingLeaves = useMemo(() => {
+    if (!leaves) return false;
+    return leaves.some(l => ['PENDING', 'PROCESSING'].includes(l.status.toUpperCase()));
+  }, [leaves]);
+
   const sortedLeaves = useMemo(
     () => (leaves ?? []).slice().sort((a, b) => (a.startDate > b.startDate ? -1 : 1)),
     [leaves],
@@ -361,58 +368,20 @@ export default function LeavePage() {
       setUploadedFile(null);
       setDocumentUrl("");
     } catch (error) {
-      console.error(error);
+      // Use generic error handler with leave-specific context
+      const pendingLeaves = (leaves || []).filter(l =>
+        ['PENDING', 'PROCESSING'].includes(l.status.toUpperCase())
+      );
 
-      // Enhanced error handling
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as any;
-        const errorData = apiError.response?.data;
-
-        if (errorData?.code) {
-          // Handle specific error codes
-          switch (errorData.code) {
-            case 'INSUFFICIENT_BALANCE':
-              toast.error("Insufficient leave balance", {
-                description: errorData.message || errorData.details
-              });
-              break;
-            case 'NOTICE_PERIOD_NOT_MET':
-              toast.error("Notice period requirement not met", {
-                description: errorData.message || errorData.details
-              });
-              break;
-            case 'OVERLAPPING_LEAVE':
-              toast.error("Overlapping leave detected", {
-                description: errorData.message || errorData.details
-              });
-              break;
-            default:
-              toast.error("Submission failed", {
-                description: errorData.message || "Could not submit leave request"
-              });
-          }
-        } else if (errorData?.validationErrors) {
-          // Handle validation errors
-          const validationMessages = errorData.validationErrors
-            .map((err: any) => `${err.field}: ${err.message}`)
-            .join(', ');
-          toast.error("Validation error", {
-            description: validationMessages
-          });
-        } else {
-          toast.error("Submission failed", {
-            description: errorData?.message || "Could not submit leave request"
-          });
-        }
-      } else {
-        const errorMessage = error instanceof Error ? error.message : "Could not submit leave request";
-        toast.error("Submission failed", {
-          description: errorMessage,
-        });
-      }
+      handleLeaveError(error, {
+        pendingLeaves,
+        formatRange,
+      });
     }
   };
-
+  const pendingLeaves = useMemo(() => (leaves || []).filter(l =>
+    ['PENDING', 'PROCESSING'].includes(l.status.toUpperCase())
+  ), [leaves]);
   return (
     <div className="container space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -450,277 +419,300 @@ export default function LeavePage() {
             <CardDescription>Select a type and choose your dates.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-                <FormField
-                  control={form.control}
-                  name="leaveTypeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Leave type</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedLeaveTypeId(value);
-                        }}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={typesLoading ? "Loading..." : "Select type"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(leaveTypes ?? []).map((lt) => (
-                            <SelectItem key={lt.id} value={lt.id}>
-                              {lt.name} ({lt.code})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      {/* Show leave notice rule in small text if available */}
-                      {leavePolicy?.noticeRules && leavePolicy.noticeRules.length > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {leavePolicy.noticeRules.map((rule, idx) => (
-                            <div key={idx}>
-                              {rule.minLength && rule.maxLength
-                                ? `For ${rule.minLength}-${rule.maxLength} days: `
-                                : rule.minLength
-                                  ? `For ${rule.minLength}+ days: `
-                                  : ''}
-                              {`Requires ${rule.noticeDays} day${rule.noticeDays > 1 ? 's' : ''} notice`}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </FormItem>
-                  )}
-                />
-
-                {/* Balance Display */}
-                {/* Progressive disclosure: show balance only after dates are selected */}
-                {selectedBalance && watchedValues.startDate && watchedValues.endDate ? (
-                  <div className="rounded border bg-muted/50 p-2 mt-2">
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>Leave balance (subject to policy)</span>
-                      <span className="font-semibold">{Math.round(selectedBalance.available)} days</span>
-                    </div>
-                    {selectedBalance.carried > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        Includes {Math.round(selectedBalance.carried)} carried forward days
-                      </div>
-                    )}
-                  </div>
-                ) : selectedBalance ? (
-                  <div className="text-xs text-gray-400 mt-2">Leave balance available</div>
-                ) : null}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="startDate"
-                    render={({ field }) => {
-                      // For sick leave: can only select past/current dates (not future)
-                      // For other leave: can select from today onwards
-                      const minDate = isSickLeave
-                        ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days back
-                        : today;
-                      const maxDateValue = isSickLeave
-                        ? today // Sick leave: max today
-                        : (leavePolicy?.allowAdvance ? maxDate : today);
-
-                      return (
-                        <FormItem>
-                          <FormLabel>Start date</FormLabel>
-                          <FormControl>
-                            <Input type="date" min={minDate} max={maxDateValue} {...field} />
-                          </FormControl>
-                          {isSickLeave && (
-                            <FormDescription className="text-xs text-muted-foreground">
-                              Sick leave: Past/current dates only
-                            </FormDescription>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => {
-                      const minDate = watchedValues.startDate || today;
-                      const maxDateValue = isSickLeave
-                        ? today // Sick leave: max today
-                        : (leavePolicy?.allowAdvance ? maxDate : today);
-
-                      return (
-                        <FormItem>
-                          <FormLabel>End date</FormLabel>
-                          <FormControl>
-                            <Input type="date" min={minDate} max={maxDateValue} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="reason"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reason</FormLabel>
-                      <FormControl>
-                        <Textarea rows={3} placeholder="Short reason for your manager" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Document Upload for Sick Leave (3+ days) */}
-                {isSickLeave && requestedDays > 0 && (
-                  <div className="space-y-2">
-                    <FormLabel>
-                      Medical Certificate
-                      {documentRequired && <span className="text-destructive ml-1">*</span>}
-                    </FormLabel>
-                    {documentRequired && (
-                      <FormDescription className="text-xs">
-                        Required for sick leave of {requestedDays} days
-                      </FormDescription>
-                    )}
-                    {!documentRequired && requestedDays > 0 && (
-                      <FormDescription className="text-xs">
-                        Optional for sick leave under 3 days
-                      </FormDescription>
-                    )}
-
-                    {!uploadedFile && !documentUrl && (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={handleFileChange}
-                          disabled={isUploading}
-                          className="cursor-pointer"
-                        />
-                        {isUploading && <Loader2 className="size-4 animate-spin" />}
-                      </div>
-                    )}
-
-                    {uploadedFile && documentUrl && (
-                      <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3">
-                        <FileText className="size-4 text-green-600" />
-                        <span className="flex-1 text-sm text-green-700">
-                          {uploadedFile.name}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleRemoveFile}
-                          className="size-6 p-0"
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </div>
-                    )}
-
-                    {documentRequired && !documentUrl && (
-                      <p className="text-xs text-destructive">
-                        Please upload a medical certificate to proceed
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Notice Period Info */}
-                {leavePolicy && noticeCheck.requiredDays > 0 && requestedDays > 0 && (
-                  <Alert variant="info">
-                    <Info className="size-4" />
+            {/* Warning for pending leaves */}
+            {(() => {
+              if (pendingLeaves.length > 0) {
+                const pendingLeave = pendingLeaves[0];
+                const leaveTypeName = pendingLeave.leaveType?.name || 'Leave';
+                const dateRange = formatRange(pendingLeave.startDate, pendingLeave.endDate);
+                return (
+                  <Alert variant="warning" className="my-2">
+                    <AlertTriangle className="size-4" />
                     <AlertDescription>
-                      This leave type requires {noticeCheck.requiredDays} days notice for {requestedDays} day{requestedDays > 1 ? 's' : ''} leave.
+                      You have a {pendingLeave.status.toLowerCase()} {leaveTypeName} request from {dateRange}.
+                      Please wait for it to be processed before applying for a new leave.
                     </AlertDescription>
                   </Alert>
-                )}
+                );
+              }
+              return null;
+            })()}
+            {
+              pendingLeaves.length <= 0 && (
+                <Form {...form}>
+                  <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                    <FormField
+                      control={form.control}
+                      name="leaveTypeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Leave type</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              setSelectedLeaveTypeId(value);
+                            }}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={typesLoading ? "Loading..." : "Select type"} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {(leaveTypes ?? []).map((lt) => (
+                                <SelectItem key={lt.id} value={lt.id}>
+                                  {lt.name} ({lt.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                          {/* Show leave notice rule in small text if available */}
+                          {leavePolicy?.noticeRules && leavePolicy.noticeRules.length > 0 && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {leavePolicy.noticeRules.map((rule, idx) => (
+                                <div key={idx}>
+                                  {rule.minLength && rule.maxLength
+                                    ? `For ${rule.minLength}-${rule.maxLength} days: `
+                                    : rule.minLength
+                                      ? `For ${rule.minLength}+ days: `
+                                      : ''}
+                                  {`Requires ${rule.noticeDays} day${rule.noticeDays > 1 ? 's' : ''} notice`}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </FormItem>
+                      )}
+                    />
 
-                {/* Requested Days Display */}
-                {requestedDays > 0 && (
-                  <div className="rounded-lg border-2 border-dashed bg-muted/30 p-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Requested Days</span>
-                      <span className="text-lg font-bold">{requestedDays} days</span>
+                    {/* Balance Display */}
+                    {/* Progressive disclosure: show balance only after dates are selected */}
+                    {selectedBalance && watchedValues.startDate && watchedValues.endDate ? (
+                      <div className="rounded border bg-muted/50 p-2 mt-2">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>Leave balance (subject to policy)</span>
+                          <span className="font-semibold">{Math.round(selectedBalance.available)} days</span>
+                        </div>
+                        {selectedBalance.carried > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            Includes {Math.round(selectedBalance.carried)} carried forward days
+                          </div>
+                        )}
+                      </div>
+                    ) : selectedBalance ? (
+                      <div className="text-xs text-gray-400 mt-2">Leave balance available</div>
+                    ) : null}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => {
+                          // For sick leave: can only select past/current dates (not future)
+                          // For other leave: can select from today onwards
+                          const minDate = isSickLeave
+                            ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days back
+                            : today;
+                          const maxDateValue = isSickLeave
+                            ? today // Sick leave: max today
+                            : (leavePolicy?.allowAdvance ? maxDate : today);
+
+                          return (
+                            <FormItem>
+                              <FormLabel>Start date</FormLabel>
+                              <FormControl>
+                                <Input type="date" min={minDate} max={maxDateValue} {...field} />
+                              </FormControl>
+                              {isSickLeave && (
+                                <FormDescription className="text-xs text-muted-foreground">
+                                  Sick leave: Past/current dates only
+                                </FormDescription>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="endDate"
+                        render={({ field }) => {
+                          const minDate = watchedValues.startDate || today;
+                          const maxDateValue = isSickLeave
+                            ? today // Sick leave: max today
+                            : (leavePolicy?.allowAdvance ? maxDate : today);
+
+                          return (
+                            <FormItem>
+                              <FormLabel>End date</FormLabel>
+                              <FormControl>
+                                <Input type="date" min={minDate} max={maxDateValue} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
                     </div>
-                  </div>
-                )}
+                    <FormField
+                      control={form.control}
+                      name="reason"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Reason</FormLabel>
+                          <FormControl>
+                            <Textarea rows={3} placeholder="Short reason for your manager" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {/* Notice Period Error */}
-                {noticeCheck.error && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="size-4" />
-                    <AlertDescription>{noticeCheck.error}</AlertDescription>
-                  </Alert>
-                )}
+                    {/* Document Upload for Sick Leave (3+ days) */}
+                    {isSickLeave && requestedDays > 0 && (
+                      <div className="space-y-2">
+                        <FormLabel>
+                          Medical Certificate
+                          {documentRequired && <span className="text-destructive ml-1">*</span>}
+                        </FormLabel>
+                        {documentRequired && (
+                          <FormDescription className="text-xs">
+                            Required for sick leave of {requestedDays} days
+                          </FormDescription>
+                        )}
+                        {!documentRequired && requestedDays > 0 && (
+                          <FormDescription className="text-xs">
+                            Optional for sick leave under 3 days
+                          </FormDescription>
+                        )}
 
-                {/* Notice Period Warning */}
-                {noticeCheck.warning && !noticeCheck.error && (
-                  <Alert variant="warning">
-                    <Info className="size-4" />
-                    <AlertDescription>{noticeCheck.warning}</AlertDescription>
-                  </Alert>
-                )}
+                        {!uploadedFile && !documentUrl && (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={handleFileChange}
+                              disabled={isUploading}
+                              className="cursor-pointer"
+                            />
+                            {isUploading && <Loader2 className="size-4 animate-spin" />}
+                          </div>
+                        )}
 
-                {/* Overlap Error */}
-                {overlapCheck.error && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="size-4" />
-                    <AlertDescription>{overlapCheck.error}</AlertDescription>
-                  </Alert>
-                )}
+                        {uploadedFile && documentUrl && (
+                          <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3">
+                            <FileText className="size-4 text-green-600" />
+                            <span className="flex-1 text-sm text-green-700">
+                              {uploadedFile.name}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleRemoveFile}
+                              className="size-6 p-0"
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          </div>
+                        )}
 
-                {/* Balance Error Alert */}
-                {balanceCheck.error && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="size-4" />
-                    <AlertDescription>{balanceCheck.error}</AlertDescription>
-                  </Alert>
-                )}
+                        {documentRequired && !documentUrl && (
+                          <p className="text-xs text-destructive">
+                            Please upload a medical certificate to proceed
+                          </p>
+                        )}
+                      </div>
+                    )}
 
-                {/* Balance Warning Alert */}
-                {balanceCheck.warning && !balanceCheck.error && (
-                  <Alert variant="warning">
-                    <Info className="size-4" />
-                    <AlertDescription>{balanceCheck.warning}</AlertDescription>
-                  </Alert>
-                )}
+                    {/* Notice Period Info */}
+                    {leavePolicy && noticeCheck.requiredDays > 0 && requestedDays > 0 && (
+                      <Alert variant="info">
+                        <Info className="size-4" />
+                        <AlertDescription>
+                          This leave type requires {noticeCheck.requiredDays} days notice for {requestedDays} day{requestedDays > 1 ? 's' : ''} leave.
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={
-                    applyMutation.isPending ||
-                    !balanceCheck.sufficient ||
-                    !noticeCheck.valid ||
-                    overlapCheck.hasOverlap
-                  }
-                >
-                  {applyMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 size-4" />
-                      Submit request {requestedDays > 0 && `(${requestedDays} days)`}
-                    </>
-                  )}
-                </Button>
-              </form>
-            </Form>
+                    {/* Requested Days Display */}
+                    {requestedDays > 0 && (
+                      <div className="rounded-lg border-2 border-dashed bg-muted/30 p-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Requested Days</span>
+                          <span className="text-lg font-bold">{requestedDays} days</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notice Period Error */}
+                    {noticeCheck.error && (
+                      <Alert variant="destructive">
+                        <AlertTriangle className="size-4" />
+                        <AlertDescription>{noticeCheck.error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Notice Period Warning */}
+                    {noticeCheck.warning && !noticeCheck.error && (
+                      <Alert variant="warning">
+                        <Info className="size-4" />
+                        <AlertDescription>{noticeCheck.warning}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Overlap Error */}
+                    {overlapCheck.error && (
+                      <Alert variant="destructive">
+                        <AlertTriangle className="size-4" />
+                        <AlertDescription>{overlapCheck.error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Balance Error Alert */}
+                    {balanceCheck.error && (
+                      <Alert variant="destructive">
+                        <AlertTriangle className="size-4" />
+                        <AlertDescription>{balanceCheck.error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Balance Warning Alert */}
+                    {balanceCheck.warning && !balanceCheck.error && (
+                      <Alert variant="warning">
+                        <Info className="size-4" />
+                        <AlertDescription>{balanceCheck.warning}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={
+                        applyMutation.isPending ||
+                        !balanceCheck.sufficient ||
+                        !noticeCheck.valid ||
+                        overlapCheck.hasOverlap ||
+                        hasPendingLeaves
+                      }
+                    >
+                      {applyMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 size-4" />
+                          Submit request {requestedDays > 0 && `(${requestedDays} days)`}
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              )
+            }
           </CardContent>
         </Card>
 
