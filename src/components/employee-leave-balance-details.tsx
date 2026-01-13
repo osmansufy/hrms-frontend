@@ -7,7 +7,7 @@ import { useLeaveTypes } from "@/lib/queries/leave";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, TrendingDown, TrendingUp } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getAllUsersBalances } from "@/lib/api/leave";
+import { getEmployeeLeaveBalances, type AdminLeaveBalanceItem } from "@/lib/api/leave";
 import {
     Table,
     TableBody,
@@ -31,16 +31,37 @@ const formatNumber = (value: number | null | undefined, decimals: number = 0): s
 export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLeaveBalanceDetailsProps) {
     const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes();
 
-    const { data: allBalances, isLoading: balancesLoading } = useQuery({
-        queryKey: ["leave-balances", "all"],
-        queryFn: () => getAllUsersBalances(),
+    const { data: employeeBalancesData, isLoading: balancesLoading } = useQuery({
+        queryKey: ["employee-leave-balances", userId],
+        queryFn: () => getEmployeeLeaveBalances(userId!),
+        enabled: !!userId,
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
     const isLoading = typesLoading || balancesLoading;
 
-    // Filter balances for this employee
-    const employeeBalances = allBalances?.filter(b => b.userId === userId) || [];
+    // Transform admin API response to match component structure
+    const employeeBalances = employeeBalancesData?.map((item: AdminLeaveBalanceItem) => ({
+        id: item.id,
+        userId: item.userId,
+        leaveTypeId: item.leaveType.id,
+        leaveTypeName: item.leaveType.name,
+        leaveTypeCode: item.leaveType.code,
+        leaveYear: String(item.leaveYear),
+        available: item.balances.available,
+        carried: item.balances.carried,
+        used: item.balances.used,
+        openingBalance: item.balances.openingBalance,
+        accrued: item.balances.accrued,
+        lapsed: item.balances.lapsed,
+        adjusted: item.balances.adjusted,
+        ledgerEntries: 0, // Not provided by admin API
+        policy: {
+            maxDays: undefined, // Not provided by admin API
+            carryForwardCap: undefined,
+            encashmentFlag: undefined,
+        },
+    })) || [];
 
     if (isLoading) {
         return (
@@ -220,123 +241,7 @@ export function EmployeeLeaveBalanceDetails({ userId, employeeName }: EmployeeLe
                 </div>
 
                 {/* Detailed Breakdown Cards */}
-                <div className="grid gap-4 md:grid-cols-2">
-                    {employeeBalances.map((balance) => {
-                        const leaveType = leaveTypes?.find(lt => lt.id === balance.leaveTypeId);
-                        const available = Number(balance.available) || 0;
-                        const carried = Number(balance.carried) || 0;
-                        const used = Number(balance.used) || 0;
-                        const totalAllocated = available + carried + used;
-                        const percentage = totalAllocated > 0 ? (used / totalAllocated) * 100 : 0;
 
-                        return (
-                            <Card key={balance.id} className="border">
-                                <CardHeader className="pb-3">
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle className="text-base">{leaveType?.name || "Unknown"}</CardTitle>
-                                        <Badge variant="outline">{balance.leaveYear}</Badge>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Progress Bar */}
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Utilization</span>
-                                            <span className="font-semibold">{formatNumber(percentage)}%</span>
-                                        </div>
-                                        <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
-                                            <div
-                                                className={`h-full transition-all ${percentage >= 75
-                                                    ? "bg-red-500"
-                                                    : percentage >= 50
-                                                        ? "bg-yellow-500"
-                                                        : "bg-green-500"
-                                                    }`}
-                                                style={{ width: `${Math.min(percentage, 100)}%` }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Breakdown */}
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
-                                        <div className="rounded-lg bg-green-50 p-2">
-                                            <p className="text-muted-foreground">Available</p>
-                                            <p className="text-lg font-semibold text-green-700">
-                                                {formatNumber(balance.available)}
-                                            </p>
-                                        </div>
-                                        <div className="rounded-lg bg-yellow-50 p-2">
-                                            <p className="text-muted-foreground">Used</p>
-                                            <p className="text-lg font-semibold text-yellow-700">
-                                                {formatNumber(balance.used)}
-                                            </p>
-                                        </div>
-                                        {balance.carried > 0 && (
-                                            <div className="rounded-lg bg-blue-50 p-2">
-                                                <p className="text-muted-foreground">Carry Forward</p>
-                                                <p className="text-lg font-semibold text-blue-700">
-                                                    {formatNumber(balance.carried)}
-                                                </p>
-                                            </div>
-                                        )}
-                                        {balance.accrued > 0 && (
-                                            <div className="rounded-lg bg-purple-50 p-2">
-                                                <p className="text-muted-foreground">Accrued</p>
-                                                <p className="text-lg font-semibold text-purple-700">
-                                                    {formatNumber(balance.accrued)}
-                                                </p>
-                                            </div>
-                                        )}
-                                        {balance.lapsed > 0 && (
-                                            <div className="rounded-lg bg-red-50 p-2">
-                                                <p className="text-muted-foreground">Lapsed</p>
-                                                <p className="text-lg font-semibold text-red-700">
-                                                    {formatNumber(balance.lapsed)}
-                                                </p>
-                                            </div>
-                                        )}
-                                        {balance.adjusted !== 0 && (
-                                            <div
-                                                className={`rounded-lg p-2 ${balance.adjusted > 0
-                                                    ? "bg-green-50"
-                                                    : "bg-red-50"
-                                                    }`}
-                                            >
-                                                <p className="text-muted-foreground">Adjusted</p>
-                                                <p
-                                                    className={`text-lg font-semibold ${balance.adjusted > 0
-                                                        ? "text-green-700"
-                                                        : "text-red-700"
-                                                        }`}
-                                                >
-                                                    {balance.adjusted > 0 ? "+" : ""}{formatNumber(balance.adjusted)}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Policy Info */}
-                                    {balance.policy && (
-                                        <div className="rounded-lg border-l-2 border-blue-200 bg-blue-50 p-2 text-sm">
-                                            <p className="font-semibold text-blue-900 mb-1">Policy</p>
-                                            <div className="text-blue-800 space-y-1">
-                                                {balance.policy.maxDays && (
-                                                    <p>Max Days: {balance.policy.maxDays}</p>
-                                                )}
-                                                {balance.policy.carryForwardCap && (
-                                                    <p>Carry Forward Cap: {balance.policy.carryForwardCap}</p>
-                                                )}
-                                                {balance.policy.encashmentFlag && (
-                                                    <p>Encashment: Allowed</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
             </CardContent>
         </Card>
     );

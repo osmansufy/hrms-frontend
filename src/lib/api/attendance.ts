@@ -130,6 +130,35 @@ export async function getAttendanceStats(date: string, departmentId?: string) {
   return response.data;
 }
 
+export interface MonthlyAttendanceSummary {
+  year: number;
+  month: number;
+  totalWorkingDays: number;
+  totalEmployees: number;
+  totalPresent: number;
+  totalLate: number;
+  totalAbsent: number;
+  totalOnLeave: number;
+  totalHoursWorked: number;
+  avgHoursPerDay: number;
+  attendancePercentage: number;
+  startDate: string;
+  endDate: string;
+}
+
+export async function getMonthlyAttendanceSummary(params: {
+  year: number;
+  month: number;
+  departmentId?: string;
+  userId?: string;
+}): Promise<MonthlyAttendanceSummary> {
+  const response = await apiClient.get<MonthlyAttendanceSummary>(
+    `/attendance/admin/monthly-summary`,
+    { params }
+  );
+  return response.data;
+}
+
 export async function getAttendanceRecords(params: AttendanceListParams) {
   const response = await apiClient.get<{
     data: ExtendedAttendanceRecord[];

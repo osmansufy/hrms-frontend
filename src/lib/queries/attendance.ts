@@ -31,6 +31,7 @@ import {
   updateWorkSchedule,
   deleteWorkSchedule,
   getMonthlyLateCount,
+  getMonthlyAttendanceSummary,
 } from "@/lib/api/attendance";
 
 export const attendanceKeys = {
@@ -332,5 +333,20 @@ export function useMonthlyLateCount(
     },
     enabled: Boolean(userId),
     staleTime: 60_000, // 1 minute
+  });
+}
+
+// Monthly attendance summary hook
+export function useMonthlyAttendanceSummary(params: {
+  year: number;
+  month: number;
+  departmentId?: string;
+  userId?: string;
+}) {
+  return useQuery({
+    queryKey: ["attendance", "monthly-summary", params],
+    queryFn: () => getMonthlyAttendanceSummary(params),
+    enabled: Boolean(params.year && params.month),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

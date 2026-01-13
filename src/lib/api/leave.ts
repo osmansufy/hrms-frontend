@@ -945,6 +945,24 @@ export async function getAdminLeaveBalances(params?: AdminLeaveBalancesParams) {
 }
 
 /**
+ * Get all leave balances for a specific employee
+ * @param userId - User ID of the employee
+ * @param year - Optional year filter (defaults to current year)
+ * @returns Array of leave balances for the employee
+ */
+export async function getEmployeeLeaveBalances(
+  userId: string,
+  year?: number
+): Promise<AdminLeaveBalanceItem[]> {
+  const params = year ? { year } : {};
+  const response = await apiClient.get<AdminLeaveBalanceItem[]>(
+    `/admin/leave-balances/user/${userId}`,
+    { params }
+  );
+  return response.data;
+}
+
+/**
  * Get summary statistics for leave balances
  * @param year - Optional year filter
  * @returns Overview stats, department breakdown, and leave type breakdown

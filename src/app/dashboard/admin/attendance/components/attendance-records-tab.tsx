@@ -61,6 +61,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet";
+import { MonthlySummaryCard } from "./monthly-summary-card";
 
 export function AttendanceRecordsTab() {
     const [page, setPage] = useState(1);
@@ -122,9 +123,40 @@ export function AttendanceRecordsTab() {
         record?: ExtendedAttendanceRecord;
     } | null>(null);
 
+    // Extract year and month from date range for monthly summary
+    const summaryYear = useMemo(() => {
+        const date = new Date(dateRange.startDate);
+        return date.getFullYear();
+    }, [dateRange.startDate]);
+
+    const summaryMonth = useMemo(() => {
+        const date = new Date(dateRange.startDate);
+        return date.getMonth() + 1; // getMonth() returns 0-11, we need 1-12
+    }, [dateRange.startDate]);
+
+    // Only show monthly summary if the date range spans a single month
+    const showMonthlySummary = useMemo(() => {
+        const start = new Date(dateRange.startDate);
+        const end = new Date(dateRange.endDate);
+        return (
+            start.getFullYear() === end.getFullYear() &&
+            start.getMonth() === end.getMonth()
+        );
+    }, [dateRange.startDate, dateRange.endDate]);
+
     return (
         <>
             <div className="space-y-4">
+                {/* Monthly Summary Card */}
+                {showMonthlySummary && (
+                    <MonthlySummaryCard
+                        year={summaryYear}
+                        month={summaryMonth}
+                        departmentId={departmentId === "all" ? undefined : departmentId}
+                        userId={employeeId === "all" ? undefined : employeeId}
+                    />
+                )}
+
                 {/* Date Range Quick Filters */}
                 <Card>
                     <CardHeader>
@@ -377,6 +409,13 @@ export function AttendanceRecordsTab() {
                     </SheetHeader>
                     {selectedEmployee && (
                         <div className="mt-6 space-y-6">
+                            {/* Monthly Attendance Summary for Employee */}
+                            <MonthlySummaryCard
+                                year={summaryYear}
+                                month={summaryMonth}
+                                userId={selectedEmployee.userId}
+                            />
+
                             {/* Attendance Information */}
                             {selectedEmployee.record && (
                                 <Card>
