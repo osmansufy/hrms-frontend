@@ -26,9 +26,11 @@ import {
   getAllUsersBalances,
   adjustBalance,
   initializeBalance,
+  getMyLedgerHistory,
   type ApplyLeavePayload,
   type AdjustBalancePayload,
   type InitializeBalancePayload,
+  type LedgerEntry,
 } from "@/lib/api/leave";
 
 export const leaveKeys = {
@@ -469,6 +471,21 @@ export function useInitializeBalance() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: balanceKeys.all });
     },
+  });
+}
+
+// Leave Ledger History Hooks
+export const ledgerKeys = {
+  all: ["leave-ledger"] as const,
+  myLedger: (leaveTypeId: string) => ["leave-ledger", "my", leaveTypeId] as const,
+};
+
+export function useMyLedgerHistory(leaveTypeId: string) {
+  return useQuery({
+    queryKey: ledgerKeys.myLedger(leaveTypeId),
+    queryFn: () => getMyLedgerHistory(leaveTypeId),
+    enabled: Boolean(leaveTypeId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 

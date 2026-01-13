@@ -18,6 +18,8 @@ export type AttendanceRecord = {
   timezone?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  requiresLateConfirmation?: boolean;
+  leaveDeducted?: boolean;
 };
 
 export type ExtendedAttendanceRecord = AttendanceRecord & {
@@ -435,6 +437,31 @@ export async function getMyLostHoursReport(
 ) {
   const response = await apiClient.get<LostHoursRow[]>(
     `/attendance/${userId}/lost-hours`,
+    { params }
+  );
+  return response.data;
+}
+
+export type MonthlyLateCount = {
+  lateCount: number;
+  month: number;
+  year: number;
+};
+
+export async function getMonthlyLateCount(
+  userId: string,
+  year?: number,
+  month?: number
+) {
+  const params: Record<string, string> = {};
+  if (year !== undefined) {
+    params.year = year.toString();
+  }
+  if (month !== undefined) {
+    params.month = month.toString();
+  }
+  const response = await apiClient.get<MonthlyLateCount>(
+    `/attendance/${userId}/monthly-late-count`,
     { params }
   );
   return response.data;

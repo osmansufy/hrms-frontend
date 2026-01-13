@@ -29,6 +29,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useApplyLeave, useLeaveTypes, useMyLeaves, useUserBalances, useLeavePolicy } from "@/lib/queries/leave";
 import { uploadLeaveDocument } from "@/lib/api/leave";
 import { LeavePieChart } from "./leave-pie-chart";
+import { LeaveDeductionRecords } from "../components/leave-deduction-records";
 import { useBalanceDetails } from "@/lib/queries/leave-balance";
 import { formatInDhakaTimezone } from "@/lib/utils";
 import { LeaveBalanceCard } from "@/components/leave/leave-balance-card";
@@ -413,7 +414,7 @@ export default function LeavePage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+        <Card>
           <CardHeader>
             <CardTitle>Apply for leave</CardTitle>
             <CardDescription>Select a type and choose your dates.</CardDescription>
@@ -716,7 +717,7 @@ export default function LeavePage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle>Recent requests</CardTitle>
             <CardDescription>Track approvals and dates.</CardDescription>
@@ -775,6 +776,9 @@ export default function LeavePage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Leave Deduction Records */}
+        <LeaveDeductionRecords />
       </div>
     </div>
   );

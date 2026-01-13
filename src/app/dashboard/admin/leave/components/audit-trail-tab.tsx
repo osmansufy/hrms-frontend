@@ -20,20 +20,25 @@ import {
     ChevronRight,
     AlertTriangle,
     FileText,
+    Clock,
 } from "lucide-react";
 import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export function AuditTrailTab() {
     const [page, setPage] = useState(1);
     const [pageSize] = useState(20);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const [lateAttendanceOnly, setLateAttendanceOnly] = useState(false);
 
     const { data, isLoading, error } = useAdminAdjustmentHistory({
         page,
         pageSize,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        lateAttendanceOnly: lateAttendanceOnly || undefined,
     });
 
     if (isLoading) {
@@ -81,7 +86,7 @@ export function AuditTrailTab() {
             {/* Filters */}
             <Card>
                 <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label className="text-sm font-medium mb-2 block">
                                 Start Date
@@ -106,6 +111,24 @@ export function AuditTrailTab() {
                                 }}
                             />
                         </div>
+                        <div className="flex items-end">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="lateAttendanceOnly"
+                                    checked={lateAttendanceOnly}
+                                    onCheckedChange={(checked) => {
+                                        setLateAttendanceOnly(checked === true);
+                                        setPage(1);
+                                    }}
+                                />
+                                <Label
+                                    htmlFor="lateAttendanceOnly"
+                                    className="text-sm font-medium cursor-pointer"
+                                >
+                                    Late Attendance Only
+                                </Label>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -124,12 +147,13 @@ export function AuditTrailTab() {
                                     <TableHead className="text-right">Before</TableHead>
                                     <TableHead className="text-right">After</TableHead>
                                     <TableHead>Reason</TableHead>
-                                    <TableHead>Admin</TableHead>
+                                    <TableHead>Source</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {data.data.map((adjustment) => {
                                     const isPositive = adjustment.balances.change > 0;
+                                    const isLateAttendance = adjustment.isLateAttendanceDeduction;
                                     return (
                                         <TableRow key={adjustment.id}>
                                             <TableCell>
@@ -157,7 +181,20 @@ export function AuditTrailTab() {
                                                     </span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{adjustment.leaveType.name}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <span>{adjustment.leaveType.name}</span>
+                                                    {isLateAttendance && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="bg-orange-50 text-orange-700 border-orange-200"
+                                                        >
+                                                            <Clock className="h-3 w-3 mr-1" />
+                                                            Late
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <Badge
                                                     variant={isPositive ? "default" : "destructive"}
@@ -188,14 +225,24 @@ export function AuditTrailTab() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm">
-                                                        {adjustment.admin?.name}
+                                                {isLateAttendance ? (
+                                                    <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+                                                        System
+                                                    </Badge>
+                                                ) : adjustment.admin ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm">
+                                                            {adjustment.admin.name}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {adjustment.admin.email}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">
+                                                        N/A
                                                     </span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {adjustment.admin?.email}
-                                                    </span>
-                                                </div>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     );

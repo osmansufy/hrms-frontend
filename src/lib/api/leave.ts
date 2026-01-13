@@ -567,6 +567,38 @@ export type InitializeBalancePayload = {
   accrualRuleId?: string;
 };
 
+export type LedgerEntry = {
+  id: string;
+  userId: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  leaveTypeId: string;
+  leaveType: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  transactionType: string;
+  days: number;
+  leaveYear: number;
+  effectiveDate: string;
+  transactionDate: string;
+  referenceType?: string;
+  referenceId?: string;
+  description?: string;
+  metadata?: any;
+  createdById?: string;
+  createdBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  createdAt: string;
+};
+
 // Leave Balance API Functions
 export async function getUserBalances() {
   const response = await apiClient.get<LeaveBalance[]>("/leave/balance");
@@ -576,6 +608,13 @@ export async function getUserBalances() {
 export async function getBalanceDetails(leaveTypeId: string) {
   const response = await apiClient.get<LeaveBalanceDetails>(
     `/leave/balance/${leaveTypeId}`
+  );
+  return response.data;
+}
+
+export async function getMyLedgerHistory(leaveTypeId: string) {
+  const response = await apiClient.get<LedgerEntry[]>(
+    `/leave/my-ledger/${leaveTypeId}`
   );
   return response.data;
 }
@@ -737,13 +776,18 @@ export type AdminAdjustmentHistoryItem = {
     id: string;
     name: string;
     email: string;
-  };
+  } | null;
   metadata: {
-    adjustedBy: string;
-    adminEmail: string;
-    previousBalance: number;
+    adjustedBy?: string;
+    adminEmail?: string;
+    previousBalance?: number;
+    systemTriggered?: boolean;
+    automated?: boolean;
+    attendanceId?: string;
+    reason?: string;
   };
   createdAt: string;
+  isLateAttendanceDeduction?: boolean;
 };
 
 export type AdminAdjustmentHistoryResponse = {
@@ -764,6 +808,7 @@ export type AdminAdjustmentHistoryParams = {
   userId?: string;
   adminId?: string;
   leaveTypeId?: string;
+  lateAttendanceOnly?: boolean;
 };
 
 export type AdminBalanceAlert = {

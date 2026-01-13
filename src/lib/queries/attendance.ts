@@ -30,6 +30,7 @@ import {
   createWorkSchedule,
   updateWorkSchedule,
   deleteWorkSchedule,
+  getMonthlyLateCount,
 } from "@/lib/api/attendance";
 
 export const attendanceKeys = {
@@ -63,6 +64,9 @@ export function useSignIn(userId?: string) {
     onSuccess: () => {
       if (!userId) return;
       queryClient.invalidateQueries({ queryKey: attendanceKeys.today(userId) });
+      queryClient.invalidateQueries({ 
+        queryKey: ["attendance", "monthly-late-count", userId] 
+      });
     },
   });
 }
@@ -311,5 +315,22 @@ export function useDeleteWorkSchedule() {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       queryClient.invalidateQueries({ queryKey: ["attendance", "policies"] });
     },
+  });
+}
+
+// Monthly late count hook
+export function useMonthlyLateCount(
+  userId: string | undefined,
+  year?: number,
+  month?: number
+) {
+  return useQuery({
+    queryKey: ["attendance", "monthly-late-count", userId, year, month],
+    queryFn: () => {
+      if (!userId) throw new Error("User ID required");
+      return getMonthlyLateCount(userId, year, month);
+    },
+    enabled: Boolean(userId),
+    staleTime: 60_000, // 1 minute
   });
 }

@@ -15,8 +15,11 @@ import { useUserBalances, useMyLeaves } from "@/lib/queries/leave";
 import { LeavePieChart } from "./components/leave-pie-chart";
 import { AttendanceBarChart } from "./components/attendance-bar-chart";
 import { AttendancePieChart } from "./components/attendance-pie-chart";
+import { LateAttendanceWarningModal } from "./components/late-attendance-warning-modal";
+import { LateAttendanceConfirmationModal } from "./components/late-attendance-confirmation-modal";
+import { LeaveDeductionRecords } from "./components/leave-deduction-records";
 import { useMyAttendanceRecords } from "@/lib/queries/attendance";
-import { useSignIn, useSignOut, useTodayAttendance, useMyLostHoursReport } from "@/lib/queries/attendance";
+import { useSignIn, useSignOut, useTodayAttendance, useMyLostHoursReport, useMonthlyLateCount } from "@/lib/queries/attendance";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { LeaveBalance, LeaveRecord } from "@/lib/api/leave";
@@ -41,6 +44,14 @@ export default function EmployeeDashboard() {
   // Session and userId
   const { session } = useSession();
   const userId = session?.user.id;
+
+  // Monthly late count
+  const { data: monthlyLateCountData } = useMonthlyLateCount(userId);
+  const monthlyLateCount = monthlyLateCountData?.lateCount ?? 0;
+
+  // Modal states
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
   // Attendance chart data for last 7 days
   const end = new Date();
@@ -310,7 +321,7 @@ export default function EmployeeDashboard() {
   }, [todayAttendance, attendanceLoading]);
 
   // Attendance handlers
-  const handleSignIn = useCallback(async () => {
+  const performSignIn = useCallback(async () => {
     // Check device before attempting sign-in
     if (!isDeviceAllowedForAttendance()) {
       const device = detectDevice();
@@ -406,11 +417,17 @@ export default function EmployeeDashboard() {
 
     console.log("Final payload before API call:", payload);
     try {
-      await signInMutation.mutateAsync(payload);
+      const result = await signInMutation.mutateAsync(payload);
       toast.success("Signed in successfully");
       setLocation("");
       setGeolocation({});
       setGeolocationError(null);
+
+      // Check for late attendance flags
+      if ((result as any)?.leaveDeducted) {
+        setShowConfirmationModal(true);
+        toast.info("1 day of casual leave has been deducted for late attendance");
+      }
     } catch (err: any) {
       console.error("Sign-in error:", err);
       // Check if error is device-related
@@ -424,7 +441,24 @@ export default function EmployeeDashboard() {
         toast.error(err?.message || "Sign-in failed. Please try again.");
       }
     }
-  }, [signInMutation, location, getCurrentLocation, geolocationStatus]);
+  }, [signInMutation, location, getCurrentLocation, geolocationStatus, geolocation]);
+
+  const handleSignIn = useCallback(async () => {
+    // Check if late count is 3 - show warning modal before sign-in
+    if (monthlyLateCount === 3) {
+      setShowWarningModal(true);
+      return;
+    }
+
+    // Proceed with sign-in
+    await performSignIn();
+  }, [monthlyLateCount, performSignIn]);
+
+  // Handle warning modal confirmation - proceed with sign-in
+  const handleWarningModalConfirm = useCallback(() => {
+    setShowWarningModal(false);
+    performSignIn();
+  }, [performSignIn]);
 
   const handleSignOut = useCallback(async () => {
     // Check device before attempting sign-out
@@ -542,6 +576,39 @@ export default function EmployeeDashboard() {
       </div>
 
 
+      {/* Monthly Late Count */}
+      {monthlyLateCount > 0 && (
+        <Card className={cn(
+          "border-2",
+          monthlyLateCount >= 3 ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" : "border-orange-200"
+        )}>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ClockAlert className={cn(
+                  "h-5 w-5",
+                  monthlyLateCount >= 3 ? "text-yellow-600" : "text-orange-600"
+                )} />
+                <div>
+                  <p className="text-sm font-medium">Monthly Late Count</p>
+                  <p className="text-xs text-muted-foreground">
+                    {monthlyLateCount >= 3
+                      ? "Warning: One more late will result in leave deduction"
+                      : "Keep track of your attendance"}
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant={monthlyLateCount >= 3 ? "destructive" : "secondary"}
+                className="text-lg px-4 py-1"
+              >
+                {monthlyLateCount} /month
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Attendance Quick Actions */}
       <div>
         <h2 className="text-lg font-semibold mb-3">Attendance</h2>
@@ -617,9 +684,9 @@ export default function EmployeeDashboard() {
             <div className={cn(
               "relative rounded-xl p-6 transition-all duration-300",
               !todayAttendance?.signIn && isDeviceAllowed
-                ? "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border border-green-200 dark:border-green-900/50"
+                ? " from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border border-green-200 dark:border-green-900/50"
                 : todayAttendance && !todayAttendance.signOut && isDeviceAllowed
-                  ? "bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border border-orange-200 dark:border-orange-900/50"
+                  ? " from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border border-orange-200 dark:border-orange-900/50"
                   : "bg-muted/30 border border-muted"
             )}>
               <div className="flex flex-col items-center justify-center">
@@ -740,6 +807,26 @@ export default function EmployeeDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Leave Deduction Records */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Leave Records</h2>
+        <LeaveDeductionRecords />
+      </div>
+
+      {/* Late Attendance Modals */}
+      <LateAttendanceWarningModal
+        open={showWarningModal}
+        onClose={() => setShowWarningModal(false)}
+        onConfirm={handleWarningModalConfirm}
+        lateCount={monthlyLateCount}
+      />
+
+      <LateAttendanceConfirmationModal
+        open={showConfirmationModal}
+        onClose={() => setShowConfirmationModal(false)}
+        lateCount={monthlyLateCount}
+      />
 
     </div>
   );
