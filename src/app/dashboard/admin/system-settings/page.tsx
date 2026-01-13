@@ -29,6 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import {
     useSystemSettings,
     useUpdateSystemSettings,
+    useRebuildEmployeeCodes,
 } from "@/lib/queries/system-settings";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
@@ -52,6 +53,7 @@ type FormValues = z.infer<typeof schema>;
 export default function SystemSettingsPage() {
     const { data: settings, isLoading } = useSystemSettings();
     const updateMutation = useUpdateSystemSettings();
+    const rebuildCodesMutation = useRebuildEmployeeCodes();
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -255,24 +257,55 @@ export default function SystemSettingsPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="flex justify-end">
-                        <Button
-                            type="submit"
-                            disabled={updateMutation.isPending}
-                            size="lg"
-                        >
-                            {updateMutation.isPending ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="mr-2 h-4 w-4" />
-                                    Save Settings
-                                </>
-                            )}
-                        </Button>
+                    <div className="flex items-center justify-between gap-4 pt-2">
+                        <div className="text-xs text-muted-foreground max-w-md">
+                            <p className="font-semibold">Bulk Update Employee Codes</p>
+                            <p>
+                                This will regenerate all existing employee codes using the current{" "}
+                                <span className="font-mono">
+                                    {form.watch("employeeIdPrefix") || "EMP"}
+                                </span>{" "}
+                                prefix and a new sequential number (e.g.{" "}
+                                {form.watch("employeeIdPrefix") || "EMP"}
+                                001,{" "}
+                                {form.watch("employeeIdPrefix") || "EMP"}
+                                002). This operation cannot be undone.
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={rebuildCodesMutation.isPending}
+                                onClick={() => rebuildCodesMutation.mutate()}
+                            >
+                                {rebuildCodesMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Updating Codes...
+                                    </>
+                                ) : (
+                                    "Update Existing Employee Codes"
+                                )}
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={updateMutation.isPending}
+                                size="lg"
+                            >
+                                {updateMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="mr-2 h-4 w-4" />
+                                        Save Settings
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 </form>
             </Form>

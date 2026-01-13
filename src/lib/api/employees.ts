@@ -104,7 +104,9 @@ export type CreateEmployeePayload = {
 
 export type UpdateEmployeePayload = Partial<
   Omit<CreateEmployeePayload, "email" | "password">
->;
+> & {
+  employeeCode?: string;
+};
 
 export type UpdatePersonalInfoPayload = {
   firstName?: string;

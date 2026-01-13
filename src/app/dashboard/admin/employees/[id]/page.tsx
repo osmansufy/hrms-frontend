@@ -54,6 +54,13 @@ const schema = z.object({
   department: z.string().optional(),
   designation: z.string().optional(),
   reportingManagerId: z.string().optional(),
+  employeeCodeSuffix: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || /^\d+$/.test(val),
+      { message: "ID suffix must be numeric" }
+    ),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -90,6 +97,12 @@ export default function AdminEmployeeDetailPage() {
   const { data: departments = [] } = useDepartments();
   const { data: designations = [] } = useDesignationsList();
 
+  // Derive current employee code prefix/suffix from existing code, e.g. EMP001 -> prefix=EMP, suffix=001
+  const existingCode = data?.employeeCode || "";
+  const codeMatch = existingCode.match(/^([A-Za-z]+)(\d+)$/);
+  const employeeCodePrefix = codeMatch?.[1] || "";
+  const employeeCodeSuffix = codeMatch?.[2] || "";
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -99,6 +112,7 @@ export default function AdminEmployeeDetailPage() {
       departmentId: data?.departmentId || "",
       designationId: data?.designationId || "",
       reportingManagerId: data?.reportingManagerId || "",
+      employeeCodeSuffix,
     },
     values: data
       ? {
@@ -108,6 +122,7 @@ export default function AdminEmployeeDetailPage() {
         departmentId: data.departmentId || "",
         designationId: data.designationId || "",
         reportingManagerId: data.reportingManagerId || "",
+        employeeCodeSuffix,
       }
       : undefined,
   });
@@ -115,14 +130,30 @@ export default function AdminEmployeeDetailPage() {
   const onSubmit = async (values: FormValues) => {
     if (!id) return;
     try {
+      // Build a new employeeCode if suffix is provided, keeping the existing prefix
+      let employeeCode: string | undefined;
+      const rawSuffix = values.employeeCodeSuffix?.trim();
+      if (rawSuffix && employeeCodePrefix) {
+        const numeric = rawSuffix.replace(/\D/g, "");
+        if (numeric) {
+          // Preserve at least 3 digits, but allow longer suffixes without trimming
+          const width = Math.max(3, numeric.length);
+          employeeCode = `${employeeCodePrefix}${numeric.padStart(width, "0")}`;
+        }
+      }
+
+      // Destructure employeeCodeSuffix to exclude it from the payload
+      const { employeeCodeSuffix, ...restValues } = values;
+
       await updateMutation.mutateAsync({
-        ...values,
-        phone: values.phone || undefined,
-        departmentId: values.departmentId || undefined,
-        designationId: values.designationId || undefined,
-        reportingManagerId: values.reportingManagerId || undefined,
-        employmentType: values.employmentType || undefined,
-        joiningDate: values.joiningDate || undefined,
+        ...restValues,
+        phone: restValues.phone || undefined,
+        departmentId: restValues.departmentId || undefined,
+        designationId: restValues.designationId || undefined,
+        reportingManagerId: restValues.reportingManagerId || undefined,
+        employmentType: restValues.employmentType || undefined,
+        joiningDate: restValues.joiningDate || undefined,
+        employeeCode: employeeCode || undefined,
       });
       toast.success("Employee updated");
     } catch (error: any) {
@@ -241,6 +272,45 @@ export default function AdminEmployeeDetailPage() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                {/* Employee ID (prefix + editable suffix) */}
+                <FormItem>
+                  <FormLabel>Employee ID</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={employeeCodePrefix || "—"}
+                      disabled
+                      readOnly
+                      className="w-20 text-center font-mono"
+                    />
+                    <span className="text-muted-foreground">/</span>
+                    <FormField
+                      control={form.control}
+                      name="employeeCodeSuffix"
+                      render={({ field }) => (
+                        <>
+                          <FormControl>
+                            <Input
+                              placeholder={employeeCodeSuffix || "001"}
+                              value={field.value ?? ""}
+                              onChange={field.onChange}
+                              className="font-mono"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </>
+                      )}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Only the numeric part after the prefix is editable. Example:{" "}
+                    <span className="font-mono">
+                      {employeeCodePrefix || "EMP"}
+                      001
+                    </span>
+                    .
+                  </p>
+                </FormItem>
+
                 <FormField
                   control={form.control}
                   name="phone"

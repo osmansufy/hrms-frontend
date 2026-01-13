@@ -24,6 +24,10 @@ export const systemSettingsApi = {
   // Admin endpoint - only for admins (write access)
   update: (payload: UpdateSystemSettingsPayload) =>
     apiClient.patch<SystemSettings>("/admin/system-settings", payload),
+  rebuildEmployeeCodes: () =>
+    apiClient.post<{ updated: number }>(
+      "/admin/system-settings/rebuild-employee-codes"
+    ),
 };
 
 export async function getSystemSettings(): Promise<SystemSettings> {
@@ -35,5 +39,10 @@ export async function updateSystemSettings(
   payload: UpdateSystemSettingsPayload
 ): Promise<SystemSettings> {
   const res = await systemSettingsApi.update(payload);
+  return res.data;
+}
+
+export async function rebuildEmployeeCodes(): Promise<{ updated: number }> {
+  const res = await systemSettingsApi.rebuildEmployeeCodes();
   return res.data;
 }
