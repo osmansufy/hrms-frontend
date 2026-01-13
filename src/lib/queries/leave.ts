@@ -477,7 +477,8 @@ export function useInitializeBalance() {
 // Leave Ledger History Hooks
 export const ledgerKeys = {
   all: ["leave-ledger"] as const,
-  myLedger: (leaveTypeId: string) => ["leave-ledger", "my", leaveTypeId] as const,
+  myLedger: (leaveTypeId: string) =>
+    ["leave-ledger", "my", leaveTypeId] as const,
 };
 
 export function useMyLedgerHistory(leaveTypeId: string) {

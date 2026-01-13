@@ -154,6 +154,12 @@ const ADMIN_NAV: NavItem[] = [
     icon: Mail,
     roles: ["admin", "super-admin"],
   },
+  {
+    href: "/dashboard/admin/system-settings",
+    label: "System Settings",
+    icon: Settings,
+    roles: ["admin", "super-admin"],
+  },
 ];
 
 const SUPER_ADMIN_NAV: NavItem[] = [

@@ -19,7 +19,13 @@ import { LateAttendanceWarningModal } from "./components/late-attendance-warning
 import { LateAttendanceConfirmationModal } from "./components/late-attendance-confirmation-modal";
 import { LeaveDeductionRecords } from "./components/leave-deduction-records";
 import { useMyAttendanceRecords } from "@/lib/queries/attendance";
-import { useSignIn, useSignOut, useTodayAttendance, useMyLostHoursReport, useMonthlyLateCount } from "@/lib/queries/attendance";
+import {
+  useSignIn,
+  useSignOut,
+  useTodayAttendance,
+  useMyLostHoursReport,
+  useMonthlyLateCount,
+} from "@/lib/queries/attendance";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { LeaveBalance, LeaveRecord } from "@/lib/api/leave";
@@ -30,6 +36,7 @@ import {
   getDeviceRestrictionMessage,
   DeviceType,
 } from "@/lib/utils/device-detection";
+import { useSystemSettings } from "@/lib/queries/system-settings";
 
 
 // Helper function for calculating balance percentage
@@ -44,6 +51,13 @@ export default function EmployeeDashboard() {
   // Session and userId
   const { session } = useSession();
   const userId = session?.user.id;
+
+  // System settings (late threshold, mobile attendance, location capture)
+  const { data: systemSettings } = useSystemSettings();
+  const leaveDeductionDay = systemSettings?.leaveDeductionDay ?? 4;
+  const allowMobileAttendance = systemSettings?.allowMobileAttendance ?? false;
+  const captureEmployeeLocation =
+    systemSettings?.captureEmployeeLocation ?? true;
 
   // Monthly late count
   const { data: monthlyLateCountData } = useMonthlyLateCount(userId);
@@ -97,8 +111,13 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     const device = detectDevice();
     setDeviceInfo(device);
-    setIsDeviceAllowed(isDeviceAllowedForAttendance());
-  }, []);
+    // If mobile attendance is allowed via system settings, we don't block on device
+    if (allowMobileAttendance) {
+      setIsDeviceAllowed(true);
+    } else {
+      setIsDeviceAllowed(isDeviceAllowedForAttendance());
+    }
+  }, [allowMobileAttendance]);
 
 
 
@@ -329,55 +348,63 @@ export default function EmployeeDashboard() {
       return;
     }
 
-    // Get geolocation - wait for it to complete
+    // Get geolocation - wait for it to complete (only if enabled in settings)
     console.log("Getting geolocation for sign-in...");
     let geoData: { latitude: number; longitude: number; address?: string } | null = null;
 
-    try {
-      // Call getCurrentLocation and wait for the actual result
-      geoData = await getCurrentLocation();
-      console.log("Geolocation result after await:", geoData);
+    if (captureEmployeeLocation) {
+      try {
+        // Call getCurrentLocation and wait for the actual result
+        geoData = await getCurrentLocation();
+        console.log("Geolocation result after await:", geoData);
 
-      // Check the result directly (don't rely on state which might not be updated yet)
-      if (!geoData) {
-        console.log("No geoData returned from getCurrentLocation");
-        // Check if we have cached geolocation from state
+        // Check the result directly (don't rely on state which might not be updated yet)
+        if (!geoData) {
+          console.log("No geoData returned from getCurrentLocation");
+          // Check if we have cached geolocation from state
+          if (geolocation.latitude && geolocation.longitude) {
+            console.log("Using cached geolocation from state:", geolocation);
+            geoData = {
+              latitude: geolocation.latitude,
+              longitude: geolocation.longitude,
+              address: geolocation.address,
+            };
+          } else {
+            // Check status to determine if it's denied or just unavailable
+            // Wait a bit for state to update
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const currentStatus = geolocationStatus;
+            console.log("Current geolocation status:", currentStatus);
+
+            if (currentStatus === "denied") {
+              toast.error(
+                "Geolocation access is required. Please enable location permissions to mark attendance."
+              );
+              return; // Don't proceed without location if it's required
+            } else {
+              toast.warning(
+                "Unable to access your location. Attendance will be recorded without geolocation data."
+              );
+            }
+          }
+        } else {
+          console.log("Successfully got geolocation data:", geoData);
+        }
+      } catch (error) {
+        console.error("Error getting geolocation:", error);
+        // Try to use cached geolocation if available
         if (geolocation.latitude && geolocation.longitude) {
-          console.log("Using cached geolocation from state:", geolocation);
+          console.log("Using cached geolocation after error:", geolocation);
           geoData = {
             latitude: geolocation.latitude,
             longitude: geolocation.longitude,
             address: geolocation.address,
           };
         } else {
-          // Check status to determine if it's denied or just unavailable
-          // Wait a bit for state to update
-          await new Promise(resolve => setTimeout(resolve, 100));
-          const currentStatus = geolocationStatus;
-          console.log("Current geolocation status:", currentStatus);
-
-          if (currentStatus === "denied") {
-            toast.error("Geolocation access is required. Please enable location permissions to mark attendance.");
-            return; // Don't proceed without location if it's required
-          } else {
-            toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
-          }
+          toast.warning(
+            "Unable to access your location. Attendance will be recorded without geolocation data."
+          );
         }
-      } else {
-        console.log("Successfully got geolocation data:", geoData);
-      }
-    } catch (error) {
-      console.error("Error getting geolocation:", error);
-      // Try to use cached geolocation if available
-      if (geolocation.latitude && geolocation.longitude) {
-        console.log("Using cached geolocation after error:", geolocation);
-        geoData = {
-          latitude: geolocation.latitude,
-          longitude: geolocation.longitude,
-          address: geolocation.address,
-        };
-      } else {
-        toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
       }
     }
 
@@ -444,15 +471,15 @@ export default function EmployeeDashboard() {
   }, [signInMutation, location, getCurrentLocation, geolocationStatus, geolocation]);
 
   const handleSignIn = useCallback(async () => {
-    // Check if late count is 3 - show warning modal before sign-in
-    if (monthlyLateCount === 3) {
+    // Check if late count is (leaveDeductionDay - 1) - show warning modal before sign-in
+    if (monthlyLateCount === leaveDeductionDay - 1) {
       setShowWarningModal(true);
       return;
     }
 
     // Proceed with sign-in
     await performSignIn();
-  }, [monthlyLateCount, performSignIn]);
+  }, [monthlyLateCount, leaveDeductionDay, performSignIn]);
 
   // Handle warning modal confirmation - proceed with sign-in
   const handleWarningModalConfirm = useCallback(() => {
@@ -468,23 +495,34 @@ export default function EmployeeDashboard() {
       return;
     }
 
-    // Get geolocation
+    // Get geolocation (only if enabled in settings)
     console.log("Getting geolocation for sign-out...");
     let geoData: { latitude: number; longitude: number; address?: string } | null = null;
-    try {
-      geoData = await getCurrentLocation();
-      console.log("Geolocation result for sign-out:", { geoData, geolocationStatus });
-    } catch (error) {
-      console.error("Error getting geolocation for sign-out:", error);
-      toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
-    }
+    if (captureEmployeeLocation) {
+      try {
+        geoData = await getCurrentLocation();
+        console.log("Geolocation result for sign-out:", {
+          geoData,
+          geolocationStatus,
+        });
+      } catch (error) {
+        console.error("Error getting geolocation for sign-out:", error);
+        toast.warning(
+          "Unable to access your location. Attendance will be recorded without geolocation data."
+        );
+      }
 
-    // Warn if geolocation is not available
-    if (!geoData && geolocationStatus === "denied") {
-      toast.error("Geolocation access is required. Please enable location permissions to mark attendance.");
-      return;
-    } else if (!geoData && geolocationStatus === "unavailable") {
-      toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
+      // Warn if geolocation is not available
+      if (!geoData && geolocationStatus === "denied") {
+        toast.error(
+          "Geolocation access is required. Please enable location permissions to mark attendance."
+        );
+        return;
+      } else if (!geoData && geolocationStatus === "unavailable") {
+        toast.warning(
+          "Unable to access your location. Attendance will be recorded without geolocation data."
+        );
+      }
     }
 
     // Get device info to send screen/touch metadata for enhanced validation
@@ -592,9 +630,9 @@ export default function EmployeeDashboard() {
                 <div>
                   <p className="text-sm font-medium">Monthly Late Count</p>
                   <p className="text-xs text-muted-foreground">
-                    {monthlyLateCount >= 3
-                      ? "Warning: One more late will result in leave deduction"
-                      : "Keep track of your attendance"}
+                    {monthlyLateCount >= leaveDeductionDay - 1
+                      ? `Warning: One more late will reach the configured leave deduction threshold (${leaveDeductionDay})`
+                      : `Keep track of your attendance. Leave is deducted starting from the ${leaveDeductionDay}th late in a month.`}
                   </p>
                 </div>
               </div>
