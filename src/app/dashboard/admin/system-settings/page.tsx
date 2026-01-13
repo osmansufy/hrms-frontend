@@ -41,6 +41,10 @@ const schema = z.object({
         .int("Must be a whole number"),
     allowMobileAttendance: z.boolean(),
     captureEmployeeLocation: z.boolean(),
+    employeeIdPrefix: z
+        .string()
+        .min(1, "Prefix is required")
+        .max(20, "Prefix must not exceed 20 characters"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -55,6 +59,7 @@ export default function SystemSettingsPage() {
             leaveDeductionDay: 4,
             allowMobileAttendance: false,
             captureEmployeeLocation: true,
+            employeeIdPrefix: "EMP",
         },
     });
 
@@ -65,6 +70,7 @@ export default function SystemSettingsPage() {
                 leaveDeductionDay: settings.leaveDeductionDay,
                 allowMobileAttendance: settings.allowMobileAttendance,
                 captureEmployeeLocation: settings.captureEmployeeLocation,
+                employeeIdPrefix: settings.employeeIdPrefix,
             });
         }
     }, [settings, form]);
@@ -140,6 +146,42 @@ export default function SystemSettingsPage() {
                     </Card>
 
                     <Separator />
+
+                    {/* Employee Code Settings */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Employee ID/Code</CardTitle>
+                            <CardDescription>
+                                Configure the prefix used for auto-generated employee IDs/codes
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="employeeIdPrefix"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Employee ID Prefix</FormLabel>
+                                        <FormDescription>
+                                            This prefix is used when generating new employee codes (e.g.,{" "}
+                                            {field.value || "EMP"}
+                                            001, {field.value || "EMP"}
+                                            002). Only affects newly created employees.
+                                        </FormDescription>
+                                        <FormControl>
+                                            <Input
+                                                type="text"
+                                                maxLength={20}
+                                                placeholder="EMP"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
 
                     {/* Mobile Attendance Settings */}
                     <Card>

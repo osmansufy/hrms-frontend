@@ -5,6 +5,7 @@ export interface SystemSettings {
   leaveDeductionDay: number;
   allowMobileAttendance: boolean;
   captureEmployeeLocation: boolean;
+  employeeIdPrefix: string;
   createdAt: string;
   updatedAt: string;
   updatedBy: string | null;
@@ -14,6 +15,7 @@ export interface UpdateSystemSettingsPayload {
   leaveDeductionDay?: number;
   allowMobileAttendance?: boolean;
   captureEmployeeLocation?: boolean;
+  employeeIdPrefix?: string;
 }
 
 export const systemSettingsApi = {
