@@ -18,12 +18,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useManagerPendingLeaves, useManagerApproveLeave, useManagerRejectLeave } from "@/lib/queries/leave";
-import { AlertCircle, Check, Loader2, X, User, CheckSquare } from "lucide-react";
-import { useState } from "react";
+import { useManagerPendingLeaves, useManagerApproveLeave, useManagerRejectLeave, useAllUsersBalances } from "@/lib/queries/leave";
+import { AlertCircle, Check, Loader2, X, User, CheckSquare, History } from "lucide-react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { bulkApproveLeaves, bulkRejectLeaves } from "@/lib/api/leave";
+import { EmployeeLeaveHistoryDialog } from "@/components/employee-leave-history-dialog";
 
 import { formatDateInDhaka } from "@/lib/utils";
 
@@ -35,11 +36,33 @@ function formatDate(dateString: string) {
 export function PendingApprovalsTab() {
     const queryClient = useQueryClient();
     const { data: pendingLeaves, isLoading } = useManagerPendingLeaves();
+    const { data: allBalances } = useAllUsersBalances();
     const approveMutation = useManagerApproveLeave();
     const rejectMutation = useManagerRejectLeave();
     const [selectedLeave, setSelectedLeave] = useState<{ id: string; action: "approve" | "reject"; employeeName: string } | null>(null);
     const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
     const [showBulkConfirm, setShowBulkConfirm] = useState<{ action: "approve" | "reject" } | null>(null);
+    const [viewHistoryFor, setViewHistoryFor] = useState<{ userId: string; employeeName: string } | null>(null);
+
+    // Create a map of userId + leaveTypeId -> balance for quick lookup
+    const balanceMap = useMemo(() => {
+        const map = new Map<string, number>();
+        if (allBalances) {
+            allBalances.forEach((balance) => {
+                const key = `${balance.userId}-${balance.leaveTypeId}`;
+                const available = typeof balance.available === 'number' ? balance.available : Number(balance.available) || 0;
+                map.set(key, available);
+            });
+        }
+        return map;
+    }, [allBalances]);
+
+    // Helper function to get balance for a specific leave
+    const getLeaveBalance = (userId: string, leaveTypeId: string): number | null => {
+        const key = `${userId}-${leaveTypeId}`;
+        const balance = balanceMap.get(key);
+        return balance !== undefined ? balance : null;
+    };
 
     const bulkApproveMutation = useMutation({
         mutationFn: (leaveIds: string[]) => bulkApproveLeaves(leaveIds),
@@ -243,6 +266,7 @@ export function PendingApprovalsTab() {
                                             </TableHead>
                                             <TableHead>Employee</TableHead>
                                             <TableHead>Leave Type</TableHead>
+                                            <TableHead>Balance</TableHead>
                                             <TableHead>Dates</TableHead>
                                             <TableHead>Duration</TableHead>
                                             <TableHead>Reason</TableHead>
@@ -260,6 +284,10 @@ export function PendingApprovalsTab() {
                                             const employeeName = leave?.employee
                                                 ? `${leave?.employee?.firstName} ${leave?.employee?.lastName}`
                                                 : "Unknown";
+                                            const balance = leave.user?.id && leave.leaveTypeId 
+                                                ? getLeaveBalance(leave.user.id, leave.leaveTypeId)
+                                                : null;
+                                            const hasInsufficientBalance = balance !== null && duration > balance;
 
                                             return (
                                                 <TableRow key={leave.id}>
@@ -279,6 +307,22 @@ export function PendingApprovalsTab() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge variant="outline">{leave.leaveType?.name || "N/A"}</Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {balance !== null && typeof balance === 'number' ? (
+                                                            <div className="flex flex-col">
+                                                                <span className={hasInsufficientBalance ? "font-semibold text-red-600" : "font-medium"}>
+                                                                    {balance.toFixed(1)} days
+                                                                </span>
+                                                                {hasInsufficientBalance && (
+                                                                    <span className="text-xs text-red-500 mt-0.5">
+                                                                        Insufficient
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted-foreground text-sm">—</span>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell>
                                                         <div className="text-sm">
@@ -301,6 +345,20 @@ export function PendingApprovalsTab() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
+                                                            {leave.user?.id && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-muted-foreground hover:text-foreground"
+                                                                    onClick={() => setViewHistoryFor({
+                                                                        userId: leave.user.id,
+                                                                        employeeName
+                                                                    })}
+                                                                    title="View leave history"
+                                                                >
+                                                                    <History className="size-4" />
+                                                                </Button>
+                                                            )}
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
@@ -457,6 +515,16 @@ export function PendingApprovalsTab() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Leave History Dialog */}
+            {viewHistoryFor && (
+                <EmployeeLeaveHistoryDialog
+                    open={!!viewHistoryFor}
+                    onOpenChange={(open) => !open && setViewHistoryFor(null)}
+                    userId={viewHistoryFor.userId}
+                    employeeName={viewHistoryFor.employeeName}
+                />
             )}
         </>
     );

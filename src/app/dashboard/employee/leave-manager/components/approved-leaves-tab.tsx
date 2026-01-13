@@ -16,8 +16,11 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { useManagerApprovedLeaves } from "@/lib/queries/leave";
-import { AlertCircle, Clock, Loader2, User } from "lucide-react";
+import { useManagerApprovedLeaves, useAllUsersBalances } from "@/lib/queries/leave";
+import { AlertCircle, Clock, Loader2, User, History } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { EmployeeLeaveHistoryDialog } from "@/components/employee-leave-history-dialog";
 
 import { formatDateInDhaka } from "@/lib/utils";
 
@@ -28,6 +31,28 @@ function formatDate(dateString: string) {
 
 export function ApprovedLeavesTab() {
     const { data: approvedLeaves, isLoading } = useManagerApprovedLeaves();
+    const { data: allBalances } = useAllUsersBalances();
+    const [viewHistoryFor, setViewHistoryFor] = useState<{ userId: string; employeeName: string } | null>(null);
+
+    // Create a map of userId + leaveTypeId -> balance for quick lookup
+    const balanceMap = useMemo(() => {
+        const map = new Map<string, number>();
+        if (allBalances) {
+            allBalances.forEach((balance) => {
+                const key = `${balance.userId}-${balance.leaveTypeId}`;
+                const available = typeof balance.available === 'number' ? balance.available : Number(balance.available) || 0;
+                map.set(key, available);
+            });
+        }
+        return map;
+    }, [allBalances]);
+
+    // Helper function to get balance for a specific leave
+    const getLeaveBalance = (userId: string, leaveTypeId: string): number | null => {
+        const key = `${userId}-${leaveTypeId}`;
+        const balance = balanceMap.get(key);
+        return balance !== undefined ? balance : null;
+    };
 
     if (isLoading) {
         return (
@@ -76,11 +101,13 @@ export function ApprovedLeavesTab() {
                                     <TableRow>
                                         <TableHead>Employee</TableHead>
                                         <TableHead>Leave Type</TableHead>
+                                        <TableHead>Balance</TableHead>
                                         <TableHead>Dates</TableHead>
                                         <TableHead>Duration</TableHead>
                                         <TableHead>Reason</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Your Approval</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -93,6 +120,10 @@ export function ApprovedLeavesTab() {
                                         const employeeName = leave.user.employee
                                             ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
                                             : "Unknown";
+                                        const balance = leave.user?.id && leave.leaveTypeId 
+                                            ? getLeaveBalance(leave.user.id, leave.leaveTypeId)
+                                            : null;
+                                        const hasInsufficientBalance = balance !== null && duration > balance;
 
                                         // Find Step 1 approval
                                         const step1Approval = leave.approvals?.find((approval) => approval.step === 1);
@@ -107,6 +138,22 @@ export function ApprovedLeavesTab() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline">{leave.leaveType?.name || "N/A"}</Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {balance !== null && typeof balance === 'number' ? (
+                                                        <div className="flex flex-col">
+                                                            <span className={hasInsufficientBalance ? "font-semibold text-red-600" : "font-medium"}>
+                                                                {balance.toFixed(1)} days
+                                                            </span>
+                                                            {hasInsufficientBalance && (
+                                                                <span className="text-xs text-red-500 mt-0.5">
+                                                                    Insufficient
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-sm">—</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="text-sm">
@@ -142,6 +189,22 @@ export function ApprovedLeavesTab() {
                                                         <span className="text-sm text-muted-foreground">-</span>
                                                     )}
                                                 </TableCell>
+                                                <TableCell className="text-right">
+                                                    {leave.user?.id && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-muted-foreground hover:text-foreground"
+                                                            onClick={() => setViewHistoryFor({
+                                                                userId: leave.user.id,
+                                                                employeeName
+                                                            })}
+                                                            title="View leave history"
+                                                        >
+                                                            <History className="size-4" />
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
                                             </TableRow>
                                         );
                                     })}
@@ -157,6 +220,16 @@ export function ApprovedLeavesTab() {
                     </div>
                 )}
             </CardContent>
+
+            {/* Leave History Dialog */}
+            {viewHistoryFor && (
+                <EmployeeLeaveHistoryDialog
+                    open={!!viewHistoryFor}
+                    onOpenChange={(open) => !open && setViewHistoryFor(null)}
+                    userId={viewHistoryFor.userId}
+                    employeeName={viewHistoryFor.employeeName}
+                />
+            )}
         </Card>
     );
 }
