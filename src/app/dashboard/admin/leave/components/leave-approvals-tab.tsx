@@ -56,25 +56,8 @@ export function LeaveApprovalsTab() {
         overrideReason: "",
     });
 
-    // Create a map of userId + leaveTypeId -> balance for quick lookup
-    const balanceMap = useMemo(() => {
-        const map = new Map<string, number>();
-        if (allBalances) {
-            allBalances.forEach((balance) => {
-                const key = `${balance.userId}-${balance.leaveTypeId}`;
-                const available = typeof balance.available === 'number' ? balance.available : Number(balance.available) || 0;
-                map.set(key, available);
-            });
-        }
-        return map;
-    }, [allBalances]);
 
-    // Helper function to get balance for a specific leave
-    const getLeaveBalance = (userId: string, leaveTypeId: string): number | null => {
-        const key = `${userId}-${leaveTypeId}`;
-        const balance = balanceMap.get(key);
-        return balance !== undefined ? balance : null;
-    };
+
 
     const handleApprove = async (id: string) => {
         try {
@@ -223,10 +206,12 @@ export function LeaveApprovalsTab() {
                                             const duration = Math.ceil(
                                                 (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
                                             ) + 1;
-                                            const balance = leave.user?.id && leave.leaveTypeId
-                                                ? getLeaveBalance(leave.user.id, leave.leaveTypeId)
-                                                : null;
-                                            const hasInsufficientBalance = balance !== null && duration > balance;
+                                            // Use balance from leave record if available, otherwise fall back to balanceMap
+                                            const balance = leave?.leaveBalance?.available !== undefined
+                                                ? Number(leave.leaveBalance.available)
+                                                : 0;
+
+                                            const hasInsufficientBalance = balance !== 0 && duration > balance;
 
                                             return (
                                                 <TableRow key={leave.id}>

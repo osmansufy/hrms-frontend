@@ -11,6 +11,7 @@ import { apiClient } from "@/lib/api/client";
 import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTimezone } from "@/contexts/timezone-context";
 
 interface AttendanceReconciliationRequest {
     id: string;
@@ -32,6 +33,7 @@ interface AttendanceReconciliationRequest {
 
 export default function AttendanceReconciliationEmployeePage() {
     const { session } = useSession();
+    const { timezone } = useTimezone();
     const userId = session?.user?.email;
     const [refresh, setRefresh] = useState(0);
     const [form, setForm] = useState({
@@ -42,6 +44,22 @@ export default function AttendanceReconciliationEmployeePage() {
         reason: "",
     });
     const [submitting, setSubmitting] = useState(false);
+
+    // Helper to get timezone offset in hours (simplified - works for most cases)
+    const getTimezoneOffsetHours = (tz: string): number => {
+        const offsets: Record<string, number> = {
+            "Asia/Dhaka": 6,
+            "Asia/Kolkata": 5.5,
+            "Asia/Karachi": 5,
+            "Asia/Dubai": 4,
+            "America/New_York": -5,
+            "America/Chicago": -6,
+            "America/Los_Angeles": -8,
+            "Europe/London": 0,
+            "Europe/Paris": 1,
+        };
+        return offsets[tz] ?? 6;
+    };
 
     // Fetch employee's own reconciliation requests
     const { data, isLoading } = useQuery<AttendanceReconciliationRequest[]>({
@@ -59,20 +77,26 @@ export default function AttendanceReconciliationEmployeePage() {
         if (!userId || !form.date || !form.reason) return;
         setSubmitting(true);
         try {
-            // Properly construct datetime in Asia/Dhaka timezone and convert to UTC ISO string
+            // Properly construct datetime in system timezone and convert to UTC ISO string
             let requestedSignIn: string | undefined;
             let requestedSignOut: string | undefined;
 
+            const offsetHours = getTimezoneOffsetHours(timezone);
+            const offsetSign = offsetHours >= 0 ? "+" : "-";
+            const offsetHoursAbs = Math.abs(offsetHours);
+            const offsetMins = Math.abs((offsetHours % 1) * 60);
+            const offsetStr = `${offsetSign}${String(offsetHoursAbs).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`;
+
             if (form.type === "SIGN_IN" && form.requestedSignIn) {
-                // Create date in Dhaka timezone (UTC+6)
-                const dateTimeStr = `${form.date}T${form.requestedSignIn}:00+06:00`;
+                // Create date in system timezone
+                const dateTimeStr = `${form.date}T${form.requestedSignIn}:00${offsetStr}`;
                 const date = new Date(dateTimeStr);
                 requestedSignIn = date.toISOString();
             }
 
             if (form.type === "SIGN_OUT" && form.requestedSignOut) {
-                // Create date in Dhaka timezone (UTC+6)
-                const dateTimeStr = `${form.date}T${form.requestedSignOut}:00+06:00`;
+                // Create date in system timezone
+                const dateTimeStr = `${form.date}T${form.requestedSignOut}:00${offsetStr}`;
                 const date = new Date(dateTimeStr);
                 requestedSignOut = date.toISOString();
             }

@@ -146,7 +146,7 @@ export function getLeaveStatusColor(status: string): {
   }
 }
 
-import { formatInDhakaTimezone, APP_TIMEZONE } from "../utils";
+import { formatInDhakaTimezone } from "../utils";
 
 /**
  * Get weekday names

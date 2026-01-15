@@ -27,6 +27,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     useSystemSettings,
     useUpdateSystemSettings,
     useRebuildEmployeeCodes,
@@ -46,6 +53,10 @@ const schema = z.object({
         .string()
         .min(1, "Prefix is required")
         .max(20, "Prefix must not exceed 20 characters"),
+    timezone: z
+        .string()
+        .min(1, "Timezone is required")
+        .regex(/^[A-Za-z_]+\/[A-Za-z_]+$/, "Must be a valid IANA timezone (e.g., Asia/Dhaka)"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -62,6 +73,7 @@ export default function SystemSettingsPage() {
             allowMobileAttendance: false,
             captureEmployeeLocation: true,
             employeeIdPrefix: "EMP",
+            timezone: "Asia/Dhaka",
         },
     });
 
@@ -73,6 +85,7 @@ export default function SystemSettingsPage() {
                 allowMobileAttendance: settings.allowMobileAttendance,
                 captureEmployeeLocation: settings.captureEmployeeLocation,
                 employeeIdPrefix: settings.employeeIdPrefix,
+                timezone: settings.timezone || "Asia/Dhaka",
             });
         }
     }, [settings, form]);
@@ -184,6 +197,60 @@ export default function SystemSettingsPage() {
                             />
                         </CardContent>
                     </Card>
+
+                    <Separator />
+
+                    {/* Timezone Settings */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Timezone</CardTitle>
+                            <CardDescription>
+                                Set the timezone used across the application for displaying dates and times
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="timezone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>System Timezone</FormLabel>
+                                        <FormDescription>
+                                            All dates and times will be displayed in this timezone. Use IANA timezone format.
+                                            <br />
+                                            Common options: Asia/Dhaka, Asia/Kolkata, America/New_York, Europe/London
+                                        </FormDescription>
+                                        <FormControl>
+                                            <Input
+                                                type="text"
+                                                placeholder="e.g., Asia/Dhaka"
+                                                {...field}
+                                                list="timezone-options"
+                                            />
+                                        </FormControl>
+                                        <datalist id="timezone-options">
+                                            <option value="Asia/Dhaka">Asia/Dhaka (UTC+6)</option>
+                                            <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30)</option>
+                                            <option value="Asia/Karachi">Asia/Karachi (UTC+5)</option>
+                                            <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
+                                            <option value="Asia/Bangkok">Asia/Bangkok (UTC+7)</option>
+                                            <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
+                                            <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+                                            <option value="America/New_York">America/New_York (UTC-5)</option>
+                                            <option value="America/Chicago">America/Chicago (UTC-6)</option>
+                                            <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+                                            <option value="Europe/London">Europe/London (UTC+0)</option>
+                                            <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+                                            <option value="Australia/Sydney">Australia/Sydney (UTC+11)</option>
+                                        </datalist>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Separator />
 
                     {/* Mobile Attendance Settings */}
                     <Card>

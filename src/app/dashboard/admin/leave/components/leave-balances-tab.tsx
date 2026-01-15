@@ -64,6 +64,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import { useTimezone } from "@/contexts/timezone-context";
 // Format numbers to whole numbers (no decimals)
 const formatDays = (value: number) =>
     new Intl.NumberFormat(undefined, {
@@ -111,6 +112,7 @@ interface GroupedBalance {
 
 export function LeaveBalancesTab() {
     const currentYear = new Date().getUTCFullYear();
+    const { timezone } = useTimezone();
     const [page, setPage] = useState(1);
     const [pageSize] = useState(20);
     const [search, setSearch] = useState("");
@@ -163,7 +165,7 @@ export function LeaveBalancesTab() {
                 leaveTypeId: leaveTypeId || undefined,
                 departmentId: departmentId || undefined,
             });
-            downloadCSV(blob, `leave_balances_${year}.csv`);
+            downloadCSV(blob, `leave_balances_${year}.csv`, timezone);
             toast.success("Export downloaded successfully");
         } catch (error) {
             toast.error("Failed to export balances");

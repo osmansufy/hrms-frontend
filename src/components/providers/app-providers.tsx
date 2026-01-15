@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SessionProvider } from "@/components/auth/session-provider";
+import { TimezoneProvider } from "@/contexts/timezone-context";
 
 type Props = {
   children: ReactNode;
@@ -34,8 +35,10 @@ export function AppProviders({ children }: Props) {
     >
       <QueryClientProvider client={queryClient}>
         <SessionProvider>
-          {children}
-          <Toaster richColors />
+          <TimezoneProvider>
+            {children}
+            <Toaster richColors />
+          </TimezoneProvider>
         </SessionProvider>
       </QueryClientProvider>
     </ThemeProvider>

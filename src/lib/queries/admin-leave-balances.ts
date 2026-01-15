@@ -134,11 +134,11 @@ export function useExportBalances() {
  * @param blob - CSV blob from export API
  * @param filename - Optional filename (defaults to dated filename)
  */
-export function downloadCSV(blob: Blob, filename?: string) {
-  // Use Asia/Dhaka timezone for consistent filename dates
+export function downloadCSV(blob: Blob, filename?: string, timezone: string = "Asia/Dhaka") {
+  // Use system timezone for consistent filename dates
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-CA", {
-    timeZone: "Asia/Dhaka",
+    timeZone: timezone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

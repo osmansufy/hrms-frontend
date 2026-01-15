@@ -235,6 +235,15 @@ export type LeaveWithApprovals = LeaveRecord & {
       employeeCode: string;
     };
   };
+  leaveBalance?: {
+    available: number;
+    used: number;
+    accrued: number;
+    openingBalance: number;
+    carried: number;
+    adjusted: number;
+    lapsed: number;
+  };
 };
 
 export type CreateLeavePolicyPayload = {

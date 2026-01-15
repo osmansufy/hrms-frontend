@@ -6,6 +6,7 @@ export interface SystemSettings {
   allowMobileAttendance: boolean;
   captureEmployeeLocation: boolean;
   employeeIdPrefix: string;
+  timezone: string;
   createdAt: string;
   updatedAt: string;
   updatedBy: string | null;
@@ -16,6 +17,7 @@ export interface UpdateSystemSettingsPayload {
   allowMobileAttendance?: boolean;
   captureEmployeeLocation?: boolean;
   employeeIdPrefix?: string;
+  timezone?: string;
 }
 
 export const systemSettingsApi = {

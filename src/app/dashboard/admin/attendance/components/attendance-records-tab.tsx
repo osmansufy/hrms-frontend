@@ -7,6 +7,7 @@ import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
 import { toStartOfDayISO, toEndOfDayISO, formatTimeInDhaka, formatDateInDhaka } from "@/lib/utils";
 import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePresets";
+import { useTimezone } from "@/contexts/timezone-context";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -497,11 +498,27 @@ function formatTime(isoString?: string | null) {
 
 function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
     const [open, setOpen] = useState(false);
-    const [signIn, setSignIn] = useState(record.signIn ? new Date(record.signIn).toTimeString().slice(0, 5) : "");
-    const [signOut, setSignOut] = useState(record.signOut ? new Date(record.signOut).toTimeString().slice(0, 5) : "");
-    const [isLate, setIsLate] = useState(record.isLate);
-
+    const { timezone: systemTimezone } = useTimezone();
+    // Prefer the record's stored timezone if present, fallback to system timezone
+    const recordTimezone = record.timezone || systemTimezone;
     const updateMutation = useUpdateAttendanceRecord();
+
+    // Convert UTC times from DB to record's timezone for input fields
+    const getLocalTime = (utcIsoString?: string | null): string => {
+        if (!utcIsoString) return "";
+        const date = new Date(utcIsoString);
+        // Format as HH:MM in record's timezone
+        return date.toLocaleTimeString("en-US", {
+            timeZone: recordTimezone,
+            hour12: false,
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    };
+
+    const [signIn, setSignIn] = useState(getLocalTime(record.signIn));
+    const [signOut, setSignOut] = useState(getLocalTime(record.signOut));
+    const [isLate, setIsLate] = useState(record.isLate);
 
     const handleSave = async () => {
         try {
@@ -511,25 +528,82 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
                 return;
             }
 
-            // Use the record's date (attendance date) as the base date for both sign-in and sign-out
-            // This ensures both times are on the same calendar day
-            const datePart = record.date ? record.date.split("T")[0] : new Date().toISOString().split("T")[0];
+            // Use the record's date (attendance date) as the base date for sign-in
+            // NOTE: record.date is stored as a UTC instant representing local midnight.
+            // We must derive the local calendar day in the record's timezone,
+            // not just split the raw ISO string, otherwise +offset zones (e.g. Asia/Dhaka)
+            // will appear as the previous UTC day.
+            const baseDate = record.date ? new Date(record.date) : new Date();
+            const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+                timeZone: recordTimezone,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            });
+            const datePart = dateFormatter.format(baseDate); // YYYY-MM-DD in record's local timezone
             const [year, month, day] = datePart.split("-").map(Number);
 
-            // Parse time strings (HH:MM format)
+            // Parse time strings (HH:MM format) - these are in record's timezone
             const [signInHour, signInMin] = signIn.split(":").map(Number);
-            const signInDate = new Date(Date.UTC(year, month - 1, day, signInHour, signInMin));
+
+            // Helper function to convert local time (in record's timezone) to UTC
+            // Uses Intl API to get timezone offset and convert properly
+            const localToUTC = (y: number, m: number, d: number, h: number, min: number): Date => {
+                // Create a test UTC date at the target date/time
+                const testUTC = new Date(Date.UTC(y, m - 1, d, h, min, 0, 0));
+
+                // Format this UTC date in the target timezone
+                const formatter = new Intl.DateTimeFormat("en-US", {
+                    timeZone: recordTimezone,
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                });
+
+                const parts = formatter.formatToParts(testUTC);
+                const localTime = {
+                    hour: parseInt(parts.find(p => p.type === "hour")?.value || "0"),
+                    minute: parseInt(parts.find(p => p.type === "minute")?.value || "0"),
+                };
+
+                // Calculate the difference
+                const hourDiff = h - localTime.hour;
+                const minDiff = min - localTime.minute;
+                const totalDiffMinutes = hourDiff * 60 + minDiff;
+
+                // Adjust the UTC date
+                const result = new Date(testUTC);
+                result.setUTCMinutes(result.getUTCMinutes() + totalDiffMinutes);
+
+                return result;
+            };
+
+            const signInDate = localToUTC(year, month, day, signInHour, signInMin);
             const signInIso = signInDate.toISOString();
 
-            // If sign-out is provided, validate it's on the same date and after sign-in
+            // If sign-out is provided, handle both same-day and night shift scenarios
             let signOutIso = null;
             if (signOut) {
                 const [signOutHour, signOutMin] = signOut.split(":").map(Number);
-                const signOutDate = new Date(Date.UTC(year, month - 1, day, signOutHour, signOutMin));
 
-                // Validate sign-out is after sign-in on the same day
-                if (signOutDate <= signInDate) {
-                    toast.error("Sign-out time must be after sign-in time on the same day");
+                // First, try sign-out on the same day (convert from record's timezone to UTC)
+                let signOutDate = localToUTC(year, month, day, signOutHour, signOutMin);
+
+                // If sign-out time is earlier than sign-in time, it might be a night shift (next day)
+                // Only allow next-day if sign-out is early morning (before 8 AM) - indicates night shift
+                const NIGHT_SHIFT_CUTOFF_HOUR = 8; // 8 AM
+                if (signOutDate <= signInDate && signOutHour < NIGHT_SHIFT_CUTOFF_HOUR) {
+                    // Night shift: sign-out is on the next day
+                    // Use proper date arithmetic to handle month/year boundaries (in local calendar)
+                    // We increment the local calendar day by 1 and convert that local time to UTC.
+                    const nextDayDate = localToUTC(year, month, day + 1, signOutHour, signOutMin);
+                    signOutDate = nextDayDate;
+                } else if (signOutDate <= signInDate) {
+                    // Sign-out is before sign-in on same day - invalid
+                    toast.error("Sign-out time must be after sign-in time");
                     return;
                 }
 

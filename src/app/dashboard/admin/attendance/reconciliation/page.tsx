@@ -15,6 +15,7 @@ import { apiClient } from "@/lib/api/client";
 import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
 import { toast } from "sonner";
 import { useDepartments } from "@/lib/queries/departments";
+import { useTimezone } from "@/contexts/timezone-context";
 
 // Types for reconciliation requests
 interface AttendanceReconciliationRequest {
@@ -47,6 +48,7 @@ interface AttendanceReconciliationRequest {
 export default function AttendanceReconciliationAdminPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
+    const { timezone } = useTimezone();
     const [editingRequest, setEditingRequest] = useState<AttendanceReconciliationRequest | null>(null);
     const [correctedTime, setCorrectedTime] = useState("");
     const [reviewerComment, setReviewerComment] = useState("");
@@ -56,6 +58,23 @@ export default function AttendanceReconciliationAdminPage() {
 
     // Fetch departments
     const { data: departments } = useDepartments();
+
+    // Helper to get timezone offset in hours (simplified - works for most cases)
+    const getTimezoneOffsetHours = (tz: string): number => {
+        // Common timezones - can be expanded
+        const offsets: Record<string, number> = {
+            "Asia/Dhaka": 6,
+            "Asia/Kolkata": 5.5,
+            "Asia/Karachi": 5,
+            "Asia/Dubai": 4,
+            "America/New_York": -5,
+            "America/Chicago": -6,
+            "America/Los_Angeles": -8,
+            "Europe/London": 0,
+            "Europe/Paris": 1,
+        };
+        return offsets[tz] ?? 6; // Default to +6 if unknown
+    };
 
     // Fetch all reconciliation requests (admin/HR)
     const { data, isLoading } = useQuery<AttendanceReconciliationRequest[]>({
@@ -169,17 +188,18 @@ export default function AttendanceReconciliationAdminPage() {
 
     const handleEditAndApprove = (req: AttendanceReconciliationRequest) => {
         setEditingRequest(req);
-        // Pre-fill with employee's requested time - convert UTC to Asia/Dhaka local time
+        // Pre-fill with employee's requested time - convert UTC to system timezone local time
+        const offsetHours = getTimezoneOffsetHours(timezone);
         if (req.type === "SIGN_IN" && req.requestedSignIn) {
             const utcDate = new Date(req.requestedSignIn);
-            // Convert UTC to Asia/Dhaka (UTC+6) for datetime-local input
-            const dhakaTime = new Date(utcDate.getTime() + (6 * 60 * 60 * 1000));
-            setCorrectedTime(dhakaTime.toISOString().slice(0, 16));
+            // Convert UTC to system timezone for datetime-local input
+            const localTime = new Date(utcDate.getTime() + (offsetHours * 60 * 60 * 1000));
+            setCorrectedTime(localTime.toISOString().slice(0, 16));
         } else if (req.type === "SIGN_OUT" && req.requestedSignOut) {
             const utcDate = new Date(req.requestedSignOut);
-            // Convert UTC to Asia/Dhaka (UTC+6) for datetime-local input
-            const dhakaTime = new Date(utcDate.getTime() + (6 * 60 * 60 * 1000));
-            setCorrectedTime(dhakaTime.toISOString().slice(0, 16));
+            // Convert UTC to system timezone for datetime-local input
+            const localTime = new Date(utcDate.getTime() + (offsetHours * 60 * 60 * 1000));
+            setCorrectedTime(localTime.toISOString().slice(0, 16));
         } else {
             setCorrectedTime("");
         }
@@ -203,10 +223,15 @@ export default function AttendanceReconciliationAdminPage() {
         let correctedSignIn: string | undefined;
         let correctedSignOut: string | undefined;
 
-        // Add corrected time if provided - convert from Asia/Dhaka to UTC
+        // Add corrected time if provided - convert from system timezone to UTC
         if (correctedTime) {
-            // datetime-local gives us local time, we need to specify it's Asia/Dhaka (+06:00)
-            const dateTimeWithTz = correctedTime + ":00+06:00";
+            // datetime-local gives us local time, we need to specify it's in the system timezone
+            const offsetHours = getTimezoneOffsetHours(timezone);
+            const offsetSign = offsetHours >= 0 ? "+" : "-";
+            const offsetHoursAbs = Math.abs(offsetHours);
+            const offsetMins = Math.abs((offsetHours % 1) * 60);
+            const offsetStr = `${offsetSign}${String(offsetHoursAbs).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`;
+            const dateTimeWithTz = correctedTime + ":00" + offsetStr;
             const correctedDate = new Date(dateTimeWithTz);
 
             if (editingRequest.type === "SIGN_IN") {

@@ -846,11 +846,7 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* Leave Deduction Records */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Leave Records</h2>
-        <LeaveDeductionRecords />
-      </div>
+
 
       {/* Late Attendance Modals */}
       <LateAttendanceWarningModal
