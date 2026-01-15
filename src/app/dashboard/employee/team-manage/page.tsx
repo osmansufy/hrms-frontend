@@ -8,23 +8,26 @@ import Link from "next/link";
 import {
     PendingApprovalsTab,
     ApprovedLeavesTab,
-    TeamCalendarTab
+    TeamCalendarTab,
+    AttendanceTab,
+    TeamMembersTab
 } from "./components";
-import { useManagerPendingLeaves } from "@/lib/queries/leave";
 
-export default function LeaveManagerPage() {
-    // Check if user has subordinates by attempting to fetch pending leaves
-    const { data: pendingLeaves, isLoading, error } = useManagerPendingLeaves();
+import { useManagerSubordinates } from "@/lib/queries/employees";
+
+export default function TeamManagePage() {
+    // get manager subordinates
+    const { data: managerSubordinates, isLoading: isManagerSubordinatesLoading, error: isManagerSubordinatesError } = useManagerSubordinates();
 
     // If error indicates no subordinates or not a manager
-    if (error && !isLoading) {
+    if (isManagerSubordinatesError && !isManagerSubordinatesLoading && !managerSubordinates) {
         return (
             <div className="container space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                        <h1 className="text-2xl font-semibold tracking-tight">Team Leave Management</h1>
+                        <h1 className="text-2xl font-semibold tracking-tight">Team Management</h1>
                         <p className="text-sm text-muted-foreground">
-                            Manage leave requests from your team members
+                            Manage your team members
                         </p>
                     </div>
                     <Users className="size-8 text-primary" />
@@ -37,7 +40,7 @@ export default function LeaveManagerPage() {
                             <div>
                                 <CardTitle>No Team Members Found</CardTitle>
                                 <CardDescription className="mt-2">
-                                    You don't have any team members reporting to you, or you're not assigned as a line manager.
+                                    You don't have any team members reporting to you.
                                     <br />
                                     Contact your HR department if you believe this is an error.
                                 </CardDescription>
@@ -60,9 +63,9 @@ export default function LeaveManagerPage() {
         <div className="container space-y-6">
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold tracking-tight">Team Leave Management</h1>
+                    <h1 className="text-2xl font-semibold tracking-tight">Team Management</h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage leave requests from your team members
+                        Manage your team members
                     </p>
                 </div>
                 <Users className="size-8 text-primary" />
@@ -82,6 +85,23 @@ export default function LeaveManagerPage() {
                         <Users className="size-4" />
                         Team Calendar
                     </TabsTrigger>
+                    {/* Divider */}
+
+                </TabsList>
+                {/* Divider */}
+                <div className="w-full h-[1px] bg-muted" />
+                {/* Attendance Tab list */}
+                <TabsList className="grid w-full grid-cols-3">
+                    {/* if manager has subordinates, show attendance tab */}
+
+                    <TabsTrigger value="subordinates" className="flex items-center gap-2">
+                        <Users className="size-4" />
+                        Team Members
+                    </TabsTrigger>
+                    <TabsTrigger value="attendance" className="flex items-center gap-2">
+                        <Clock className="size-4" />
+                        Attendance History
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="pending" className="space-y-4">
@@ -94,6 +114,12 @@ export default function LeaveManagerPage() {
 
                 <TabsContent value="calendar" className="space-y-4">
                     <TeamCalendarTab />
+                </TabsContent>
+                <TabsContent value="subordinates" className="space-y-4">
+                    <TeamMembersTab />
+                </TabsContent>
+                <TabsContent value="attendance" className="space-y-4">
+                    <AttendanceTab />
                 </TabsContent>
             </Tabs>
         </div>

@@ -67,8 +67,8 @@ const EMPLOYEE_NAV: NavItem[] = [
     permissions: ["leave.request"],
   },
   {
-    href: "/dashboard/employee/leave-manager",
-    label: "Team Leave",
+    href: "/dashboard/employee/team-manage",
+    label: "Team Management",
     icon: Users,
     roles: ["employee", "admin", "super-admin"],
     permissions: ["leave.request"], // Show to all employees; page will check if they have subordinates

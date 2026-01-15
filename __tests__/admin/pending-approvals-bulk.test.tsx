@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import PendingApprovalsTab from "@/app/dashboard/employee/leave-manager/components/pending-approvals-tab";
+import PendingApprovalsTab from "@/app/dashboard/employee/team-manage/components/pending-approvals-tab";
 import * as leaveQueries from "@/lib/queries/leave";
 
 // Mock leave queries

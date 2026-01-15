@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api/client";
 
 export type ApiEmployeeUser = {
   id: string;
+  name: string;
   email: string;
   status?: string;
   roleAssignments?: Array<{

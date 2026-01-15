@@ -495,3 +495,38 @@ export async function getMonthlyLateCount(
   );
   return response.data;
 }
+
+// get employee's monthly attendance summary
+export async function getEmployeeMonthlySummary(
+  userId: string,
+  year: number,
+  month: number
+) {
+  const response = await apiClient.get<{
+    totalPresentDays: number;
+    totalLateDays: number;
+    totalAbsentDays: number;
+    totalOnLeaveDays: number;
+    totalWorkingDays: number;
+    totalLostHours: number;
+    totalOvertimeHours: number;
+  }>(`/attendance/admin/employee/${userId}/monthly-summary`, {
+    params: { year, month },
+  });
+  return response.data;
+}
+
+// Attendance History for line manager
+export async function getManagerAttendanceRecords(
+  userId: string,
+  params: AttendanceListParams
+) {
+  const response = await apiClient.get<{
+    data: ExtendedAttendanceRecord[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/attendance/manager/${userId}/records`, { params });
+  return response.data;
+}

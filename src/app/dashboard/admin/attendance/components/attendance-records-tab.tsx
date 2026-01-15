@@ -134,28 +134,12 @@ export function AttendanceRecordsTab() {
         return date.getMonth() + 1; // getMonth() returns 0-11, we need 1-12
     }, [dateRange.startDate]);
 
-    // Only show monthly summary if the date range spans a single month
-    const showMonthlySummary = useMemo(() => {
-        const start = new Date(dateRange.startDate);
-        const end = new Date(dateRange.endDate);
-        return (
-            start.getFullYear() === end.getFullYear() &&
-            start.getMonth() === end.getMonth()
-        );
-    }, [dateRange.startDate, dateRange.endDate]);
+
 
     return (
         <>
             <div className="space-y-4">
-                {/* Monthly Summary Card */}
-                {showMonthlySummary && (
-                    <MonthlySummaryCard
-                        year={summaryYear}
-                        month={summaryMonth}
-                        departmentId={departmentId === "all" ? undefined : departmentId}
-                        userId={employeeId === "all" ? undefined : employeeId}
-                    />
-                )}
+
 
                 {/* Date Range Quick Filters */}
                 <Card>
@@ -521,22 +505,43 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
 
     const handleSave = async () => {
         try {
-            // Construct ISO strings
+            // Validate sign-in is provided
+            if (!signIn) {
+                toast.error("Sign-in time is required");
+                return;
+            }
+
+            // Use the record's date (attendance date) as the base date for both sign-in and sign-out
+            // This ensures both times are on the same calendar day
             const datePart = record.date ? record.date.split("T")[0] : new Date().toISOString().split("T")[0];
+            const [year, month, day] = datePart.split("-").map(Number);
 
-            // If signIn is empty/null, we might need to handle it or error out. 
-            // Assuming this dialog is only used for existing records with sign-in, or we allow setting it.
-            if (!signIn) return;
+            // Parse time strings (HH:MM format)
+            const [signInHour, signInMin] = signIn.split(":").map(Number);
+            const signInDate = new Date(Date.UTC(year, month - 1, day, signInHour, signInMin));
+            const signInIso = signInDate.toISOString();
 
-            const baseDate = record.signIn ? new Date(record.signIn) : new Date(datePart);
-            const signInIso = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(),
-                parseInt(signIn.split(":")[0]), parseInt(signIn.split(":")[1])).toISOString();
-
+            // If sign-out is provided, validate it's on the same date and after sign-in
             let signOutIso = null;
             if (signOut) {
-                const signOutDate = record.signOut ? new Date(record.signOut) : baseDate;
-                signOutIso = new Date(signOutDate.getFullYear(), signOutDate.getMonth(), signOutDate.getDate(),
-                    parseInt(signOut.split(":")[0]), parseInt(signOut.split(":")[1])).toISOString();
+                const [signOutHour, signOutMin] = signOut.split(":").map(Number);
+                const signOutDate = new Date(Date.UTC(year, month - 1, day, signOutHour, signOutMin));
+
+                // Validate sign-out is after sign-in on the same day
+                if (signOutDate <= signInDate) {
+                    toast.error("Sign-out time must be after sign-in time on the same day");
+                    return;
+                }
+
+                // Validate the shift doesn't exceed 24 hours (backend will also check this)
+                const diffMinutes = (signOutDate.getTime() - signInDate.getTime()) / (1000 * 60);
+                const MAX_SHIFT_MINUTES = 24 * 60; // 24 hours
+                if (diffMinutes > MAX_SHIFT_MINUTES) {
+                    toast.error(`Sign-out time cannot be more than 24 hours after sign-in. Please create separate records for different days.`);
+                    return;
+                }
+
+                signOutIso = signOutDate.toISOString();
             }
 
             await updateMutation.mutateAsync({
@@ -549,9 +554,10 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
             });
             toast.success("Record updated");
             setOpen(false);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            toast.error("Failed to update record");
+            const errorMessage = e?.response?.data?.message || e?.message || "Failed to update record";
+            toast.error(errorMessage);
         }
     }
 

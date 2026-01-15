@@ -218,7 +218,7 @@ export function useAssignManager(employeeId: string) {
   });
 }
 
-export function useEmployeeSubordinates(employeeId?: string) {
+export function useManagerSubordinates(employeeId?: string) {
   return useQuery({
     queryKey: employeeKeys.subordinates(employeeId || ""),
     queryFn: () => {

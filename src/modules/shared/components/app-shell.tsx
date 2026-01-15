@@ -139,6 +139,7 @@ function Header({ pathname, title }: { pathname: string; title: string }) {
     if (pathname === "/") {
       return title;
     }
+
     return pathname
       .replace("/dashboard/", "")
       .replaceAll("-", " ")
@@ -183,7 +184,7 @@ function MobileNav() {
       if (!item.href) {
         return false;
       }
-      if (item.href === "/dashboard/employee/leave-manager") {
+      if (item.href === "/dashboard/employee/team-manage") {
         return hasSubordinates;
       }
       return true;

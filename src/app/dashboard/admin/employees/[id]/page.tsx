@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee, useEmployeeSubordinates } from "@/lib/queries/employees";
+import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee, useManagerSubordinates } from "@/lib/queries/employees";
 import { useDepartments } from "@/lib/queries/departments";
 import { useDesignationsList } from "@/lib/queries/designations";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
@@ -93,7 +93,7 @@ export default function AdminEmployeeDetailPage() {
   const { data, isLoading, isError } = useEmployeeDetail(id || "");
   const updateMutation = useUpdateEmployee(id || "");
   const deleteMutation = useDeleteEmployee();
-  const { data: subordinates = [] } = useEmployeeSubordinates(id);
+  const { data: subordinates = [] } = useManagerSubordinates(id);
   const { data: departments = [] } = useDepartments();
   const { data: designations = [] } = useDesignationsList();
 
