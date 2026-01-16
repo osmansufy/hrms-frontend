@@ -46,9 +46,23 @@ export default function EmployeeDashboard() {
   const { data: monthlyLateCountData } = useMonthlyLateCount(userId);
   const monthlyLateCount = monthlyLateCountData?.lateCount ?? 0;
 
-  // Modal states
-  const [showWarningModal, setShowWarningModal] = useState(false);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+// Modal states
+const [showWarningModal, setShowWarningModal] = useState(false);
+const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+
+// Check if warning modal has been shown for current month
+const getWarningModalKey = useCallback(() => {
+  if (!userId) return null;
+  const now = new Date();
+  const monthYear = `${now.getFullYear()}-${now.getMonth()}`;
+  return `late-attendance-warning-shown-${userId}-${monthYear}`;
+}, [userId]);
+
+const hasWarningBeenShown = useMemo(() => {
+  const key = getWarningModalKey();
+  if (!key) return false;
+  return localStorage.getItem(key) === "true";
+}, [getWarningModalKey]);
 
   // Attendance chart data for last 7 days
   const end = new Date();
@@ -229,21 +243,18 @@ export default function EmployeeDashboard() {
     startDate: start7.toISOString().slice(0, 10),
     endDate: new Date().toISOString().slice(0, 10)
   });
-  const myLostHours = lostHoursData?.[0]; // Employee endpoint returns array with single item
-
-  // Memoize attendance status
-  const attendanceStatus = useMemo(() => {
-    if (attendanceLoading) return "Checking status…";
-    if (!todayAttendance) return "Not signed in";
-    if (todayAttendance.signOut) return "Signed out";
-    return "Signed in";
-  }, [todayAttendance, attendanceLoading]);
 
 
   const handleSignIn = useCallback(async () => {
-    // Check if late count is (leaveDeductionDay - 1) - show warning modal before sign-in
-    if (monthlyLateCount === leaveDeductionDay - 1) {
+      // Check if late count is (leaveDeductionDay - 1) - show warning modal before sign-in
+    // But only if it hasn't been shown for this month yet
+    if (monthlyLateCount === leaveDeductionDay - 1 && !hasWarningBeenShown) {
       setShowWarningModal(true);
+      // Mark as shown in localStorage
+      const key = getWarningModalKey();
+      if (key) {
+        localStorage.setItem(key, "true");
+      }
       return;
     }
 
