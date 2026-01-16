@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Calendar, TrendingUp, AlertCircle, Clock, CheckCircle, XCircle, Loader2, ClockAlert, CheckCircle2, LogOut, MapPin, Monitor } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,11 +99,23 @@ export default function EmployeeDashboard() {
     latitude?: number;
     longitude?: number;
     address?: string;
+    timestamp?: number; // Track when location was obtained
   }>({});
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [geolocationStatus, setGeolocationStatus] = useState<"checking" | "available" | "denied" | "unavailable" | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false); // Prevent concurrent calls
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<"granted" | "denied" | "prompt" | "unavailable" | null>(null);
+  
+  // Cache duration: use cached location if it's less than 3 minutes old (for sign-in)
+  const LOCATION_CACHE_DURATION = 3 * 60 * 1000; // 3 minutes in milliseconds
+  
+  // Use ref to track latest geolocation for checking in async contexts
+  // This allows us to access the latest geolocation value even in closures
+  const geolocationRef = useRef(geolocation);
+  // Update ref whenever geolocation state changes
+  useEffect(() => {
+    geolocationRef.current = geolocation;
+  }, [geolocation]);
 
   // Device detection for attendance restriction
   const [deviceInfo, setDeviceInfo] = useState<ReturnType<typeof detectDevice> | null>(null);
@@ -177,19 +189,45 @@ export default function EmployeeDashboard() {
 
 
   // Function to get current geolocation
-  const getCurrentLocation = useCallback(async (): Promise<{
+  const getCurrentLocation = useCallback(async (forceRefresh: boolean = false): Promise<{
     latitude: number;
     longitude: number;
     address?: string;
   } | null> => {
-    // If we already have cached geolocation and it's recent, return it
-    if (geolocation.latitude && geolocation.longitude && geolocationStatus === "available") {
-      console.log("Using cached geolocation:", geolocation);
-      return {
-        latitude: geolocation.latitude,
-        longitude: geolocation.longitude,
-        address: geolocation.address,
-      };
+    // Check if we have cached geolocation that's still valid (not forcing refresh)
+    if (!forceRefresh && geolocation.latitude && geolocation.longitude && geolocation.timestamp) {
+      const age = Date.now() - geolocation.timestamp;
+      // Use cached location if:
+      // 1. It's less than cache duration old, AND
+      // 2. Permission is granted OR status is available (more lenient check)
+      // More lenient cache check: use cache if permission is granted, even if status isn't set yet
+      const canUseCache = age < LOCATION_CACHE_DURATION && 
+        (locationPermissionStatus === "granted" || geolocationStatus === "available" || geolocationStatus === null);
+      
+      if (canUseCache) {
+        console.log(`Using cached geolocation (age: ${Math.round(age / 1000)}s, permission: ${locationPermissionStatus}):`, geolocation);
+        return {
+          latitude: geolocation.latitude,
+          longitude: geolocation.longitude,
+          address: geolocation.address,
+        };
+      } else {
+        if (age >= LOCATION_CACHE_DURATION) {
+          console.log(`Cached geolocation is too old (age: ${Math.round(age / 1000)}s), requesting new location`);
+        } else {
+          console.log(`Cached geolocation exists but permission status is not ready (status: ${geolocationStatus}, permission: ${locationPermissionStatus}), requesting new location`);
+        }
+      }
+    } else if (!forceRefresh && geolocation.latitude && geolocation.longitude) {
+      // If we have location but no timestamp, still try to use it if permission is granted
+      if (locationPermissionStatus === "granted") {
+        console.log("Using cached geolocation (no timestamp, but permission granted):", geolocation);
+        return {
+          latitude: geolocation.latitude,
+          longitude: geolocation.longitude,
+          address: geolocation.address,
+        };
+      }
     }
 
     // Prevent concurrent calls
@@ -233,6 +271,9 @@ export default function EmployeeDashboard() {
       setIsGettingLocation(true);
       console.log("Requesting geolocation (new request)...");
       setGeolocationStatus("checking");
+      
+      // Wrap in try-catch to handle any unexpected errors during getCurrentPosition call
+      try {
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -267,14 +308,19 @@ export default function EmployeeDashboard() {
               // Continue without address
             }
 
-            const geoData = { latitude, longitude, address };
+            const geoData = { 
+              latitude, 
+              longitude, 
+              address,
+              timestamp: Date.now() // Store timestamp when location was obtained
+            };
             console.log("Final geoData (resolving promise):", geoData);
             setGeolocation(geoData);
             setGeolocationError(null);
             setGeolocationStatus("available");
             setLocationPermissionStatus("granted"); // Update permission status when location is successfully obtained
             setIsGettingLocation(false);
-            resolve(geoData);
+            resolve({ latitude, longitude, address });
           } catch (error) {
             console.error("Error processing geolocation:", error);
             setGeolocationStatus("unavailable");
@@ -284,29 +330,65 @@ export default function EmployeeDashboard() {
           }
         },
         (error) => {
-          console.error("Geolocation error:", error);
+          // Enhanced error handling for various error scenarios
+          // Log as warning first, then determine severity based on error type
+          console.warn("Geolocation request result:", error);
+          console.log("Error details:", {
+            code: error?.code,
+            message: error?.message,
+            errorType: typeof error,
+            errorKeys: error ? Object.keys(error) : [],
+            errorString: JSON.stringify(error),
+          });
+
           let errorMessage = "Failed to get location";
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              console.error("Permission denied");
-              setGeolocationStatus("denied");
-              setLocationPermissionStatus("denied"); // Update permission status when denied
-              errorMessage = "Location access denied. Please enable location access to mark attendance.";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              console.error("Position unavailable");
-              setGeolocationStatus("unavailable");
-              errorMessage = "Location information unavailable";
-              break;
-            case error.TIMEOUT:
-              console.error("Geolocation timeout");
-              setGeolocationStatus("unavailable");
-              errorMessage = "Location request timed out";
-              break;
-            default:
-              console.error("Unknown geolocation error:", error);
-              setGeolocationStatus("unavailable");
+          
+          // Check if error has a code property (standard GeolocationPositionError)
+          if (error && typeof error === 'object' && 'code' in error) {
+            // Use numeric codes for comparison (more reliable than named constants)
+            const errorCode = error.code;
+            
+            switch (errorCode) {
+              case 1: // PERMISSION_DENIED
+              case error.PERMISSION_DENIED:
+                // Permission denied is an expected user state, not an error
+                console.warn("Location permission denied by user");
+                setGeolocationStatus("denied");
+                setLocationPermissionStatus("denied");
+                errorMessage = "Location access denied. Please enable location access to mark attendance.";
+                break;
+              case 2: // POSITION_UNAVAILABLE
+              case error.POSITION_UNAVAILABLE:
+                console.warn("Position unavailable - location service may be disabled or unavailable");
+                setGeolocationStatus("unavailable");
+                errorMessage = "Location information unavailable";
+                break;
+              case 3: // TIMEOUT
+              case error.TIMEOUT:
+                console.warn("Geolocation request timed out");
+                setGeolocationStatus("unavailable");
+                errorMessage = "Location request timed out";
+                break;
+              default:
+                console.warn("Unknown geolocation error code:", errorCode);
+                setGeolocationStatus("unavailable");
+                errorMessage = error?.message || "Unable to determine location. Please try again.";
+            }
+          } else {
+            // Handle cases where error doesn't have expected structure
+            console.warn("Geolocation error has unexpected structure:", error);
+            setGeolocationStatus("unavailable");
+            
+            // Try to extract message from error if available
+            if (error && typeof error === 'object') {
+              errorMessage = (error as any)?.message || (error as any)?.error?.message || "Failed to get location";
+            } else if (typeof error === 'string') {
+              errorMessage = error;
+            } else {
+              errorMessage = "Location access failed. Please check your browser settings and try again.";
+            }
           }
+          
           setGeolocationError(errorMessage);
           setIsGettingLocation(false);
           resolve(null); // Resolve with null instead of rejecting to allow sign-in without location
@@ -317,8 +399,16 @@ export default function EmployeeDashboard() {
           maximumAge: 60000, // Accept cached position up to 1 minute old
         }
       );
+      } catch (unexpectedError) {
+        // Handle any unexpected errors during the getCurrentPosition setup
+        console.error("Unexpected error setting up geolocation:", unexpectedError);
+        setGeolocationStatus("unavailable");
+        setGeolocationError("An unexpected error occurred while requesting location access");
+        setIsGettingLocation(false);
+        resolve(null);
+      }
     });
-  }, [isGettingLocation, geolocation, geolocationStatus]);
+  }, [isGettingLocation, geolocation, geolocationStatus, LOCATION_CACHE_DURATION]);
 
   // Function to request location access
   const requestLocationAccess = useCallback(async () => {
@@ -444,51 +534,73 @@ export default function EmployeeDashboard() {
 
     if (captureEmployeeLocation) {
       try {
-        // Call getCurrentLocation and wait for the actual result
-        geoData = await getCurrentLocation();
-        console.log("Geolocation result after await:", geoData);
-
-        // Check the result directly (don't rely on state which might not be updated yet)
+        // For sign-in, use cached location if available and recent (within 3 minutes)
+        // This allows using location obtained from "Grant Access" button
+        geoData = await getCurrentLocation(false); // false = allow using cached location
+        console.log("Geolocation result for sign-in (initial):", {
+          geoData,
+          geolocationStatus,
+        });
+        
+        // If geoData is null (e.g., permission was initially denied but user might grant it),
+        // wait a bit and check if geolocation state was updated (user might have granted permission)
         if (!geoData) {
-          console.log("No geoData returned from getCurrentLocation");
-          // Check if we have cached geolocation from state
-          if (geolocation.latitude && geolocation.longitude) {
-            console.log("Using cached geolocation from state:", geolocation);
-            geoData = {
-              latitude: geolocation.latitude,
-              longitude: geolocation.longitude,
-              address: geolocation.address,
-            };
-          } else {
-            // Check status to determine if it's denied or just unavailable
-            // Wait a bit for state to update
+          const initialStatus = geolocationStatus;
+          console.log("geoData is null, initial status:", initialStatus, "waiting to see if geolocation becomes available...");
+          // Wait up to 3 seconds for geolocation to become available (increased from 2 seconds)
+          for (let i = 0; i < 30; i++) {
             await new Promise((resolve) => setTimeout(resolve, 100));
-            const currentStatus = geolocationStatus;
-            console.log("Current geolocation status:", currentStatus);
-
-            if (currentStatus === "denied") {
-              toast.error(
-                "Geolocation access is required. Please enable location permissions to mark attendance."
-              );
-              return; // Don't proceed without location if it's required
-            } else {
-              toast.warning(
-                "Unable to access your location. Attendance will be recorded without geolocation data."
-              );
+            // Check ref which always has the latest geolocation value
+            const currentGeo = geolocationRef.current;
+            const currentLat = currentGeo?.latitude;
+            const currentLng = currentGeo?.longitude;
+            const currentAddress = currentGeo?.address;
+            
+            // Check if geolocation was obtained - use ref to get latest value
+            if (currentLat && currentLng) {
+              console.log("Geolocation obtained after waiting (user granted permission):", {
+                latitude: currentLat,
+                longitude: currentLng,
+                address: currentAddress,
+                iteration: i + 1,
+              });
+              geoData = {
+                latitude: currentLat,
+                longitude: currentLng,
+                address: currentAddress,
+              };
+              break;
             }
           }
-        } else {
-          console.log("Successfully got geolocation data:", geoData);
         }
+        
+        // Final fallback: if geoData is still null but we have cached geolocation in ref, use it
+        if (!geoData) {
+          const currentGeo = geolocationRef.current;
+          if (currentGeo?.latitude && currentGeo?.longitude) {
+            console.log("Using cached geolocation from ref (final fallback):", currentGeo);
+            geoData = {
+              latitude: currentGeo.latitude,
+              longitude: currentGeo.longitude,
+              address: currentGeo.address,
+            };
+          }
+        }
+        
+        console.log("Geolocation result for sign-in (final):", {
+          geoData,
+          geolocationStatus,
+          locationPermissionStatus,
+        });
       } catch (error) {
-        console.error("Error getting geolocation:", error);
+        console.error("Error getting geolocation for sign-in:", error);
         // Try to use cached geolocation if available
-        if (geolocation.latitude && geolocation.longitude) {
+        if (!geoData && geolocation.latitude && geolocation.longitude) {
           console.log("Using cached geolocation after error:", geolocation);
           geoData = {
             latitude: geolocation.latitude,
             longitude: geolocation.longitude,
-            address: geolocation.address,
+            address: geolocation.address, 
           };
         } else {
           toast.warning(
@@ -496,6 +608,7 @@ export default function EmployeeDashboard() {
           );
         }
       }
+    
     }
 
     // Get device info to send screen/touch metadata for enhanced validation
@@ -519,6 +632,13 @@ export default function EmployeeDashboard() {
       if (geoData.address) {
         payload.address = geoData.address;
       }
+      console.log("Including geolocation in sign-in payload:", {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        address: payload.address,
+      });
+    } else {
+      console.warn("No geolocation data to include in sign-in payload");
     }
 
     // Include screen/touch info if available (for backend validation)
@@ -537,7 +657,8 @@ export default function EmployeeDashboard() {
       const result = await signInMutation.mutateAsync(payload);
       toast.success("Signed in successfully");
       setLocation("");
-      setGeolocation({});
+      // Keep geolocation cached for potential reuse (don't clear it)
+      // Only clear error status
       setGeolocationError(null);
 
       // Check for late attendance flags
@@ -590,16 +711,78 @@ export default function EmployeeDashboard() {
     let geoData: { latitude: number; longitude: number; address?: string } | null = null;
     if (captureEmployeeLocation) {
       try {
-        geoData = await getCurrentLocation();
-        console.log("Geolocation result for sign-out:", {
+        // For sign-out, always get fresh location since user might have moved
+        geoData = await getCurrentLocation(true); // true = force refresh to get current location
+        console.log("Geolocation result for sign-out (initial):", {
           geoData,
           geolocationStatus,
         });
+        
+        // If geoData is null (e.g., permission was initially denied but user might grant it),
+        // wait a bit and check if geolocation state was updated
+        if (!geoData) {
+          const initialStatus = geolocationStatus;
+          console.log("geoData is null for sign-out, initial status:", initialStatus, "waiting to see if geolocation becomes available...");
+          // Wait up to 3 seconds for geolocation to become available (increased from 2 seconds)
+          for (let i = 0; i < 30; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            // Check ref which always has the latest geolocation value
+            const currentGeo = geolocationRef.current;
+            const currentLat = currentGeo?.latitude;
+            const currentLng = currentGeo?.longitude;
+            const currentAddress = currentGeo?.address;
+            
+            // Check if geolocation was obtained - use ref to get latest value
+            if (currentLat && currentLng) {
+              console.log("Geolocation obtained after waiting (user granted permission):", {
+                latitude: currentLat,
+                longitude: currentLng,
+                address: currentAddress,
+                iteration: i + 1,
+              });
+              geoData = {
+                latitude: currentLat,
+                longitude: currentLng,
+                address: currentAddress,
+              };
+              break;
+            }
+          }
+        }
+        
+        // Final fallback: if geoData is still null but we have cached geolocation in ref, use it
+        if (!geoData) {
+          const currentGeo = geolocationRef.current;
+          if (currentGeo?.latitude && currentGeo?.longitude) {
+            console.log("Using cached geolocation from ref (final fallback):", currentGeo);
+            geoData = {
+              latitude: currentGeo.latitude,
+              longitude: currentGeo.longitude,
+              address: currentGeo.address,
+            };
+          }
+        }
+        
+        console.log("Geolocation result for sign-out (final):", {
+          geoData,
+          geolocationStatus,
+          locationPermissionStatus,
+        });
       } catch (error) {
         console.error("Error getting geolocation for sign-out:", error);
-        toast.warning(
-          "Unable to access your location. Attendance will be recorded without geolocation data."
-        );
+        // Try to use cached geolocation if available
+        if (!geoData && geolocation.latitude && geolocation.longitude) {
+          console.log("Using cached geolocation after error:", geolocation);
+          geoData = {
+            latitude: geolocation.latitude,
+            longitude: geolocation.longitude,
+            address: geolocation.address,
+          };
+        } else {
+          toast.warning(
+            "Unable to access your location. Attendance will be recorded without geolocation data."
+          );
+        }
       }
 
       // Warn if geolocation is not available
@@ -636,6 +819,13 @@ export default function EmployeeDashboard() {
       if (geoData.address) {
         payload.address = geoData.address;
       }
+      console.log("Including geolocation in sign-out payload:", {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        address: payload.address,
+      });
+    } else {
+      console.warn("No geolocation data to include in sign-out payload");
     }
 
     // Include screen/touch info if available (for backend validation)
@@ -649,10 +839,13 @@ export default function EmployeeDashboard() {
       payload.hasTouchScreen = deviceInfo.hasTouchScreen;
     }
 
+    console.log("Final sign-out payload before API call:", payload);
     try {
       await signOutMutation.mutateAsync(payload);
       toast.success("Signed out successfully");
       setLocation("");
+      // Clear geolocation after sign-out since we got fresh location
+      // This ensures next sign-in will get fresh location if needed
       setGeolocation({});
       setGeolocationError(null);
     } catch (err: any) {
