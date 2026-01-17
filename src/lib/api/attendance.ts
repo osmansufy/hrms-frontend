@@ -40,6 +40,7 @@ export type ExtendedAttendanceRecord = AttendanceRecord & {
   overtimeMinutes?: number;
   policy: Policy | null;
   isOnLeave?: boolean;
+  isWeekend?: boolean;
   leave?: {
     id: string;
     leaveType: {
@@ -528,5 +529,42 @@ export async function getManagerAttendanceRecords(
     limit: number;
     totalPages: number;
   }>(`/attendance/manager/${userId}/records`, { params });
+  return response.data;
+}
+
+// Attendance Reconciliation
+export type AttendanceReconciliationRequest = {
+  id: string;
+  userId: string;
+  attendanceId?: string | null;
+  date: string;
+  type: "SIGN_IN" | "SIGN_OUT" | "BOTH";
+  originalSignIn?: string | null;
+  originalSignOut?: string | null;
+  requestedSignIn?: string | null;
+  requestedSignOut?: string | null;
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  reviewerComment?: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    employee?: {
+      employeeCode: string;
+      department?: {
+        name: string;
+      };
+    };
+  };
+};
+
+export async function getAttendanceReconciliationRequests() {
+  const response = await apiClient.get<AttendanceReconciliationRequest[]>(
+    "/attendance/reconciliation"
+  );
   return response.data;
 }

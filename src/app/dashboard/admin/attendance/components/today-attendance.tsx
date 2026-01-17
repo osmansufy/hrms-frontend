@@ -294,7 +294,11 @@ export function TodayAttendanceCard() {
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
                                                         {!record.signIn ? (
-                                                            record.isOnLeave ? (
+                                                            record.isWeekend ? (
+                                                                <Badge variant="outline" className="border-gray-200 text-gray-700 bg-gray-50">
+                                                                    Weekend
+                                                                </Badge>
+                                                            ) : record.isOnLeave ? (
                                                                 <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
                                                                     <CalendarDays className="mr-1 h-3 w-3" />
                                                                     On Leave

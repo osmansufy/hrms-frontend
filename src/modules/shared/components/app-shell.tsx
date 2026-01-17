@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LogOut, Menu, KeyRound, User, Settings } from "lucide-react";
+import { Bell, LogOut, Menu, KeyRound, User, Settings, Clock } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -31,6 +31,7 @@ import { NAV_BY_ROLE, filterNav, getPrimaryRole } from "@/modules/shared/config/
 import { usePermissions } from "@/modules/shared/hooks/use-permissions";
 import { useUIStore } from "@/modules/shared/stores/ui-store";
 import { useSubordinatesLeaves, usePendingHRApprovals, useAmendments } from "@/lib/queries/leave";
+import { useAttendanceReconciliationRequests } from "@/lib/queries/attendance";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -138,12 +139,17 @@ function Header({ pathname, title }: { pathname: string; title: string }) {
   const { roles } = usePermissions();
   const { data: pendingApprovals } = usePendingHRApprovals();
   const { data: amendments } = useAmendments();
+  const { data: reconciliationRequests } = useAttendanceReconciliationRequests();
   const isAdmin = roles.includes("admin") || roles.includes("super-admin");
   const pendingCount = pendingApprovals?.length ?? 0;
   const pendingAmendments = amendments?.filter((amendment) => 
     amendment.status === "PENDING" || amendment.status === "PROCESSING"
   ) ?? [];
   const amendmentCount = pendingAmendments.length;
+  const pendingReconciliations = reconciliationRequests?.filter((request) => 
+    request.status === "PENDING"
+  ) ?? [];
+  const reconciliationCount = pendingReconciliations.length;
 
   const subtitle = useMemo(() => {
     if (pathname === "/") {
@@ -170,6 +176,7 @@ function Header({ pathname, title }: { pathname: string; title: string }) {
           isAdmin={isAdmin} 
           pendingCount={pendingCount} 
           amendmentCount={amendmentCount}
+          reconciliationCount={reconciliationCount}
         />
         <ThemeToggle />
         <UserMenu />
@@ -319,13 +326,15 @@ function UserMenu() {
 function NotificationMenu({ 
   isAdmin, 
   pendingCount, 
-  amendmentCount 
+  amendmentCount,
+  reconciliationCount
 }: { 
   isAdmin: boolean; 
   pendingCount: number;
   amendmentCount: number;
+  reconciliationCount: number;
 }) {
-  const totalNotifications = pendingCount + amendmentCount;
+  const totalNotifications = pendingCount + amendmentCount + reconciliationCount;
 
   return (
     <DropdownMenu>
@@ -385,6 +394,27 @@ function NotificationMenu({
                 {amendmentCount > 0 && (
                   <Badge variant="destructive" className="ml-2">
                     {amendmentCount > 99 ? "99+" : amendmentCount}
+                  </Badge>
+                )}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/admin/attendance/reconciliation" className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Clock className="size-4" />
+                  <div>
+                    <p className="text-sm font-medium">Attendance Reconciliation</p>
+                    <p className="text-xs text-muted-foreground">
+                      {reconciliationCount === 0 
+                        ? "No pending reconciliations" 
+                        : `${reconciliationCount} reconciliation request${reconciliationCount > 1 ? "s" : ""} awaiting review`
+                      }
+                    </p>
+                  </div>
+                </div>
+                {reconciliationCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {reconciliationCount > 99 ? "99+" : reconciliationCount}
                   </Badge>
                 )}
               </Link>

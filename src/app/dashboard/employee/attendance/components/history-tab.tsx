@@ -103,9 +103,15 @@ export function AttendanceHistoryTab() {
                                             <TableCell>{formatTime(record.signOut)}</TableCell>
                                             <TableCell>
                                                 {!record.signIn ? (
-                                                    <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
-                                                        Absent
-                                                    </Badge>
+                                                    record.isWeekend ? (
+                                                        <Badge variant="outline" className="border-gray-200 text-gray-700 bg-gray-50">
+                                                            Weekend
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
+                                                            Absent
+                                                        </Badge>
+                                                    )
                                                 ) : record.isLate ? (
                                                     <Badge variant="destructive">Late</Badge>
                                                 ) : (

@@ -230,6 +230,8 @@ export function LostHoursTab() {
                                                     <Badge variant="destructive" className="text-xs">Late</Badge>
                                                 ) : record.signIn ? (
                                                     <Badge variant="secondary" className="text-xs">On Time</Badge>
+                                                ) : record.isWeekend ? (
+                                                    <Badge variant="outline" className="text-xs border-gray-200 text-gray-700 bg-gray-50">Weekend</Badge>
                                                 ) : (
                                                     <Badge variant="outline" className="text-xs">Absent</Badge>
                                                 )}

@@ -239,7 +239,11 @@ export function ComprehensiveHistoryTab() {
                                             <TableCell>{formatTime(record.signOut)}</TableCell>
                                             <TableCell>
                                                 {!record.signIn ? (
-                                                    <Badge variant="outline" className="text-xs">Absent</Badge>
+                                                    record.isWeekend ? (
+                                                        <Badge variant="outline" className="text-xs border-gray-200 text-gray-700 bg-gray-50">Weekend</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-xs">Absent</Badge>
+                                                    )
                                                 ) : record.isLate ? (
                                                     <Badge variant="destructive" className="text-xs">Late</Badge>
                                                 ) : (

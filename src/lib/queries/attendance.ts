@@ -32,6 +32,7 @@ import {
   deleteWorkSchedule,
   getMonthlyLateCount,
   getMonthlyAttendanceSummary,
+  getAttendanceReconciliationRequests,
 } from "@/lib/api/attendance";
 
 export const attendanceKeys = {
@@ -348,5 +349,14 @@ export function useMonthlyAttendanceSummary(params: {
     queryFn: () => getMonthlyAttendanceSummary(params),
     enabled: Boolean(params.year && params.month),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Attendance Reconciliation hooks
+export function useAttendanceReconciliationRequests() {
+  return useQuery({
+    queryKey: ["attendance-reconciliation-requests"],
+    queryFn: () => getAttendanceReconciliationRequests(),
+    refetchInterval: 30_000, // Refetch every 30 seconds
   });
 }
