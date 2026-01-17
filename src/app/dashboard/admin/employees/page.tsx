@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Loader2, Plus, Search } from "lucide-react";
 import Link from "next/link";
-import { Loader2, Plus, Search, UserCog } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,7 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardHeader,
-  CardTitle,
+  CardHeader
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,10 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEmployees, useDesignations } from "@/lib/queries/employees";
 import { useDepartments } from "@/lib/queries/departments";
-import { AssignManagerDialog } from "@/components/assign-manager-dialog";
-import { ChangePasswordDialog } from "@/components/change-password-dialog";
+import { useDesignations, useEmployees } from "@/lib/queries/employees";
 
 export default function AdminEmployeesPage() {
   const [search, setSearch] = useState("");
@@ -136,27 +133,28 @@ export default function AdminEmployeesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Code</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Designation</TableHead>
                   <TableHead>Work Schedule</TableHead>
                   <TableHead>Manager</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {employees.map((emp) => (
                   <TableRow key={emp.id}>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {emp.employeeCode || "—"}
-                    </TableCell>
                     <TableCell>
+                    <Link href={`/dashboard/admin/employees/${emp.id}`}>
                       <div className="flex flex-col">
                         <span className="font-semibold">{emp.name}</span>
                         <span className="text-xs text-muted-foreground">{emp.email}</span>
                       </div>
+                      </Link>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {emp.employeeCode || "—"}
                     </TableCell>
                     <TableCell>{emp.department}</TableCell>
                     <TableCell>{emp.title}</TableCell>
@@ -183,31 +181,7 @@ export default function AdminEmployeesPage() {
                         {emp.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <ChangePasswordDialog
-                          userId={emp?.userId ? emp.userId : "0"}
-                          userName={emp.name}
-                          userEmail={emp.email}
-                        />
-                        <AssignManagerDialog
-                          employeeId={emp.id}
-                          employeeName={emp.name}
-                          currentManager={
-                            emp.manager
-                              ? {
-                                id: emp.id,
-                                firstName: emp.manager.split(" ")[0] || "",
-                                lastName: emp.manager.split(" ")[1] || "",
-                              }
-                              : null
-                          }
-                        />
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/dashboard/admin/employees/${emp.id}`}>View</Link>
-                        </Button>
-                      </div>
-                    </TableCell>
+                    
                   </TableRow>
                 ))}
               </TableBody>

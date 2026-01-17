@@ -1,15 +1,17 @@
 "use client";
-import { useWorkSchedules } from "@/lib/queries/work-schedules";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Mail, Phone, Trash2, Calendar } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Key, Mail, MoreVertical, Phone, Trash2, UserCog } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { AssignManagerDialog } from "@/components/assign-manager-dialog";
+import { ChangePasswordDialog } from "@/components/change-password-dialog";
+import { ChangeWorkScheduleDialog } from "@/components/change-work-schedule-dialog";
+import { EmployeeLeaveBalanceCard } from "@/components/employee-leave-balance-card";
 import { Badge } from "@/components/ui/badge";
-import { extractErrorMessage } from "@/lib/utils/error-handler";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +20,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Form,
   FormControl,
@@ -34,14 +42,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useDeleteEmployee, useEmployeeDetail, useUpdateEmployee, useManagerSubordinates } from "@/lib/queries/employees";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDepartments } from "@/lib/queries/departments";
 import { useDesignationsList } from "@/lib/queries/designations";
-import { AssignManagerDialog } from "@/components/assign-manager-dialog";
-import { ChangePasswordDialog } from "@/components/change-password-dialog";
-import { ChangeWorkScheduleDialog } from "@/components/change-work-schedule-dialog";
-import { EmployeeLeaveBalanceCard } from "@/components/employee-leave-balance-card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDeleteEmployee, useEmployeeDetail, useManagerSubordinates, useUpdateEmployee } from "@/lib/queries/employees";
+import { extractErrorMessage } from "@/lib/utils/error-handler";
+import { MonthlySummaryCard } from "../../attendance/components/monthly-summary-card";
 
 const schema = z.object({
   phone: z.string().optional(),
@@ -230,25 +236,54 @@ export default function AdminEmployeeDetailPage() {
                 <CardTitle>Profile</CardTitle>
                 <CardDescription>Core employee and user details.</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <ChangeWorkScheduleDialog employeeId={id || ""} currentScheduleId={data.workSchedule?.id} />
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/dashboard/admin/employees/${id}/assign-leave`}>
-                    <Calendar className="mr-1 size-4" />
-                    Assign Leave
-                  </Link>
-                </Button>
-                <ChangePasswordDialog
-                  userId={data.userId}
-                  userName={fullName}
-                  userEmail={data.user?.email || "unknown@company.com"}
-                />
-                <AssignManagerDialog
-                  employeeId={id || ""}
-                  employeeName={fullName}
-                  currentManager={data.reportingManager}
-                />
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="size-4" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <ChangeWorkScheduleDialog
+                    employeeId={id || ""}
+                    currentScheduleId={data.workSchedule?.id}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Clock className="mr-2 size-4" />
+                        Change Work Schedule
+                      </DropdownMenuItem>
+                    }
+                  />
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/admin/employees/${id}/assign-leave`} className="flex items-center w-full">
+                      <Calendar className="mr-2 size-4" />
+                      Assign Leave
+                    </Link>
+                  </DropdownMenuItem>
+                  <ChangePasswordDialog
+                    userId={data.userId}
+                    userName={fullName}
+                    userEmail={data.user?.email || "unknown@company.com"}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Key className="mr-2 size-4" />
+                        Change Password
+                      </DropdownMenuItem>
+                    }
+                  />
+                  <AssignManagerDialog
+                    employeeId={id || ""}
+                    employeeName={fullName}
+                    currentManager={data.reportingManager}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <UserCog className="mr-2 size-4" />
+                        {data.reportingManager ? "Change Manager" : "Assign Manager"}
+                      </DropdownMenuItem>
+                    }
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -451,9 +486,16 @@ export default function AdminEmployeeDetailPage() {
           </CardContent>
         </Card>
 
-        <EmployeeLeaveBalanceCard employeeId={id || ""} userId={data.userId} />
       </div>
-
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly Summary</CardTitle>
+          <CardDescription>Monthly summary of the employee's attendance.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MonthlySummaryCard year={new Date().getFullYear()} month={new Date().getMonth()} userId={data.userId} />
+        </CardContent>
+      </Card>
       {subordinates && subordinates.length > 0 && (
         <Card>
           <CardHeader>
@@ -503,6 +545,8 @@ export default function AdminEmployeeDetailPage() {
           </CardContent>
         </Card>
       )}
+      <EmployeeLeaveBalanceCard employeeId={id || ""} userId={data.userId} />
+
     </div>
   );
 }

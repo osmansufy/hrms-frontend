@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -45,12 +45,14 @@ interface ChangePasswordDialogProps {
     userId: string;
     userName: string;
     userEmail: string;
+    trigger?: ReactNode;
 }
 
 export function ChangePasswordDialog({
     userId,
     userName,
     userEmail,
+    trigger,
 }: ChangePasswordDialogProps) {
     const [open, setOpen] = useState(false);
     const changePasswordMutation = useChangeUserPassword();
@@ -79,13 +81,17 @@ export function ChangePasswordDialog({
         }
     };
 
+    const defaultTrigger = (
+        <Button variant="outline" size="sm">
+            <Key className="mr-2 h-4 w-4" />
+            Change Password
+        </Button>
+    );
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                    <Key className="mr-2 h-4 w-4" />
-                    Change Password
-                </Button>
+                {trigger || defaultTrigger}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>

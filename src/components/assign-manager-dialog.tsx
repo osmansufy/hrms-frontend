@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { Search, UserCog, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ interface AssignManagerDialogProps {
     employeeName: string;
     currentManager?: ApiEmployee["reportingManager"] | null;
     onSuccess?: () => void;
+    trigger?: ReactNode;
 }
 
 export function AssignManagerDialog({
@@ -33,6 +34,7 @@ export function AssignManagerDialog({
     employeeName,
     currentManager,
     onSuccess,
+    trigger,
 }: AssignManagerDialogProps) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
@@ -104,13 +106,17 @@ export function AssignManagerDialog({
 
     const filteredManagers = managers.filter((m) => m.id !== employeeId);
 
+    const defaultTrigger = (
+        <Button variant="outline" size="sm">
+            <UserCog className="mr-2 h-4 w-4" />
+            {currentManager ? "Change Manager" : "Assign Manager"}
+        </Button>
+    );
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                    <UserCog className="mr-2 h-4 w-4" />
-                    {currentManager ? "Change Manager" : "Assign Manager"}
-                </Button>
+                {trigger || defaultTrigger}
             </DialogTrigger>
             <DialogContent className="sm:max-w-125">
                 <DialogHeader>

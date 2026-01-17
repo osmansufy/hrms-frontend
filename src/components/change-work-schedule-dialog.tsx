@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -7,6 +7,7 @@ import {
     DialogTitle,
     DialogFooter,
     DialogClose,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import {
     Select,
@@ -18,8 +19,15 @@ import {
 import { useWorkSchedules } from "@/lib/queries/work-schedules";
 import { useUpdateEmployee } from "@/lib/queries/employees";
 import { toast } from "sonner";
+import { Calendar } from "lucide-react";
 
-export function ChangeWorkScheduleDialog({ employeeId, currentScheduleId }: { employeeId: string; currentScheduleId?: string | null }) {
+interface ChangeWorkScheduleDialogProps {
+    employeeId: string;
+    currentScheduleId?: string | null;
+    trigger?: ReactNode;
+}
+
+export function ChangeWorkScheduleDialog({ employeeId, currentScheduleId, trigger }: ChangeWorkScheduleDialogProps) {
     const [open, setOpen] = useState(false);
     const { data: schedules = [], isLoading } = useWorkSchedules();
     const updateEmployee = useUpdateEmployee(employeeId);
@@ -40,11 +48,23 @@ export function ChangeWorkScheduleDialog({ employeeId, currentScheduleId }: { em
         }
     };
 
+    const defaultTrigger = (
+        <Button variant="outline" size="sm">
+            Change Work Schedule
+        </Button>
+    );
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-                Change Work Schedule
-            </Button>
+            {trigger ? (
+                <DialogTrigger asChild>
+                    {trigger}
+                </DialogTrigger>
+            ) : (
+                <DialogTrigger asChild>
+                    {defaultTrigger}
+                </DialogTrigger>
+            )}
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Change Work Schedule</DialogTitle>
