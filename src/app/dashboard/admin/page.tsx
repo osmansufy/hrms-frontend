@@ -1,8 +1,25 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEmployees } from "@/lib/queries/employees";
+import { useDepartments } from "@/lib/queries/departments";
+import { useDesignationsList } from "@/lib/queries/designations";
+import { usePendingHRApprovals } from "@/lib/queries/leave";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
+  const { data: employees, isLoading: employeesLoading } = useEmployees();
+  const { data: departments, isLoading: departmentsLoading } = useDepartments();
+  const { data: designations, isLoading: designationsLoading } = useDesignationsList();
+  const { data: pendingApprovals, isLoading: approvalsLoading } = usePendingHRApprovals();
+
+  const employeesCount = employees?.length ?? 0;
+  const departmentsCount = departments?.length ?? 0;
+  const designationsCount = designations?.length ?? 0;
+  const pendingApprovalsCount = pendingApprovals?.length ?? 0;
+
+  const isLoading = employeesLoading || departmentsLoading || designationsLoading || approvalsLoading;
+
   return (
     <div className="container space-y-6">
       <div>
@@ -11,10 +28,30 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard title="Employees" value="0" helper="Total employees" />
-        <DashboardCard title="Departments" value="0" helper="Active departments" />
-        <DashboardCard title="Designations" value="0" helper="Job roles" />
-        <DashboardCard title="Pending Approvals" value="0" helper="Awaiting approval" />
+        <DashboardCard 
+          title="Employees" 
+          value={isLoading ? "..." : employeesCount.toString()} 
+          helper="Total employees"
+          isLoading={employeesLoading}
+        />
+        <DashboardCard 
+          title="Departments" 
+          value={isLoading ? "..." : departmentsCount.toString()} 
+          helper="Active departments"
+          isLoading={departmentsLoading}
+        />
+        <DashboardCard 
+          title="Designations" 
+          value={isLoading ? "..." : designationsCount.toString()} 
+          helper="Job roles"
+          isLoading={designationsLoading}
+        />
+        <DashboardCard 
+          title="Pending Approvals" 
+          value={isLoading ? "..." : pendingApprovalsCount.toString()} 
+          helper="Awaiting approval"
+          isLoading={approvalsLoading}
+        />
       </div>
 
       <Card>
@@ -61,10 +98,12 @@ function DashboardCard({
   title,
   value,
   helper,
+  isLoading,
 }: {
   title: string;
   value: string;
   helper: string;
+  isLoading?: boolean;
 }) {
   return (
     <Card>
@@ -74,7 +113,13 @@ function DashboardCard({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold">{value}</div>
+        <div className="text-3xl font-bold flex items-center gap-2">
+          {isLoading ? (
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          ) : (
+            value
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">{helper}</p>
       </CardContent>
     </Card>

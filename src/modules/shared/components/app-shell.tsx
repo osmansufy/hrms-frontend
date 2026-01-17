@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { NAV_BY_ROLE, filterNav, getPrimaryRole } from "@/modules/shared/config/navigation";
 import { usePermissions } from "@/modules/shared/hooks/use-permissions";
 import { useUIStore } from "@/modules/shared/stores/ui-store";
-import { useSubordinatesLeaves } from "@/lib/queries/leave";
+import { useSubordinatesLeaves, usePendingHRApprovals, useAmendments } from "@/lib/queries/leave";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -135,6 +135,16 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
 }
 
 function Header({ pathname, title }: { pathname: string; title: string }) {
+  const { roles } = usePermissions();
+  const { data: pendingApprovals } = usePendingHRApprovals();
+  const { data: amendments } = useAmendments();
+  const isAdmin = roles.includes("admin") || roles.includes("super-admin");
+  const pendingCount = pendingApprovals?.length ?? 0;
+  const pendingAmendments = amendments?.filter((amendment) => 
+    amendment.status === "PENDING" || amendment.status === "PROCESSING"
+  ) ?? [];
+  const amendmentCount = pendingAmendments.length;
+
   const subtitle = useMemo(() => {
     if (pathname === "/") {
       return title;
@@ -156,9 +166,11 @@ function Header({ pathname, title }: { pathname: string; title: string }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" aria-label="notifications">
-          <Bell className="size-5" />
-        </Button>
+        <NotificationMenu 
+          isAdmin={isAdmin} 
+          pendingCount={pendingCount} 
+          amendmentCount={amendmentCount}
+        />
         <ThemeToggle />
         <UserMenu />
       </div>
@@ -299,6 +311,106 @@ function UserMenu() {
           <LogOut className="mr-2 size-4" />
           Sign out
         </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function NotificationMenu({ 
+  isAdmin, 
+  pendingCount, 
+  amendmentCount 
+}: { 
+  isAdmin: boolean; 
+  pendingCount: number;
+  amendmentCount: number;
+}) {
+  const totalNotifications = pendingCount + amendmentCount;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="notifications" className="relative">
+          <Bell className="size-5" />
+          {isAdmin && totalNotifications > 0 && (
+            <Badge 
+              variant="destructive" 
+              className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full p-0 text-xs"
+            >
+              {totalNotifications > 99 ? "99+" : totalNotifications}
+            </Badge>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {isAdmin ? (
+          <>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/admin/leave?tab=approvals" className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Bell className="size-4" />
+                  <div>
+                    <p className="text-sm font-medium">Pending Leave Approvals</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pendingCount === 0 
+                        ? "No pending approvals" 
+                        : `${pendingCount} leave request${pendingCount > 1 ? "s" : ""} awaiting approval`
+                      }
+                    </p>
+                  </div>
+                </div>
+                {pendingCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {pendingCount > 99 ? "99+" : pendingCount}
+                  </Badge>
+                )}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/admin/leave?tab=amendments" className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Bell className="size-4" />
+                  <div>
+                    <p className="text-sm font-medium">Amendment Requests</p>
+                    <p className="text-xs text-muted-foreground">
+                      {amendmentCount === 0 
+                        ? "No pending amendments" 
+                        : `${amendmentCount} amendment request${amendmentCount > 1 ? "s" : ""} awaiting review`
+                      }
+                    </p>
+                  </div>
+                </div>
+                {amendmentCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {amendmentCount > 99 ? "99+" : amendmentCount}
+                  </Badge>
+                )}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/admin" className="flex items-center gap-2">
+                <Bell className="size-4" />
+                <span>View Dashboard</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/admin/leave" className="flex items-center gap-2">
+                <Bell className="size-4" />
+                <span>Leave Management</span>
+              </Link>
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <DropdownMenuItem disabled>
+            <div className="flex items-center gap-2">
+              <Bell className="size-4" />
+              <span className="text-muted-foreground">No new notifications</span>
+            </div>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
