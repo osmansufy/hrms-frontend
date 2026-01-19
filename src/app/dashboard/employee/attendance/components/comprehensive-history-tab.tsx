@@ -63,6 +63,7 @@ export function ComprehensiveHistoryTab() {
                 workedMinutes,
                 lostMinutes,
                 overtimeMinutes,
+                isWeekend: record.isWeekend,
             };
         });
     }, [records]);

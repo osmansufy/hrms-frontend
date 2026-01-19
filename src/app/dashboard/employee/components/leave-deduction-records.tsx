@@ -24,18 +24,20 @@ export function LeaveDeductionRecords({ leaveTypeId }: LeaveDeductionRecordsProp
         targetLeaveTypeId || ""
     );
 
-    // Filter only deduction entries (negative days)
+    // Show ONLY late-attendance deduction entries
     const deductionEntries = useMemo(() => {
         if (!ledgerData) return [];
 
         return ledgerData
-            .filter(entry => entry.days < 0)
+            .filter(entry => entry.transactionType === "LEAVE_DEDUCTION")
             .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime())
             .slice(0, 10); // Show last 10 deductions
     }, [ledgerData]);
 
     const getTransactionTypeIcon = (transactionType: string) => {
         switch (transactionType) {
+            case "LEAVE_DEDUCTION":
+                return <Minus className="h-4 w-4 text-red-500" />;
             case "LEAVE_APPROVED":
                 return <Minus className="h-4 w-4 text-red-500" />;
             case "LAPSE":
@@ -51,6 +53,8 @@ export function LeaveDeductionRecords({ leaveTypeId }: LeaveDeductionRecordsProp
 
     const getTransactionTypeLabel = (transactionType: string) => {
         switch (transactionType) {
+            case "LEAVE_DEDUCTION":
+                return "Late Attendance Deduction";
             case "LEAVE_APPROVED":
                 return "Leave Taken";
             case "LAPSE":
