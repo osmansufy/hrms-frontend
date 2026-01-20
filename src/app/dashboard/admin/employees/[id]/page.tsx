@@ -48,6 +48,7 @@ import { useDesignationsList } from "@/lib/queries/designations";
 import { useDeleteEmployee, useEmployeeDetail, useManagerSubordinates, useUpdateEmployee } from "@/lib/queries/employees";
 import { extractErrorMessage } from "@/lib/utils/error-handler";
 import { MonthlySummaryCard } from "../../attendance/components/monthly-summary-card";
+import { cn } from "@/lib/utils";
 
 const schema = z.object({
   phone: z.string().optional(),
@@ -215,8 +216,8 @@ export default function AdminEmployeeDetailPage() {
             Back
           </Button>
           <div>
-            <p className="text-sm text-muted-foreground">Admin · Employee</p>
-            <h1 className="text-2xl font-semibold">{fullName || "Employee"}</h1>
+            <p className="text-sm text-muted-foreground">Admin · Member</p>
+            <h1 className="text-2xl font-semibold">{fullName || "Member"}</h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -292,7 +293,7 @@ export default function AdminEmployeeDetailPage() {
             <Info label="Designation" value={data.designation?.title || data.designation?.name} />
             <Info label="Employment type" value={formatEmploymentType(data.employmentType)} />
             <Info label="Joining date" value={data.joiningDate?.slice(0, 10)} />
-            <Info label="Manager" value={data.reportingManager ? `${data.reportingManager.firstName} ${data.reportingManager.lastName}` : undefined} />
+            <Info link={`/dashboard/admin/employees/${data.reportingManager?.id}`} label="Manager" value={data.reportingManager ? `${data.reportingManager.firstName} ${data.reportingManager.lastName}` : undefined} />
             <Info label="Nationality" value={data.nationality} />
             <Info label="Work Schedule" value={data.workSchedule?.name || "—"} />
           </CardContent>
@@ -554,18 +555,38 @@ function Info({
   label,
   value,
   icon,
+  className,
+  link,
 }: {
   label: string;
   value?: string | null;
   icon?: React.ReactNode;
+  className?: string;
+  link?: string;
 }) {
   return (
     <div className="rounded-lg border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="mt-1 flex items-center gap-2 text-sm font-semibold">
-        {icon}
-        {value || "—"}
-      </div>
+      {link ? (
+        
+     <>
+     <p className="text-xs text-muted-foreground">{label}</p>
+     <Link href={link} className="hover:underline"> 
+      <div className={cn("mt-1 flex items-center gap-2 text-sm font-semibold", className)}>
+          {icon}
+          {value || "—"}
+        </div>  
+        </Link>
+     </>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <div className={cn("mt-1 flex items-center gap-2 text-sm font-semibold", className)}>
+            {icon}
+            {value || "—"}
+          </div>
+        </>
+      )}
+      
     </div>
   );
 }
