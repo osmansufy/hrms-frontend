@@ -1,25 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Download, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { Loader2, Download } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useExportAttendanceReport } from "@/lib/queries/attendance";
-import { CreateRecordDialog } from "./components/create-record-dialog";
+import { toast } from "sonner";
 import { AttendanceRecordsTab } from "./components/attendance-records-tab";
+import { CreateRecordDialog } from "./components/create-record-dialog";
 import { StatsCards } from "./components/stats-cards";
 import { TodayAttendanceCard } from "./components/today-attendance";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { formatTimeInDhaka } from "@/lib/utils";
-
-function formatTime(value?: string | null) {
-    return formatTimeInDhaka(value || "");
-}
 
 export default function AdminAttendancePage() {
     const exportMutation = useExportAttendanceReport();

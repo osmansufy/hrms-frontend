@@ -22,7 +22,7 @@ import {
     FileText,
     Clock,
 } from "lucide-react";
-import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
+import { formatDateInDhaka, formatTimeInTimezone } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
@@ -165,7 +165,7 @@ export function AuditTrailTab() {
                                                         )}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        {formatTimeInDhaka(
+                                                        {formatTimeInTimezone(
                                                             adjustment.adjustment.effectiveDate
                                                         )}
                                                     </span>

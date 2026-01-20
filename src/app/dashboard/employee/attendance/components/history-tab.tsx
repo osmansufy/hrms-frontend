@@ -11,10 +11,10 @@ import { useSession } from "@/components/auth/session-provider";
 import { useAttendanceRecords, useMyAttendanceRecords } from "@/lib/queries/attendance";
 import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 
-import { formatTimeInDhaka, formatDateInDhaka } from "@/lib/utils";
+import { formatTimeInTimezone, formatDateInDhaka } from "@/lib/utils";
 
 function formatTime(value?: string | null) {
-    return formatTimeInDhaka(value || "");
+    return formatTimeInTimezone(value || "");
 }
 
 function formatDate(value?: string | null) {

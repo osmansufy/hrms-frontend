@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { formatTimeInDhaka } from "@/lib/utils";
+import { formatTimeInTimezone } from "@/lib/utils";
 import {
   detectDevice,
   isDeviceAllowedForAttendance,
@@ -137,7 +137,7 @@ export function AttendanceCard({
                     <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
                     <span className="text-muted-foreground">In:</span>
                     <span className="font-semibold text-green-700 dark:text-green-300">
-                      {formatTimeInDhaka(todayAttendance.signIn)}
+                      {formatTimeInTimezone(todayAttendance.signIn)}
                     </span>
                   </div>
                 )}
@@ -146,7 +146,7 @@ export function AttendanceCard({
                     <LogOut className="size-4 text-orange-600 dark:text-orange-400" />
                     <span className="text-muted-foreground">Out:</span>
                     <span className="font-semibold text-orange-700 dark:text-orange-300">
-                      {formatTimeInDhaka(todayAttendance.signOut)}
+                      {formatTimeInTimezone(todayAttendance.signOut)}
                     </span>
                   </div>
                 )}

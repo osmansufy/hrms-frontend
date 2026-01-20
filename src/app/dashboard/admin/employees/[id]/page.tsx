@@ -205,15 +205,14 @@ export default function AdminEmployeeDetailPage() {
   const fullName = [data.firstName, data.middleName, data.lastName].filter(Boolean).join(" ");
   const status = formatStatus(data.user?.status);
 
+
   return (
     <div className="container space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm" className="px-2">
-            <Link href="/dashboard/admin/employees">
-              <ArrowLeft className="mr-1 size-4" />
-              Back
-            </Link>
+          <Button onClick={() => router.back()} variant="ghost" size="sm" className="px-2">
+                <ArrowLeft className="mr-1 size-4" />
+                Back
           </Button>
           <div>
             <p className="text-sm text-muted-foreground">Admin · Employee</p>
@@ -493,7 +492,7 @@ export default function AdminEmployeeDetailPage() {
           <CardDescription>Monthly summary of the employee's attendance.</CardDescription>
         </CardHeader>
         <CardContent>
-          <MonthlySummaryCard year={new Date().getFullYear()} month={new Date().getMonth()} userId={data.userId} />
+          <MonthlySummaryCard year={new Date().getFullYear()} month={new Date().getMonth() + 1} userId={data.userId} />
         </CardContent>
       </Card>
       {subordinates && subordinates.length > 0 && (

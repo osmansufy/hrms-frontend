@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Clock, Search, Filter, X, CalendarDays, MapPin } from "lucide-react";
 import { useAttendanceRecords } from "@/lib/queries/attendance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { toStartOfDayISO, toEndOfDayISO, formatTimeInDhaka } from "@/lib/utils";
+import { toStartOfDayISO, toEndOfDayISO, formatTimeInTimezone } from "@/lib/utils";
+import Link from "next/link";
 
 function formatTime(value?: string | null) {
-    return formatTimeInDhaka(value || "");
+    return formatTimeInTimezone(value || "");
 }
 
 function getInitials(name: string) {
@@ -113,7 +114,7 @@ export function TodayAttendanceCard() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4" />
-                        {formatTimeInDhaka(new Date())}
+                        {formatTimeInTimezone(new Date())}
                     </div>
                 </div>
             </CardHeader>
@@ -254,6 +255,8 @@ export function TodayAttendanceCard() {
                                         filteredRecords.map((record) => (
                                             <TableRow key={record.id}>
                                                 <TableCell>
+                                                <Link href={`/dashboard/admin/employees/${record.user?.employee?.employeeId}`}>
+
                                                     <div className="flex items-center gap-3">
                                                         <Avatar className="h-8 w-8">
                                                             <AvatarFallback className="text-xs">
@@ -267,6 +270,7 @@ export function TodayAttendanceCard() {
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    </Link>
                                                 </TableCell>
                                                 <TableCell className="text-sm">
                                                     {record.user?.employee?.department?.name || "—"}

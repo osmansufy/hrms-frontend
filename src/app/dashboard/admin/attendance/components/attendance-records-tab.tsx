@@ -5,7 +5,7 @@ import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar, Calendar
 import { useAttendanceRecords, useUpdateAttendanceRecord, useDeleteAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
-import { toStartOfDayISO, toEndOfDayISO, formatTimeInDhaka, formatDateInDhaka } from "@/lib/utils";
+import { toStartOfDayISO, toEndOfDayISO, formatTimeInTimezone, formatDateInTimezone } from "@/lib/utils";
 import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePresets";
 import { useTimezone } from "@/contexts/timezone-context";
 
@@ -255,6 +255,7 @@ export function AttendanceRecordsTab() {
                                 <TableHead>Sign In</TableHead>
                                 <TableHead>Sign Out</TableHead>
                                 <TableHead>Lost Time</TableHead>
+                                <TableHead>Overtime</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -294,12 +295,15 @@ export function AttendanceRecordsTab() {
                                             </div>
                                         </TableCell>
                                         <TableCell>{record.user.employee?.department?.name || "—"}</TableCell>
-                                        <TableCell>{formatDateInDhaka(record.date, "long")}</TableCell>
+                                        <TableCell>{formatDateInTimezone(record.date, "long")}</TableCell>
                                         <TableCell>{formatTime(record.signIn)}</TableCell>
                                         <TableCell>{formatTime(record.signOut)}</TableCell>
 
                                         <TableCell>
                                             {record.lostMinutes != null ? `${record.lostMinutes} mins` : "—"}
+                                        </TableCell>
+                                        <TableCell>
+                                            {record.overtimeMinutes != null ? `${record.overtimeMinutes} mins` : "—"}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col gap-1">
@@ -327,9 +331,9 @@ export function AttendanceRecordsTab() {
                                                             {record.leave.leaveType.name}
                                                         </span>
                                                         <span className="text-xs text-muted-foreground">
-                                                            {formatDateInDhaka(record.leave.startDate, "short")}
+                                                            {formatTimeInTimezone(record.leave.startDate, false)}
                                                             {record.leave.startDate !== record.leave.endDate && (
-                                                                <> - {formatDateInDhaka(record.leave.endDate, "short")}</>
+                                                                <> - {formatTimeInTimezone(record.leave.endDate, false)}</>
                                                             )}
                                                         </span>
                                                     </div>
@@ -497,7 +501,7 @@ export function AttendanceRecordsTab() {
 }
 
 function formatTime(isoString?: string | null) {
-    return formatTimeInDhaka(isoString || "");
+    return formatTimeInTimezone(isoString || "");
 }
 
 function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
@@ -687,7 +691,7 @@ function DeleteRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Delete Attendance Record</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Are you sure you want to delete the attendance record for {record.user.name} on {formatDateInDhaka(record.date, "long")}? This action cannot be undone.
+                        Are you sure you want to delete the attendance record for {record.user.name} on {formatTimeInTimezone(record.date, false)}? This action cannot be undone.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

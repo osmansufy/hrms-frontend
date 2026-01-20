@@ -15,6 +15,7 @@ interface MonthlySummaryCardProps {
 }
 
 export function MonthlySummaryCard({ year, month, departmentId, userId }: MonthlySummaryCardProps) {
+  console.log({month, year});
   const { data: summaryData, isLoading } = useQuery({
     queryKey: ["attendance", "monthly-summary", year, month, departmentId, userId],
     queryFn: () => getEmployeeMonthlySummary(userId!, year, month),

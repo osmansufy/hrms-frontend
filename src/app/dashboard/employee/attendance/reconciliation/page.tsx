@@ -8,7 +8,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@
 import { useSession } from "@/components/auth/session-provider";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
+import { formatDateInDhaka, formatTimeInTimezone } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTimezone } from "@/contexts/timezone-context";
@@ -205,13 +205,13 @@ export default function AttendanceReconciliationEmployeePage() {
                                         <TableCell>{req.type}</TableCell>
                                         <TableCell>
                                             {req.type === "SIGN_IN"
-                                                ? (req.originalSignIn ? formatTimeInDhaka(req.originalSignIn) : "Missing")
-                                                : (req.originalSignOut ? formatTimeInDhaka(req.originalSignOut) : "Missing")}
+                                                ? (req.originalSignIn ? formatTimeInTimezone(req.originalSignIn) : "Missing")
+                                                : (req.originalSignOut ? formatTimeInTimezone(req.originalSignOut) : "Missing")}
                                         </TableCell>
                                         <TableCell>
                                             {req.type === "SIGN_IN"
-                                                ? (req.requestedSignIn ? formatTimeInDhaka(req.requestedSignIn) : "-")
-                                                : (req.requestedSignOut ? formatTimeInDhaka(req.requestedSignOut) : "-")}
+                                                ? (req.requestedSignIn ? formatTimeInTimezone(req.requestedSignIn) : "-")
+                                                : (req.requestedSignOut ? formatTimeInTimezone(req.requestedSignOut) : "-")}
                                         </TableCell>
                                         <TableCell className="max-w-xs">
                                             <TooltipProvider>

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import { formatDateInDhaka, formatTimeInDhaka } from "@/lib/utils";
+import { formatDateInDhaka, formatTimeInTimezone } from "@/lib/utils";
 import { toast } from "sonner";
 import { useDepartments } from "@/lib/queries/departments";
 import { useTimezone } from "@/contexts/timezone-context";
@@ -335,13 +335,13 @@ export default function AttendanceReconciliationAdminPage() {
                                             <TableCell>{req.type}</TableCell>
                                             <TableCell className="text-sm">
                                                 {req.type === "SIGN_IN"
-                                                    ? (req.originalSignIn ? formatTimeInDhaka(req.originalSignIn) : "Missing")
-                                                    : (req.originalSignOut ? formatTimeInDhaka(req.originalSignOut) : "Missing")}
+                                                    ? (req.originalSignIn ? formatTimeInTimezone(req.originalSignIn) : "Missing")
+                                                    : (req.originalSignOut ? formatTimeInTimezone(req.originalSignOut) : "Missing")}
                                             </TableCell>
                                             <TableCell className="text-sm font-semibold">
                                                 {req.type === "SIGN_IN"
-                                                    ? (req.requestedSignIn ? formatTimeInDhaka(req.requestedSignIn) : "-")
-                                                    : (req.requestedSignOut ? formatTimeInDhaka(req.requestedSignOut) : "-")}
+                                                    ? (req.requestedSignIn ? formatTimeInTimezone(req.requestedSignIn) : "-")
+                                                    : (req.requestedSignOut ? formatTimeInTimezone(req.requestedSignOut) : "-")}
                                             </TableCell>
                                             <TableCell className="max-w-xs">
                                                 <TooltipProvider>
@@ -438,16 +438,16 @@ export default function AttendanceReconciliationAdminPage() {
                                 <label className="text-sm font-medium">Original Time</label>
                                 <p className="text-sm">
                                     {editingRequest.type === "SIGN_IN"
-                                        ? (editingRequest.originalSignIn ? formatTimeInDhaka(editingRequest.originalSignIn) : "Missing")
-                                        : (editingRequest.originalSignOut ? formatTimeInDhaka(editingRequest.originalSignOut) : "Missing")}
+                                        ? (editingRequest.originalSignIn ? formatTimeInTimezone(editingRequest.originalSignIn) : "Missing")
+                                        : (editingRequest.originalSignOut ? formatTimeInTimezone(editingRequest.originalSignOut) : "Missing")}
                                 </p>
                             </div>
                             <div>
                                 <label className="text-sm font-medium">Employee Requested Time</label>
                                 <p className="text-sm font-semibold text-blue-600">
                                     {editingRequest.type === "SIGN_IN"
-                                        ? (editingRequest.requestedSignIn ? formatTimeInDhaka(editingRequest.requestedSignIn) : "-")
-                                        : (editingRequest.requestedSignOut ? formatTimeInDhaka(editingRequest.requestedSignOut) : "-")}
+                                        ? (editingRequest.requestedSignIn ? formatTimeInTimezone(editingRequest.requestedSignIn) : "-")
+                                        : (editingRequest.requestedSignOut ? formatTimeInTimezone(editingRequest.requestedSignOut) : "-")}
                                 </p>
                             </div>
                             <div>

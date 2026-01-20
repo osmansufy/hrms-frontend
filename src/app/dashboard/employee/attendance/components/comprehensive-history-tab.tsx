@@ -12,10 +12,10 @@ import { formatMinutesToHours, toStartOfDayISO, toEndOfDayISO } from "@/lib/util
 import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePresets";
 import { Badge } from "@/components/ui/badge";
 
-import { formatTimeInDhaka, formatInDhakaTimezone, formatDateInDhaka } from "@/lib/utils";
+import { formatTimeInTimezone, formatInDhakaTimezone, formatDateInDhaka } from "@/lib/utils";
 
 function formatTime(value?: string | null) {
-    return formatTimeInDhaka(value || "");
+    return formatTimeInTimezone(value || "");
 }
 
 function formatDate(value?: string | null) {
