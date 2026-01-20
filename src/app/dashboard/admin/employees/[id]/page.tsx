@@ -211,8 +211,8 @@ export default function AdminEmployeeDetailPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button onClick={() => router.back()} variant="ghost" size="sm" className="px-2">
-                <ArrowLeft className="mr-1 size-4" />
-                Back
+            <ArrowLeft className="mr-1 size-4" />
+            Back
           </Button>
           <div>
             <p className="text-sm text-muted-foreground">Admin · Employee</p>
