@@ -63,14 +63,18 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet";
 import { MonthlySummaryCard } from "./monthly-summary-card";
-
+const LIMITS = [10, 30, 50, 100];
+const LIMITS_OPTIONS = LIMITS.map((limit) => ({
+    label: limit.toString(),
+    value: limit.toString(),
+}));
 export function AttendanceRecordsTab() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [departmentId, setDepartmentId] = useState<string>("all");
     const [employeeId, setEmployeeId] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("all"); // "all", "late", "ontime", "absent", "onleave"
-
+    const [limit, setLimit] = useState(30);
     // Use date range presets hook
     const { preset, dateRange, setPreset, setCustomRange } = useDateRangePresets("today");
 
@@ -80,14 +84,14 @@ export function AttendanceRecordsTab() {
     // Convert date range to ISO DateTime with user's timezone
     const queryParams = useMemo(() => ({
         page: page.toString(),
-        limit: "10",
+        limit: limit.toString(),
         search: search.trim() || undefined,
         departmentId: departmentId === "all" ? undefined : departmentId,
         userId: employeeId === "all" ? undefined : employeeId,
         startDate: toStartOfDayISO(dateRange.startDate),
         endDate: toEndOfDayISO(dateRange.endDate),
         isLate: statusFilter === "late" ? true : statusFilter === "ontime" ? false : undefined,
-    }), [page, search, departmentId, employeeId, dateRange.startDate, dateRange.endDate, statusFilter]);
+    }), [page, limit, search, departmentId, employeeId, dateRange.startDate, dateRange.endDate, statusFilter]);
 
     const { data: recordsData, isLoading } = useAttendanceRecords(queryParams);
 
@@ -242,6 +246,19 @@ export function AttendanceRecordsTab() {
                             <SelectItem value="absent">Absent</SelectItem>
                         </SelectContent>
                     </Select>
+                    <Select value={limit.toString()} onValueChange={(val) => {
+                        setLimit(Number(val));
+                        setPage(1);
+                    }}>
+                        <SelectTrigger >
+                            <SelectValue placeholder="Limit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {LIMITS_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* Table */}
@@ -378,12 +395,14 @@ export function AttendanceRecordsTab() {
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Previous
                     </Button>
-                    <div className="text-sm font-medium">Page {page}</div>
+                    <div className="text-sm font-medium">
+                        Page {page} of {recordsData?.totalPages}
+                    </div>
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setPage((old) => old + 1)}
-                        disabled={isLoading || !recordsData || recordsData.data.length < 10}
+                        disabled={isLoading || !recordsData || recordsData.data.length < limit}
                     >
                         Next
                         <ArrowRight className="ml-2 h-4 w-4" />

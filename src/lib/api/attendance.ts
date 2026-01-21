@@ -533,7 +533,7 @@ export async function getManagerAttendanceRecords(
 }
 
 // Attendance Reconciliation
-export type AttendanceReconciliationRequest = {
+export type AttendanceReconciliationRequestResponse = {
   id: string;
   userId: string;
   attendanceId?: string | null;
@@ -549,12 +549,14 @@ export type AttendanceReconciliationRequest = {
   reviewedAt?: string | null;
   reviewerComment?: string | null;
   createdAt: string;
-  user: {
+  user?: {
     id: string;
     name: string;
     email: string;
     employee?: {
-      employeeCode: string;
+      employeeCode?: string;
+      firstName?: string;
+      lastName?: string;
       department?: {
         name: string;
       };
@@ -562,9 +564,52 @@ export type AttendanceReconciliationRequest = {
   };
 };
 
-export async function getAttendanceReconciliationRequests() {
-  const response = await apiClient.get<AttendanceReconciliationRequest[]>(
-    "/attendance/reconciliation"
+/** GET /attendance/reconciliation response (backend uses pagination format) */
+export type AttendanceReconciliationListResponse = {
+  data: AttendanceReconciliationRequestResponse[];
+  pagination: { page: number; pageSize: number; totalCount: number; totalPages: number };
+};
+
+export type UpdateReconciliationStatusPayload = {
+  status: "APPROVED" | "REJECTED";
+  reviewerComment?: string;
+  correctedSignIn?: string;
+  correctedSignOut?: string;
+};
+
+export type GetReconciliationRequestsParams = {
+  month?: number;
+  year?: number;
+  userId?: string;
+  search?: string;
+  departmentId?: string;
+  status?: "PENDING" | "APPROVED" | "REJECTED";
+  page?: number;
+  limit?: number;
+};
+
+export async function getAttendanceReconciliationRequests(
+  params?: GetReconciliationRequestsParams
+) {
+  const cleaned = params
+    ? Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== "")
+      )
+    : {};
+  const response = await apiClient.get<AttendanceReconciliationListResponse>(
+    "/attendance/reconciliation",
+    { params: cleaned }
+  );
+  return response.data;
+}
+
+export async function updateReconciliationStatus(
+  id: string,
+  payload: UpdateReconciliationStatusPayload
+) {
+  const response = await apiClient.put<AttendanceReconciliationRequestResponse>(
+    `/attendance/reconciliation/${id}/status`,
+    payload
   );
   return response.data;
 }

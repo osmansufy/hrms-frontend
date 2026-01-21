@@ -1,7 +1,7 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Search, X, Filter } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,53 +11,51 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
+import {
+    getAttendanceReconciliationRequests,
+    updateReconciliationStatus,
+    type AttendanceReconciliationListResponse,
+    type AttendanceReconciliationRequestResponse,
+} from "@/lib/api/attendance";
 import { formatDateInDhaka, formatTimeInTimezone } from "@/lib/utils";
 import { toast } from "sonner";
 import { useDepartments } from "@/lib/queries/departments";
+import { useEmployees } from "@/lib/queries/employees";
 import { useTimezone } from "@/contexts/timezone-context";
 
-// Types for reconciliation requests
-interface AttendanceReconciliationRequest {
-    id: string;
-    userId: string;
-    attendanceId?: string;
-    date: string;
-    type: "SIGN_IN" | "SIGN_OUT";
-    originalSignIn?: string;
-    originalSignOut?: string;
-    requestedSignIn?: string;
-    requestedSignOut?: string;
-    reason: string;
-    status: "PENDING" | "APPROVED" | "REJECTED";
-    reviewedBy?: string;
-    reviewedAt?: string;
-    reviewerComment?: string;
-    createdAt: string;
-    user?: {
-        employee?: {
-            firstName: string;
-            lastName: string;
-            department?: {
-                name: string;
-            };
-        };
-    };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function useDebounced<T>(value: T, delay: number): T {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const t = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(t);
+    }, [value, delay]);
+    return debounced;
 }
 
 export default function AttendanceReconciliationAdminPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { timezone } = useTimezone();
-    const [editingRequest, setEditingRequest] = useState<AttendanceReconciliationRequest | null>(null);
+    const [editingRequest, setEditingRequest] = useState<AttendanceReconciliationRequestResponse | null>(null);
     const [correctedTime, setCorrectedTime] = useState("");
     const [reviewerComment, setReviewerComment] = useState("");
+    const [monthFilter, setMonthFilter] = useState<string>("all");
+    const [yearFilter, setYearFilter] = useState<string>("all");
+    const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+    const [searchInput, setSearchInput] = useState("");
     const [departmentFilter, setDepartmentFilter] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
-    // Fetch departments
+    const searchDebounced = useDebounced(searchInput, 400);
+    const currentYear = new Date().getFullYear();
+    const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+
+    // Fetch departments and employees
     const { data: departments } = useDepartments();
+    const { data: employees = [] } = useEmployees();
 
     // Helper to get timezone offset in hours (simplified - works for most cases)
     const getTimezoneOffsetHours = (tz: string): number => {
@@ -76,21 +74,30 @@ export default function AttendanceReconciliationAdminPage() {
         return offsets[tz] ?? 6; // Default to +6 if unknown
     };
 
+    // Build API params from filters (only month+year together for month-wise)
+    const queryParams = useMemo(() => {
+        const month = monthFilter === "all" ? undefined : parseInt(monthFilter, 10);
+        const year = yearFilter === "all" ? undefined : parseInt(yearFilter, 10);
+        return {
+            page: 1,
+            limit: 10,
+            month: month ? month : undefined,
+            year: year ? year : undefined,
+            userId: employeeFilter === "all" ? undefined : employeeFilter,
+            departmentId: departmentFilter === "all" ? undefined : departmentFilter,
+            status: statusFilter === "all" ? undefined : (statusFilter as "PENDING" | "APPROVED" | "REJECTED"),
+            search: searchDebounced.trim() || undefined,
+        };
+    }, [monthFilter, yearFilter, employeeFilter, searchDebounced, departmentFilter, statusFilter]);
     // Fetch all reconciliation requests (admin/HR)
-    const { data, isLoading } = useQuery<AttendanceReconciliationRequest[]>({
-        queryKey: ["attendance-reconciliation-requests"],
-        queryFn: async () => {
-            const res = await apiClient.get("/attendance/reconciliation");
-            return res.data;
-        },
+    const { data: reconciliationRequests, isLoading } = useQuery<AttendanceReconciliationListResponse>({
+        queryKey: ["attendance-reconciliation-requests", queryParams],
+        queryFn: () => getAttendanceReconciliationRequests(queryParams),
     });
 
     // Approve mutation
     const approveMutation = useMutation({
-        mutationFn: async (id: string) => {
-            const res = await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "APPROVED" });
-            return res.data;
-        },
+        mutationFn: (id: string) => updateReconciliationStatus(id, { status: "APPROVED" }),
         onMutate: (id: string) => {
             setPendingRequestId(id);
         },
@@ -108,10 +115,7 @@ export default function AttendanceReconciliationAdminPage() {
 
     // Reject mutation
     const rejectMutation = useMutation({
-        mutationFn: async (id: string) => {
-            const res = await apiClient.put(`/attendance/reconciliation/${id}/status`, { status: "REJECTED" });
-            return res.data;
-        },
+        mutationFn: (id: string) => updateReconciliationStatus(id, { status: "REJECTED" }),
         onMutate: (id: string) => {
             setPendingRequestId(id);
         },
@@ -129,23 +133,13 @@ export default function AttendanceReconciliationAdminPage() {
 
     // Edit and approve mutation
     const editAndApproveMutation = useMutation({
-        mutationFn: async (payload: { id: string; correctedSignIn?: string; correctedSignOut?: string; reviewerComment?: string }) => {
-            const { id, ...rest } = payload;
-            const mutationPayload: any = {
+        mutationFn: (payload: { id: string; correctedSignIn?: string; correctedSignOut?: string; reviewerComment?: string }) =>
+            updateReconciliationStatus(payload.id, {
                 status: "APPROVED",
-                reviewerComment: rest.reviewerComment || undefined,
-            };
-
-            if (rest.correctedSignIn) {
-                mutationPayload.correctedSignIn = rest.correctedSignIn;
-            }
-            if (rest.correctedSignOut) {
-                mutationPayload.correctedSignOut = rest.correctedSignOut;
-            }
-
-            const res = await apiClient.put(`/attendance/reconciliation/${id}/status`, mutationPayload);
-            return res.data;
-        },
+                reviewerComment: payload.reviewerComment || undefined,
+                correctedSignIn: payload.correctedSignIn,
+                correctedSignOut: payload.correctedSignOut,
+            }),
         onMutate: (payload: { id: string; correctedSignIn?: string; correctedSignOut?: string; reviewerComment?: string }) => {
             setPendingRequestId(payload.id);
         },
@@ -164,19 +158,25 @@ export default function AttendanceReconciliationAdminPage() {
         },
     });
 
-    // Filter data based on department and status
-    const filteredData = useMemo(() => {
-        if (!data) return [];
+    const tableData = reconciliationRequests?.data ?? [];
+    
+    // Count active filters
+    const activeFiltersCount = [
+        monthFilter !== "all" && yearFilter !== "all",
+        employeeFilter !== "all",
+        searchDebounced.trim(),
+        departmentFilter !== "all",
+        statusFilter !== "all",
+    ].filter(Boolean).length;
 
-        return data.filter((req) => {
-            const matchesDepartment = departmentFilter === "all" ||
-                req.user?.employee?.department?.name === departmentFilter;
-            const matchesStatus = statusFilter === "all" ||
-                req.status === statusFilter;
-
-            return matchesDepartment && matchesStatus;
-        });
-    }, [data, departmentFilter, statusFilter]);
+    const handleClearFilters = () => {
+        setMonthFilter("all");
+        setYearFilter("all");
+        setEmployeeFilter("all");
+        setSearchInput("");
+        setDepartmentFilter("all");
+        setStatusFilter("all");
+    };
 
     const handleApprove = (id: string) => {
         approveMutation.mutate(id);
@@ -186,7 +186,7 @@ export default function AttendanceReconciliationAdminPage() {
         rejectMutation.mutate(id);
     };
 
-    const handleEditAndApprove = (req: AttendanceReconciliationRequest) => {
+    const handleEditAndApprove = (req: AttendanceReconciliationRequestResponse) => {
         setEditingRequest(req);
         // Pre-fill with employee's requested time - convert UTC to system timezone local time
         const offsetHours = getTimezoneOffsetHours(timezone);
@@ -258,81 +258,243 @@ export default function AttendanceReconciliationAdminPage() {
                 <h1 className="text-2xl font-semibold">Attendance Reconciliation</h1>
             </div>
             <Card>
-                <CardHeader>
-                    <CardTitle>Attendance Reconciliation Requests</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {/* Filters */}
-                    <div className="flex gap-4 mb-6">
-                        <div className="w-64">
-                            <label className="text-sm font-medium mb-2 block">Department</label>
-                            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Departments" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Departments</SelectItem>
-                                    {departments?.map((dept) => (
-                                        <SelectItem key={dept.id} value={dept.name}>
-                                            {dept.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                <CardHeader className="space-y-1">
+                    <div className="flex items-center justify-between">
+                        <CardTitle>Reconciliation Requests</CardTitle>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            {isLoading ? (
+                                <div className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>Loading...</span>
+                                </div>
+                            ) : (
+                                <span className="font-medium">
+                                    {reconciliationRequests?.pagination.totalCount ?? 0} {reconciliationRequests?.pagination.totalCount === 1 ? "request" : "requests"}
+                                </span>
+                            )}
                         </div>
-                        <div className="w-48">
-                            <label className="text-sm font-medium mb-2 block">Status</label>
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Statuses" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem value="PENDING">Pending</SelectItem>
-                                    <SelectItem value="APPROVED">Approved</SelectItem>
-                                    <SelectItem value="REJECTED">Rejected</SelectItem>
-                                </SelectContent>
-                            </Select>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                            placeholder="Search by employee name or email..."
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            className="pl-10 h-11 text-base"
+                        />
+                        {searchInput && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9"
+                                onClick={() => setSearchInput("")}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Filters Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Filter className="h-4 w-4 text-muted-foreground" />
+                                <h3 className="text-sm font-medium">Filters</h3>
+                                {activeFiltersCount > 0 && (
+                                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                                        {activeFiltersCount} active
+                                    </span>
+                                )}
+                            </div>
+                            {activeFiltersCount > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleClearFilters}
+                                    className="h-8 text-xs"
+                                >
+                                    <X className="h-3 w-3 mr-1" />
+                                    Clear all
+                                </Button>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                            {/* Date Filters */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Month</label>
+                                <Select value={monthFilter} onValueChange={setMonthFilter}>
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="All months" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All months</SelectItem>
+                                        {MONTHS.map((m, i) => (
+                                            <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Year</label>
+                                <Select value={yearFilter} onValueChange={setYearFilter}>
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="All years" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All years</SelectItem>
+                                        {yearOptions.map((y) => (
+                                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Employee & Department Filters */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Employee</label>
+                                <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="All employees" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All employees</SelectItem>
+                                        {employees.filter((e) => e.userId).map((emp) => (
+                                            <SelectItem key={emp.userId!} value={emp.userId!}>
+                                                {emp.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Department</label>
+                                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="All departments" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All departments</SelectItem>
+                                        {departments?.map((dept) => (
+                                            <SelectItem key={dept.id} value={dept.id}>
+                                                {dept.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Status Filter */}
+                            <div className="space-y-2 sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</label>
+                                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="All statuses" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All statuses</SelectItem>
+                                        <SelectItem value="PENDING">
+                                            <span className="flex items-center gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                                                Pending
+                                            </span>
+                                        </SelectItem>
+                                        <SelectItem value="APPROVED">
+                                            <span className="flex items-center gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-green-500" />
+                                                Approved
+                                            </span>
+                                        </SelectItem>
+                                        <SelectItem value="REJECTED">
+                                            <span className="flex items-center gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-red-500" />
+                                                Rejected
+                                            </span>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
 
+                    {/* Divider */}
+                    <div className="border-t" />
+
+                    {/* Table */}
                     {isLoading ? (
-                        <div>Loading...</div>
+                        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">Loading reconciliation requests...</p>
+                        </div>
+                    ) : tableData.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
+                            <div className="rounded-full bg-muted p-3">
+                                <Search className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium">No requests found</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {activeFiltersCount > 0
+                                        ? "Try adjusting your filters to see more results"
+                                        : "There are no reconciliation requests at the moment"}
+                                </p>
+                            </div>
+                            {activeFiltersCount > 0 && (
+                                <Button variant="outline" size="sm" onClick={handleClearFilters}>
+                                    <X className="h-4 w-4 mr-2" />
+                                    Clear filters
+                                </Button>
+                            )}
+                        </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Employee Name</TableHead>
-                                    <TableHead>Department</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Original Time</TableHead>
-                                    <TableHead>Requested Time</TableHead>
-                                    <TableHead>Reason</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredData?.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                                            No reconciliation requests found
-                                        </TableCell>
+                        <div className="rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/50">
+                                        <TableHead className="font-semibold">Date</TableHead>
+                                        <TableHead className="font-semibold">Employee</TableHead>
+                                        <TableHead className="font-semibold">Department</TableHead>
+                                        <TableHead className="font-semibold">Type</TableHead>
+                                        <TableHead className="font-semibold">Original Time</TableHead>
+                                        <TableHead className="font-semibold">Requested Time</TableHead>
+                                        <TableHead className="font-semibold">Reason</TableHead>
+                                        <TableHead className="font-semibold">Status</TableHead>
+                                        <TableHead className="font-semibold text-right">Actions</TableHead>
                                     </TableRow>
-                                ) : (
-                                    filteredData?.map((req) => (
-                                        <TableRow key={req.id}>
-                                            <TableCell>{formatDateInDhaka(req.date, "long")}</TableCell>
-                                            <TableCell>
-                                                {req.user?.employee
-                                                    ? `${req.user.employee.firstName} ${req.user.employee.lastName}`
-                                                    : req.userId}
-                                            </TableCell>
-                                            <TableCell>
+                                </TableHeader>
+                            <TableBody>
+                                {tableData.map((req) => (
+                                    <TableRow key={req.id} className="hover:bg-muted/50">
+                                        <TableCell className="font-medium">{formatDateInDhaka(req.date, "long")}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">
+                                                    {req.user?.employee
+                                                        ? `${req.user.employee.firstName} ${req.user.employee.lastName}`
+                                                        : req.userId}
+                                                </span>
+                                                {req.user?.employee?.employeeCode && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {req.user.employee.employeeCode}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-sm">
                                                 {req.user?.employee?.department?.name || "-"}
-                                            </TableCell>
-                                            <TableCell>{req.type}</TableCell>
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-blue-50 text-blue-700 ring-blue-600/20">
+                                                {req.type.replace("_", " ")}
+                                            </span>
+                                        </TableCell>
                                             <TableCell className="text-sm">
                                                 {req.type === "SIGN_IN"
                                                     ? (req.originalSignIn ? formatTimeInTimezone(req.originalSignIn) : "Missing")
@@ -360,24 +522,35 @@ export default function AttendanceReconciliationAdminPage() {
                                                 </TooltipProvider>
                                             </TableCell>
                                             <TableCell>
-                                                <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
-                                                    req.status === "REJECTED" ? "bg-red-100 text-red-800" :
-                                                        "bg-yellow-100 text-yellow-800"
-                                                    }`}>
-                                                    {req.status}
-                                                </span>
+                                                {req.status === "APPROVED" ? (
+                                                    <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-green-600" />
+                                                        Approved
+                                                    </span>
+                                                ) : req.status === "REJECTED" ? (
+                                                    <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
+                                                        Rejected
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-yellow-600" />
+                                                        Pending
+                                                    </span>
+                                                )}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="text-right">
                                                 {req.status === "PENDING" && (
-                                                    <div className="flex gap-2">
+                                                    <div className="flex justify-end gap-2">
                                                         <Button
                                                             size="sm"
                                                             onClick={() => handleApprove(req.id)}
                                                             disabled={!!pendingRequestId}
+                                                            className="h-8"
                                                         >
                                                             {pendingRequestId === req.id && approveMutation.isPending ? (
                                                                 <>
-                                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                                                                     Approving...
                                                                 </>
                                                             ) : (
@@ -389,6 +562,7 @@ export default function AttendanceReconciliationAdminPage() {
                                                             variant="secondary"
                                                             onClick={() => handleEditAndApprove(req)}
                                                             disabled={!!pendingRequestId}
+                                                            className="h-8"
                                                         >
                                                             Edit & Approve
                                                         </Button>
@@ -397,10 +571,11 @@ export default function AttendanceReconciliationAdminPage() {
                                                             variant="destructive"
                                                             onClick={() => handleReject(req.id)}
                                                             disabled={!!pendingRequestId}
+                                                            className="h-8"
                                                         >
                                                             {pendingRequestId === req.id && rejectMutation.isPending ? (
                                                                 <>
-                                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                                                                     Rejecting...
                                                                 </>
                                                             ) : (
@@ -412,9 +587,10 @@ export default function AttendanceReconciliationAdminPage() {
                                             </TableCell>
                                         </TableRow>
                                     ))
-                                )}
+                                }
                             </TableBody>
                         </Table>
+                        </div>
                     )}
                 </CardContent>
             </Card>

@@ -146,7 +146,7 @@ function Header({ pathname, title }: { pathname: string; title: string }) {
     amendment.status === "PENDING" || amendment.status === "PROCESSING"
   ) ?? [];
   const amendmentCount = pendingAmendments.length;
-  const pendingReconciliations = reconciliationRequests?.filter((request) => 
+  const pendingReconciliations = reconciliationRequests?.data?.filter((request) => 
     request.status === "PENDING"
   ) ?? [];
   const reconciliationCount = pendingReconciliations.length;
