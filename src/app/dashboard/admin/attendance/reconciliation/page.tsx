@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Search, X, Filter } from "lucide-react";
+import { ArrowLeft, Loader2, Search, X, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,8 @@ export default function AttendanceReconciliationAdminPage() {
     const [departmentFilter, setDepartmentFilter] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
 
     const searchDebounced = useDebounced(searchInput, 400);
     const currentYear = new Date().getFullYear();
@@ -79,8 +81,8 @@ export default function AttendanceReconciliationAdminPage() {
         const month = monthFilter === "all" ? undefined : parseInt(monthFilter, 10);
         const year = yearFilter === "all" ? undefined : parseInt(yearFilter, 10);
         return {
-            page: 1,
-            limit: 10,
+            page,
+            limit,
             month: month ? month : undefined,
             year: year ? year : undefined,
             userId: employeeFilter === "all" ? undefined : employeeFilter,
@@ -88,6 +90,11 @@ export default function AttendanceReconciliationAdminPage() {
             status: statusFilter === "all" ? undefined : (statusFilter as "PENDING" | "APPROVED" | "REJECTED"),
             search: searchDebounced.trim() || undefined,
         };
+    }, [page, limit, monthFilter, yearFilter, employeeFilter, searchDebounced, departmentFilter, statusFilter]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setPage(1);
     }, [monthFilter, yearFilter, employeeFilter, searchDebounced, departmentFilter, statusFilter]);
     // Fetch all reconciliation requests (admin/HR)
     const { data: reconciliationRequests, isLoading } = useQuery<AttendanceReconciliationListResponse>({
@@ -590,6 +597,65 @@ export default function AttendanceReconciliationAdminPage() {
                                 }
                             </TableBody>
                         </Table>
+                        </div>
+                    )}
+
+                    {/* Pagination */}
+                    {!isLoading && tableData.length > 0 && reconciliationRequests?.pagination && (
+                        <div className="flex items-center justify-between border-t pt-4">
+                            <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">Rows per page:</span>
+                                    <Select
+                                        value={String(limit)}
+                                        onValueChange={(value) => {
+                                            setLimit(Number(value));
+                                            setPage(1);
+                                        }}
+                                    >
+                                        <SelectTrigger className="h-8 w-16">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10</SelectItem>
+                                            <SelectItem value="20">20</SelectItem>
+                                            <SelectItem value="30">30</SelectItem>
+                                            <SelectItem value="50">50</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, reconciliationRequests.pagination.totalCount)} of {reconciliationRequests.pagination.totalCount} results
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage((old) => Math.max(old - 1, 1))}
+                                    disabled={page === 1}
+                                    className="h-8"
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Previous
+                                </Button>
+                                <div className="flex items-center gap-1">
+                                    <span className="text-sm font-medium px-2">
+                                        Page {page} of {reconciliationRequests.pagination.totalPages}
+                                    </span>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPage((old) => old + 1)}
+                                    disabled={page >= reconciliationRequests.pagination.totalPages}
+                                    className="h-8"
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </CardContent>

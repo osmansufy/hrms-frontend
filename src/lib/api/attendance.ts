@@ -511,6 +511,9 @@ export async function getEmployeeMonthlySummary(
     totalWorkingDays: number;
     totalLostHours: number;
     totalOvertimeHours: number;
+    totalHoursWorked: number;
+    totalExpectedHours: number;
+    totalUtilization: string;
   }>(`/attendance/admin/employee/${userId}/monthly-summary`, {
     params: { year, month },
   });

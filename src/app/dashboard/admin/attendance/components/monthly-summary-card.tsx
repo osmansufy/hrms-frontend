@@ -61,6 +61,20 @@ export function MonthlySummaryCard({ year, month, departmentId, userId }: Monthl
       color: "text-indigo-600",
       bgColor: "bg-indigo-50",
     },
+    {
+      label: "Total working hours",
+      value: summary?.totalHoursWorked,
+      icon: Clock,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
+      label: "Total expected hours",
+      value: summary?.totalExpectedHours,
+      icon: Clock,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
   ];
 
   return (
@@ -110,10 +124,11 @@ export function MonthlySummaryCard({ year, month, departmentId, userId }: Monthl
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
+                  {/* Total lost hours  which is not covered by overtime*/}
                   Total Lost Hours
                 </p>
                 <p className="text-3xl font-bold text-blue-600 mt-1">
-                  {summary?.totalLostHours.toFixed(1)}
+                  {summary?.totalLostHours ? (summary?.totalLostHours || 0) - (summary?.totalOvertimeHours || 0) : 0} 
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">hours</p>
               </div>
@@ -121,20 +136,7 @@ export function MonthlySummaryCard({ year, month, departmentId, userId }: Monthl
             </div>
           </div>
 
-          <div className="rounded-lg border p-4  from-purple-50 to-pink-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Overtime Hours
-                </p>
-                <p className="text-3xl font-bold text-purple-600 mt-1">
-                  {summary?.totalOvertimeHours.toFixed(1)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">hours</p>
-              </div>
-              <BarChart3 className="h-8 w-8 text-purple-600 opacity-50" />
-            </div>
-          </div>
+         
         </div>
 
         {/* Summary Text */}

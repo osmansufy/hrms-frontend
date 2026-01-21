@@ -1,6 +1,6 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Calendar, Clock, Key, Mail, MoreVertical, Phone, Trash2, UserCog } from "lucide-react";
+import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Clock, Key, Mail, MoreVertical, Phone, Trash2, UserCog } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -49,6 +49,7 @@ import { useDeleteEmployee, useEmployeeDetail, useManagerSubordinates, useUpdate
 import { extractErrorMessage } from "@/lib/utils/error-handler";
 import { MonthlySummaryCard } from "../../attendance/components/monthly-summary-card";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 const schema = z.object({
   phone: z.string().optional(),
@@ -96,7 +97,9 @@ export default function AdminEmployeeDetailPage() {
   const params = useParams<{ id: string | string[] }>();
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const router = useRouter();
-
+  // monthly attendance summary
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
   const { data, isLoading, isError } = useEmployeeDetail(id || "");
   const updateMutation = useUpdateEmployee(id || "");
   const deleteMutation = useDeleteEmployee();
@@ -183,6 +186,35 @@ export default function AdminEmployeeDetailPage() {
       toast.error(message);
     }
   };
+
+  const handlePreviousMonth = () => {
+    if (month === 1) {
+      setMonth(12);
+      setYear(year - 1);
+    } else {
+      setMonth(month - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    const currentDate = new Date();
+    const isCurrentMonth = month === currentDate.getMonth() + 1 && year === currentDate.getFullYear();
+    
+    if (isCurrentMonth) {
+      // Don't allow navigating to future months
+      return;
+    }
+
+    if (month === 12) {
+      setMonth(1);
+      setYear(year + 1);
+    } else {
+      setMonth(month + 1);
+    }
+  };
+
+  const isCurrentMonth = month === new Date().getMonth() + 1 && year === new Date().getFullYear();
+  const monthName = new Date(year, month - 1).toLocaleString("default", { month: "long" });
 
   if (isLoading) {
     return (
@@ -489,11 +521,42 @@ export default function AdminEmployeeDetailPage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Summary</CardTitle>
-          <CardDescription>Monthly summary of the employee's attendance.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Monthly Attendance Summary</CardTitle>
+              <CardDescription>View attendance summary for any month</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousMonth}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="size-4" />
+                <span className="sr-only">Previous month</span>
+              </Button>
+              <div className="flex items-center gap-2 min-w-[160px] justify-center">
+                <Calendar className="size-4 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  {monthName} {year}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextMonth}
+                disabled={isCurrentMonth}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="size-4" />
+                <span className="sr-only">Next month</span>
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <MonthlySummaryCard year={new Date().getFullYear()} month={new Date().getMonth() + 1} userId={data.userId} />
+          <MonthlySummaryCard year={year} month={month} userId={data.userId} />
         </CardContent>
       </Card>
       {subordinates && subordinates.length > 0 && (
@@ -546,7 +609,6 @@ export default function AdminEmployeeDetailPage() {
         </Card>
       )}
       <EmployeeLeaveBalanceCard employeeId={id || ""} userId={data.userId} />
-
     </div>
   );
 }
