@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 
-const LOCATION_CACHE_DURATION = 3 * 60 * 1000; // 3 minutes in milliseconds
+const LOCATION_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache duration
+const LOCATION_STALE_THRESHOLD = 30 * 1000; // 30 seconds - consider refreshing if older
+const REVERSE_GEOCODE_DEBOUNCE = 1000; // 1 second debounce for reverse geocoding
 
 export interface GeolocationData {
   latitude?: number;
@@ -10,23 +12,111 @@ export interface GeolocationData {
   timestamp?: number;
 }
 
-export type GeolocationStatus = "checking" | "available" | "denied" | "unavailable" | null;
-export type LocationPermissionStatus = "granted" | "denied" | "prompt" | "unavailable" | null;
+export type GeolocationStatus =
+  | "checking"
+  | "available"
+  | "denied"
+  | "unavailable"
+  | null;
+export type LocationPermissionStatus =
+  | "granted"
+  | "denied"
+  | "prompt"
+  | "unavailable"
+  | null;
 
 export function useGeolocation(captureEmployeeLocation: boolean) {
   const [geolocation, setGeolocation] = useState<GeolocationData>({});
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
-  const [geolocationStatus, setGeolocationStatus] = useState<GeolocationStatus>(null);
+  const [geolocationStatus, setGeolocationStatus] =
+    useState<GeolocationStatus>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [locationPermissionStatus, setLocationPermissionStatus] = useState<LocationPermissionStatus>(null);
+  const [locationPermissionStatus, setLocationPermissionStatus] =
+    useState<LocationPermissionStatus>(null);
 
   // Use ref to track latest geolocation for checking in async contexts
   const geolocationRef = useRef(geolocation);
+  const watchIdRef = useRef<number | null>(null);
+  const reverseGeocodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastReverseGeocodeRef = useRef<{ lat: number; lng: number } | null>(
+    null,
+  );
+  const hasAutoPromptedRef = useRef(false); // Track if we've already auto-prompted
+
   useEffect(() => {
     geolocationRef.current = geolocation;
   }, [geolocation]);
 
-  // Check geolocation permission status on mount
+  // Computed: Is location ready for attendance?
+  // True if we have valid coordinates or location capture is not required
+  const isLocationReady =
+    !captureEmployeeLocation ||
+    (locationPermissionStatus === "granted" &&
+      geolocation.latitude !== undefined &&
+      geolocation.longitude !== undefined);
+
+  // Computed: Is location access blocked (denied or unavailable)?
+  const isLocationBlocked =
+    captureEmployeeLocation &&
+    (locationPermissionStatus === "denied" ||
+      locationPermissionStatus === "unavailable");
+
+  // Debounced reverse geocoding function
+  const reverseGeocode = useCallback(
+    async (
+      latitude: number,
+      longitude: number,
+    ): Promise<string | undefined> => {
+      // Skip if we recently geocoded the same location (within ~50m)
+      if (lastReverseGeocodeRef.current) {
+        const { lat, lng } = lastReverseGeocodeRef.current;
+        const latDiff = Math.abs(lat - latitude);
+        const lngDiff = Math.abs(lng - longitude);
+        if (latDiff < 0.0005 && lngDiff < 0.0005) {
+          return geolocationRef.current.address;
+        }
+      }
+
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18`,
+          {
+            headers: { "User-Agent": "HRMS Attendance System" },
+          },
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.display_name) {
+            lastReverseGeocodeRef.current = { lat: latitude, lng: longitude };
+            return data.display_name;
+          }
+        }
+      } catch (error) {
+        console.warn("Failed to reverse geocode:", error);
+      }
+      return undefined;
+    },
+    [],
+  );
+
+  // Schedule debounced reverse geocoding
+  const scheduleReverseGeocode = useCallback(
+    (latitude: number, longitude: number) => {
+      if (reverseGeocodeTimeoutRef.current) {
+        clearTimeout(reverseGeocodeTimeoutRef.current);
+      }
+      reverseGeocodeTimeoutRef.current = setTimeout(async () => {
+        const address = await reverseGeocode(latitude, longitude);
+        if (address) {
+          setGeolocation((prev) => ({ ...prev, address }));
+        }
+      }, REVERSE_GEOCODE_DEBOUNCE);
+    },
+    [reverseGeocode],
+  );
+
+  // Check geolocation permission status on mount and start watching if granted
   useEffect(() => {
     if (!captureEmployeeLocation) return;
 
@@ -36,16 +126,41 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         return;
       }
 
-      if ('permissions' in navigator) {
+      if ("permissions" in navigator) {
         try {
-          const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-          setLocationPermissionStatus(permissionStatus.state as "granted" | "denied" | "prompt");
-          
+          const permissionStatus = await navigator.permissions.query({
+            name: "geolocation" as PermissionName,
+          });
+          const currentState = permissionStatus.state as
+            | "granted"
+            | "denied"
+            | "prompt";
+          setLocationPermissionStatus(currentState);
+
+          // If already granted, proactively fetch location
+          if (currentState === "granted") {
+            startWatchingPosition();
+          }
+
           permissionStatus.onchange = () => {
-            setLocationPermissionStatus(permissionStatus.state as "granted" | "denied" | "prompt");
+            const newState = permissionStatus.state as
+              | "granted"
+              | "denied"
+              | "prompt";
+            setLocationPermissionStatus(newState);
+
+            // Start watching when permission becomes granted
+            if (newState === "granted") {
+              startWatchingPosition();
+            } else {
+              stopWatchingPosition();
+            }
           };
         } catch (error) {
-          console.warn("Permissions API not fully supported, falling back to geolocation check:", error);
+          console.warn(
+            "Permissions API not fully supported, falling back to geolocation check:",
+            error,
+          );
           checkLocationPermissionFallback();
         }
       } else {
@@ -55,7 +170,15 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
 
     const checkLocationPermissionFallback = () => {
       navigator.geolocation.getCurrentPosition(
-        () => setLocationPermissionStatus("granted"),
+        (position) => {
+          setLocationPermissionStatus("granted");
+          // Update geolocation immediately
+          const { latitude, longitude } = position.coords;
+          setGeolocation({ latitude, longitude, timestamp: Date.now() });
+          setGeolocationStatus("available");
+          scheduleReverseGeocode(latitude, longitude);
+          startWatchingPosition();
+        },
         (error) => {
           if (error.code === error.PERMISSION_DENIED) {
             setLocationPermissionStatus("denied");
@@ -63,204 +186,251 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
             setLocationPermissionStatus("prompt");
           }
         },
-        { timeout: 100, maximumAge: 0 }
+        { timeout: 5000, maximumAge: LOCATION_CACHE_DURATION },
       );
     };
 
+    const startWatchingPosition = () => {
+      if (watchIdRef.current !== null) return; // Already watching
+
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setGeolocation((prev) => ({
+            ...prev,
+            latitude,
+            longitude,
+            timestamp: Date.now(),
+          }));
+          setGeolocationStatus("available");
+          setGeolocationError(null);
+          scheduleReverseGeocode(latitude, longitude);
+        },
+        (error) => {
+          console.warn("Watch position error:", error);
+          if (error.code === error.PERMISSION_DENIED) {
+            setGeolocationStatus("denied");
+            setLocationPermissionStatus("denied");
+            stopWatchingPosition();
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: LOCATION_STALE_THRESHOLD,
+        },
+      );
+    };
+
+    const stopWatchingPosition = () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+
     checkLocationPermission();
-  }, [captureEmployeeLocation]);
 
-  const getCurrentLocation = useCallback(async (forceRefresh: boolean = false): Promise<{
-    latitude: number;
-    longitude: number;
-    address?: string;
-  } | null> => {
-    // Check if we have cached geolocation that's still valid
-    if (!forceRefresh && geolocation.latitude && geolocation.longitude && geolocation.timestamp) {
-      const age = Date.now() - geolocation.timestamp;
-      const canUseCache = age < LOCATION_CACHE_DURATION && 
-        (locationPermissionStatus === "granted" || geolocationStatus === "available" || geolocationStatus === null);
-      
-      if (canUseCache) {
-        console.log(`Using cached geolocation (age: ${Math.round(age / 1000)}s, permission: ${locationPermissionStatus}):`, geolocation);
-        return {
-          latitude: geolocation.latitude,
-          longitude: geolocation.longitude,
-          address: geolocation.address,
-        };
+    // Cleanup on unmount
+    return () => {
+      stopWatchingPosition();
+      if (reverseGeocodeTimeoutRef.current) {
+        clearTimeout(reverseGeocodeTimeoutRef.current);
       }
-    } else if (!forceRefresh && geolocation.latitude && geolocation.longitude) {
-      if (locationPermissionStatus === "granted") {
-        console.log("Using cached geolocation (no timestamp, but permission granted):", geolocation);
-        return {
-          latitude: geolocation.latitude,
-          longitude: geolocation.longitude,
-          address: geolocation.address,
-        };
-      }
-    }
+    };
+  }, [captureEmployeeLocation, scheduleReverseGeocode]);
 
-    // Prevent concurrent calls
-    if (isGettingLocation) {
-      console.log("Geolocation request already in progress, waiting...");
-      let attempts = 0;
-      while (isGettingLocation && attempts < 30) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-        if (geolocation.latitude && geolocation.longitude) {
-          console.log("Got geolocation while waiting:", geolocation);
+  // Auto-prompt for location permission on first visit if status is "prompt"
+  // This effect runs after permission status is determined
+  useEffect(() => {
+    if (!captureEmployeeLocation) return;
+    if (hasAutoPromptedRef.current) return; // Already prompted once
+    if (locationPermissionStatus !== "prompt") return; // Only auto-prompt when status is "prompt"
+
+    // Mark as prompted to prevent multiple prompts
+    hasAutoPromptedRef.current = true;
+
+    // Small delay to ensure UI is rendered before showing browser prompt
+    const timeoutId = setTimeout(() => {
+      console.log("Auto-prompting for location access...");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setGeolocation({ latitude, longitude, timestamp: Date.now() });
+          setGeolocationStatus("available");
+          setLocationPermissionStatus("granted");
+          scheduleReverseGeocode(latitude, longitude);
+        },
+        (error) => {
+          console.warn("Auto-prompt location error:", error);
+          if (error.code === error.PERMISSION_DENIED) {
+            setGeolocationStatus("denied");
+            setLocationPermissionStatus("denied");
+            setGeolocationError(
+              "Location access denied. Please enable location in browser settings.",
+            );
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: LOCATION_CACHE_DURATION,
+        },
+      );
+    }, 500); // 500ms delay for better UX
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    captureEmployeeLocation,
+    locationPermissionStatus,
+    scheduleReverseGeocode,
+  ]);
+
+  // Optimized getCurrentLocation - uses cached data from watchPosition when available
+  const getCurrentLocation = useCallback(
+    async (
+      forceRefresh: boolean = false,
+    ): Promise<{
+      latitude: number;
+      longitude: number;
+      address?: string;
+    } | null> => {
+      // If permission is denied, return null immediately
+      if (locationPermissionStatus === "denied") {
+        console.warn("Location permission denied, cannot get location");
+        return null;
+      }
+
+      // Check if we have cached geolocation that's still valid
+      const currentGeo = geolocationRef.current;
+      if (
+        !forceRefresh &&
+        currentGeo.latitude &&
+        currentGeo.longitude &&
+        currentGeo.timestamp
+      ) {
+        const age = Date.now() - currentGeo.timestamp;
+
+        // For non-forced requests, use cache if within duration
+        if (age < LOCATION_CACHE_DURATION) {
+          console.log(
+            `Using cached geolocation (age: ${Math.round(age / 1000)}s):`,
+            currentGeo,
+          );
           return {
-            latitude: geolocation.latitude,
-            longitude: geolocation.longitude,
-            address: geolocation.address,
+            latitude: currentGeo.latitude,
+            longitude: currentGeo.longitude,
+            address: currentGeo.address,
           };
         }
       }
-      if (geolocation.latitude && geolocation.longitude) {
-        return {
-          latitude: geolocation.latitude,
-          longitude: geolocation.longitude,
-          address: geolocation.address,
-        };
+
+      // For force refresh or stale cache, get fresh location
+      // Prevent concurrent calls
+      if (isGettingLocation) {
+        console.log("Geolocation request already in progress, waiting...");
+        // Wait for up to 3 seconds for the ongoing request
+        for (let i = 0; i < 30; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          const geo = geolocationRef.current;
+          if (geo.latitude && geo.longitude) {
+            return {
+              latitude: geo.latitude,
+              longitude: geo.longitude,
+              address: geo.address,
+            };
+          }
+        }
+        return null;
       }
-      return null;
-    }
 
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        console.warn("Geolocation is not supported by your browser");
-        setGeolocationStatus("unavailable");
-        setGeolocationError("Geolocation is not supported by your browser");
-        resolve(null);
-        return;
-      }
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          console.warn("Geolocation is not supported by your browser");
+          setGeolocationStatus("unavailable");
+          setGeolocationError("Geolocation is not supported by your browser");
+          resolve(null);
+          return;
+        }
 
-      setIsGettingLocation(true);
-      console.log("Requesting geolocation (new request)...");
-      setGeolocationStatus("checking");
+        setIsGettingLocation(true);
+        console.log("Requesting fresh geolocation...");
+        setGeolocationStatus("checking");
 
-      try {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
-            try {
-              const { latitude, longitude } = position.coords;
-              console.log("Geolocation success:", { latitude, longitude });
+            const { latitude, longitude } = position.coords;
+            console.log("Geolocation success:", { latitude, longitude });
 
-              let address: string | undefined;
-              try {
-                const response = await fetch(
-                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18`,
-                  {
-                    headers: {
-                      'User-Agent': 'HRMS Attendance System',
-                    },
-                  }
-                );
+            // Update state immediately with coordinates
+            const geoData: GeolocationData = {
+              latitude,
+              longitude,
+              timestamp: Date.now(),
+            };
+            setGeolocation(geoData);
+            setGeolocationError(null);
+            setGeolocationStatus("available");
+            setLocationPermissionStatus("granted");
+            setIsGettingLocation(false);
 
-                if (response.ok) {
-                  const data = await response.json();
-                  if (data.display_name) {
-                    address = data.display_name;
-                    console.log("Reverse geocoded address:", address);
-                  }
-                }
-              } catch (error) {
-                console.warn("Failed to reverse geocode:", error);
-              }
+            // Schedule reverse geocoding in background (non-blocking)
+            scheduleReverseGeocode(latitude, longitude);
 
-              const geoData = { 
-                latitude, 
-                longitude, 
-                address,
-                timestamp: Date.now()
-              };
-              console.log("Final geoData (resolving promise):", geoData);
-              setGeolocation(geoData);
-              setGeolocationError(null);
-              setGeolocationStatus("available");
-              setLocationPermissionStatus("granted");
-              setIsGettingLocation(false);
-              resolve({ latitude, longitude, address });
-            } catch (error) {
-              console.error("Error processing geolocation:", error);
-              setGeolocationStatus("unavailable");
-              setGeolocationError("Error processing location data");
-              setIsGettingLocation(false);
-              resolve(null);
-            }
+            // Return immediately without waiting for address
+            resolve({ latitude, longitude, address: currentGeo.address });
           },
           (error) => {
-            console.warn("Geolocation request result:", error);
-            console.log("Error details:", {
-              code: error?.code,
-              message: error?.message,
-              errorType: typeof error,
-              errorKeys: error ? Object.keys(error) : [],
-              errorString: JSON.stringify(error),
-            });
+            console.warn("Geolocation error:", error.code, error.message);
 
             let errorMessage = "Failed to get location";
-            
-            if (error && typeof error === 'object' && 'code' in error) {
-              const errorCode = error.code;
-              
-              switch (errorCode) {
-                case 1:
-                case error.PERMISSION_DENIED:
-                  console.warn("Location permission denied by user");
-                  setGeolocationStatus("denied");
-                  setLocationPermissionStatus("denied");
-                  errorMessage = "Location access denied. Please enable location access to mark attendance.";
-                  break;
-                case 2:
-                case error.POSITION_UNAVAILABLE:
-                  console.warn("Position unavailable - location service may be disabled or unavailable");
-                  setGeolocationStatus("unavailable");
-                  errorMessage = "Location information unavailable";
-                  break;
-                case 3:
-                case error.TIMEOUT:
-                  console.warn("Geolocation request timed out");
-                  setGeolocationStatus("unavailable");
-                  errorMessage = "Location request timed out";
-                  break;
-                default:
-                  console.warn("Unknown geolocation error code:", errorCode);
-                  setGeolocationStatus("unavailable");
-                  errorMessage = error?.message || "Unable to determine location. Please try again.";
-              }
-            } else {
-              console.warn("Geolocation error has unexpected structure:", error);
-              setGeolocationStatus("unavailable");
-              
-              if (error && typeof error === 'object') {
-                errorMessage = (error as any)?.message || (error as any)?.error?.message || "Failed to get location";
-              } else if (typeof error === 'string') {
-                errorMessage = error;
-              } else {
-                errorMessage = "Location access failed. Please check your browser settings and try again.";
-              }
+
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                setGeolocationStatus("denied");
+                setLocationPermissionStatus("denied");
+                errorMessage =
+                  "Location access denied. Please enable location access to mark attendance.";
+                break;
+              case error.POSITION_UNAVAILABLE:
+                setGeolocationStatus("unavailable");
+                errorMessage = "Location information unavailable";
+                break;
+              case error.TIMEOUT:
+                setGeolocationStatus("unavailable");
+                errorMessage = "Location request timed out";
+                // On timeout, try to use cached location if available
+                const cachedGeo = geolocationRef.current;
+                if (cachedGeo.latitude && cachedGeo.longitude) {
+                  console.log("Using cached location after timeout");
+                  setIsGettingLocation(false);
+                  resolve({
+                    latitude: cachedGeo.latitude,
+                    longitude: cachedGeo.longitude,
+                    address: cachedGeo.address,
+                  });
+                  return;
+                }
+                break;
+              default:
+                setGeolocationStatus("unavailable");
+                errorMessage = error.message || "Unable to determine location";
             }
-            
+
             setGeolocationError(errorMessage);
             setIsGettingLocation(false);
             resolve(null);
           },
           {
             enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 60000,
-          }
+            timeout: 10000, // Reduced timeout for faster feedback
+            maximumAge: forceRefresh ? 0 : LOCATION_STALE_THRESHOLD,
+          },
         );
-      } catch (unexpectedError) {
-        console.error("Unexpected error setting up geolocation:", unexpectedError);
-        setGeolocationStatus("unavailable");
-        setGeolocationError("An unexpected error occurred while requesting location access");
-        setIsGettingLocation(false);
-        resolve(null);
-      }
-    });
-  }, [isGettingLocation, geolocation, geolocationStatus, locationPermissionStatus]);
+      });
+    },
+    [isGettingLocation, locationPermissionStatus, scheduleReverseGeocode],
+  );
 
   const requestLocationAccess = useCallback(async () => {
     if (!navigator.geolocation) {
@@ -270,7 +440,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
 
     setIsGettingLocation(true);
     setGeolocationStatus("checking");
-    
+
     try {
       const geoData = await getCurrentLocation();
       if (geoData) {
@@ -280,7 +450,9 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         await new Promise((resolve) => setTimeout(resolve, 100));
         if (geolocationStatus === "denied") {
           setLocationPermissionStatus("denied");
-          toast.error("Location access denied. Please enable location permissions in your browser settings.");
+          toast.error(
+            "Location access denied. Please enable location permissions in your browser settings.",
+          );
         } else {
           setLocationPermissionStatus("prompt");
         }
@@ -305,7 +477,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
       const currentLat = currentGeo?.latitude;
       const currentLng = currentGeo?.longitude;
       const currentAddress = currentGeo?.address;
-      
+
       if (currentLat && currentLng) {
         console.log("Geolocation obtained after waiting:", {
           latitude: currentLat,
@@ -329,6 +501,8 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     geolocationStatus,
     isGettingLocation,
     locationPermissionStatus,
+    isLocationReady,
+    isLocationBlocked,
     geolocationRef,
     getCurrentLocation,
     requestLocationAccess,

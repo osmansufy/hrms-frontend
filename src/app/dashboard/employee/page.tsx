@@ -46,23 +46,23 @@ export default function EmployeeDashboard() {
   const { data: monthlyLateCountData } = useMonthlyLateCount(userId);
   const monthlyLateCount = monthlyLateCountData?.lateCount ?? 0;
 
-// Modal states
-const [showWarningModal, setShowWarningModal] = useState(false);
-const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  // Modal states
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
-// Check if warning modal has been shown for current month
-const getWarningModalKey = useCallback(() => {
-  if (!userId) return null;
-  const now = new Date();
-  const monthYear = `${now.getFullYear()}-${now.getMonth()}`;
-  return `late-attendance-warning-shown-${userId}-${monthYear}`;
-}, [userId]);
+  // Check if warning modal has been shown for current month
+  const getWarningModalKey = useCallback(() => {
+    if (!userId) return null;
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${now.getMonth()}`;
+    return `late-attendance-warning-shown-${userId}-${monthYear}`;
+  }, [userId]);
 
-const hasWarningBeenShown = useMemo(() => {
-  const key = getWarningModalKey();
-  if (!key) return false;
-  return localStorage.getItem(key) === "true";
-}, [getWarningModalKey]);
+  const hasWarningBeenShown = useMemo(() => {
+    const key = getWarningModalKey();
+    if (!key) return false;
+    return localStorage.getItem(key) === "true";
+  }, [getWarningModalKey]);
 
   // Attendance chart data for last 7 days
   const end = new Date();
@@ -100,6 +100,8 @@ const hasWarningBeenShown = useMemo(() => {
     geolocationStatus,
     isGettingLocation,
     locationPermissionStatus,
+    isLocationReady,
+    isLocationBlocked,
     geolocationRef,
     getCurrentLocation,
     requestLocationAccess,
@@ -130,12 +132,20 @@ const hasWarningBeenShown = useMemo(() => {
 
   // Attendance handlers - using utility functions
   const performSignIn = useCallback(async () => {
+    // Device check
     if (!isDeviceAllowedForAttendance()) {
       const device = detectDevice();
       toast.error(device.type === "mobile" ? "Attendance is only allowed from desktop or laptop computers." : "Device not allowed");
       return;
     }
 
+    // Location permission check - block if required but not granted
+    if (captureEmployeeLocation && locationPermissionStatus !== "granted") {
+      toast.error("Location access is required. Please grant location permission to mark attendance.");
+      return;
+    }
+
+    // Get geolocation (should be fast since watchPosition keeps it updated)
     const geoData = await getGeolocationForAttendance(
       captureEmployeeLocation,
       getCurrentLocation,
@@ -144,8 +154,9 @@ const hasWarningBeenShown = useMemo(() => {
       false
     );
 
-    if (!geoData && geolocationStatus === "denied" && captureEmployeeLocation) {
-      toast.error("Geolocation access is required. Please enable location permissions to mark attendance.");
+    // Final check - if still no location and it's required, block
+    if (!geoData && captureEmployeeLocation) {
+      toast.error("Unable to get your location. Please ensure location access is enabled and try again.");
       return;
     }
 
@@ -178,10 +189,10 @@ const hasWarningBeenShown = useMemo(() => {
     signInMutation,
     location,
     captureEmployeeLocation,
+    locationPermissionStatus,
     getCurrentLocation,
     waitForGeolocation,
     geolocationRef,
-    geolocationStatus,
     setGeolocationError,
   ]);
 
@@ -246,7 +257,7 @@ const hasWarningBeenShown = useMemo(() => {
 
 
   const handleSignIn = useCallback(async () => {
-      // Check if late count is (leaveDeductionDay - 1) - show warning modal before sign-in
+    // Check if late count is (leaveDeductionDay - 1) - show warning modal before sign-in
     // But only if it hasn't been shown for this month yet
     if (monthlyLateCount === leaveDeductionDay - 1 && !hasWarningBeenShown) {
       setShowWarningModal(true);
@@ -269,25 +280,32 @@ const hasWarningBeenShown = useMemo(() => {
   }, [performSignIn]);
 
   const handleSignOut = useCallback(async () => {
+    // Device check
     if (!isDeviceAllowedForAttendance()) {
       const device = detectDevice();
       toast.error(device.type === "mobile" ? "Attendance is only allowed from desktop or laptop computers." : "Device not allowed");
       return;
     }
 
+    // Location permission check - block if required but not granted
+    if (captureEmployeeLocation && locationPermissionStatus !== "granted") {
+      toast.error("Location access is required. Please grant location permission to mark attendance.");
+      return;
+    }
+
+    // Get fresh geolocation for sign-out
     const geoData = await getGeolocationForAttendance(
       captureEmployeeLocation,
       getCurrentLocation,
       waitForGeolocation,
       geolocationRef,
-      true
+      true // Force refresh for sign-out
     );
 
-    if (!geoData && geolocationStatus === "denied" && captureEmployeeLocation) {
-      toast.error("Geolocation access is required. Please enable location permissions to mark attendance.");
+    // Final check - if still no location and it's required, block
+    if (!geoData && captureEmployeeLocation) {
+      toast.error("Unable to get your location. Please ensure location access is enabled and try again.");
       return;
-    } else if (!geoData && geolocationStatus === "unavailable" && captureEmployeeLocation) {
-      toast.warning("Unable to access your location. Attendance will be recorded without geolocation data.");
     }
 
     const payload = await buildAttendancePayload(location, geoData);
@@ -315,10 +333,10 @@ const hasWarningBeenShown = useMemo(() => {
     signOutMutation,
     location,
     captureEmployeeLocation,
+    locationPermissionStatus,
     getCurrentLocation,
     waitForGeolocation,
     geolocationRef,
-    geolocationStatus,
     setGeolocation,
     setGeolocationError,
   ]);
@@ -406,6 +424,8 @@ const hasWarningBeenShown = useMemo(() => {
           geolocationError={geolocationError}
           locationPermissionStatus={locationPermissionStatus}
           isGettingLocation={isGettingLocation}
+          isLocationReady={isLocationReady}
+          isLocationBlocked={isLocationBlocked}
           onRequestLocationAccess={requestLocationAccess}
           onSignIn={handleSignIn}
           onSignOut={handleSignOut}

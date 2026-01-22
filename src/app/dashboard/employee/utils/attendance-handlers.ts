@@ -15,7 +15,7 @@ export interface AttendancePayload {
 
 export async function buildAttendancePayload(
   location: string,
-  geoData: { latitude: number; longitude: number; address?: string } | null
+  geoData: { latitude: number; longitude: number; address?: string } | null,
 ): Promise<AttendancePayload> {
   const deviceInfo = detectDevice();
   const payload: AttendancePayload = {
@@ -52,58 +52,90 @@ export async function buildAttendancePayload(
   return payload;
 }
 
+/**
+ * Optimized geolocation retrieval for attendance.
+ *
+ * Since we now use watchPosition to proactively update location when permission is granted,
+ * this function should return cached data quickly in most cases. The fallbacks are:
+ * 1. getCurrentLocation - returns cached data from watchPosition or fetches fresh
+ * 2. waitForGeolocation - waits up to 3s for location to become available
+ * 3. geolocationRef - direct access to cached coordinates
+ *
+ * @param captureEmployeeLocation - Whether location capture is enabled
+ * @param getCurrentLocation - Hook function to get current location
+ * @param waitForGeolocation - Hook function to wait for location availability
+ * @param geolocationRef - Ref to cached geolocation data
+ * @param isSignOut - If true, forces a fresh location fetch (for sign-out accuracy)
+ */
 export async function getGeolocationForAttendance(
   captureEmployeeLocation: boolean,
-  getCurrentLocation: (forceRefresh: boolean) => Promise<{ latitude: number; longitude: number; address?: string } | null>,
-  waitForGeolocation: () => Promise<{ latitude: number; longitude: number; address?: string } | null>,
+  getCurrentLocation: (
+    forceRefresh: boolean,
+  ) => Promise<{
+    latitude: number;
+    longitude: number;
+    address?: string;
+  } | null>,
+  waitForGeolocation: () => Promise<{
+    latitude: number;
+    longitude: number;
+    address?: string;
+  } | null>,
   geolocationRef: React.MutableRefObject<GeolocationData>,
-  isSignOut: boolean = false
+  isSignOut: boolean = false,
 ): Promise<{ latitude: number; longitude: number; address?: string } | null> {
+  // Early return if location capture is disabled
   if (!captureEmployeeLocation) return null;
 
-  let geoData: { latitude: number; longitude: number; address?: string } | null = null;
-
   try {
-    geoData = await getCurrentLocation(isSignOut);
-    console.log(`Geolocation result (initial):`, { geoData });
+    // For sign-out, force a fresh location fetch for accuracy
+    // For sign-in, use cached location from watchPosition (should be available instantly)
+    const geoData = await getCurrentLocation(isSignOut);
 
-    // If geoData is null, wait a bit to see if geolocation becomes available
-    if (!geoData) {
-      console.log("geoData is null, waiting to see if geolocation becomes available...");
-      geoData = await waitForGeolocation();
+    if (geoData) {
+      console.log(`Geolocation obtained (forceRefresh=${isSignOut}):`, geoData);
+      return geoData;
     }
 
-    // Final fallback: check ref
-    if (!geoData) {
-      const currentGeo = geolocationRef.current;
-      if (currentGeo?.latitude && currentGeo?.longitude) {
-        console.log("Using cached geolocation from ref (final fallback):", currentGeo);
-        geoData = {
-          latitude: currentGeo.latitude,
-          longitude: currentGeo.longitude,
-          address: currentGeo.address,
-        };
-      }
+    // Fallback 1: Wait for geolocation to become available (up to 3s)
+    console.log(
+      "Primary location fetch returned null, waiting for geolocation...",
+    );
+    const waitedGeoData = await waitForGeolocation();
+
+    if (waitedGeoData) {
+      console.log("Geolocation obtained after waiting:", waitedGeoData);
+      return waitedGeoData;
     }
 
-    console.log(`Geolocation result (final):`, { geoData });
+    // Fallback 2: Check ref directly for any cached coordinates
+    const cachedGeo = geolocationRef.current;
+    if (cachedGeo?.latitude && cachedGeo?.longitude) {
+      console.log("Using cached geolocation from ref:", cachedGeo);
+      return {
+        latitude: cachedGeo.latitude,
+        longitude: cachedGeo.longitude,
+        address: cachedGeo.address,
+      };
+    }
+
+    // No location available
+    console.warn("Unable to obtain geolocation after all attempts");
+    return null;
   } catch (error) {
     console.error("Error getting geolocation:", error);
-    // Try to use cached geolocation if available
-    const currentGeo = geolocationRef.current;
-    if (currentGeo?.latitude && currentGeo?.longitude) {
-      console.log("Using cached geolocation after error:", currentGeo);
-      geoData = {
-        latitude: currentGeo.latitude,
-        longitude: currentGeo.longitude,
-        address: currentGeo.address,
-      };
-    } else {
-      toast.warning(
-        "Unable to access your location. Attendance will be recorded without geolocation data."
-      );
-    }
-  }
 
-  return geoData;
+    // Last resort: check ref for cached data
+    const cachedGeo = geolocationRef.current;
+    if (cachedGeo?.latitude && cachedGeo?.longitude) {
+      console.log("Using cached geolocation after error:", cachedGeo);
+      return {
+        latitude: cachedGeo.latitude,
+        longitude: cachedGeo.longitude,
+        address: cachedGeo.address,
+      };
+    }
+
+    return null;
+  }
 }

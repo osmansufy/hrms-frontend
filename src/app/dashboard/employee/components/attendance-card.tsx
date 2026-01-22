@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  Clock, 
-  CheckCircle2, 
-  LogOut, 
-  MapPin, 
-  Monitor, 
-  Loader2 
+import {
+  Clock,
+  CheckCircle2,
+  LogOut,
+  MapPin,
+  Monitor,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,8 @@ interface AttendanceCardProps {
   geolocationError: string | null;
   locationPermissionStatus: LocationPermissionStatus;
   isGettingLocation: boolean;
+  isLocationReady: boolean;
+  isLocationBlocked: boolean;
   onRequestLocationAccess: () => void;
   onSignIn: () => Promise<void>;
   onSignOut: () => Promise<void>;
@@ -58,6 +60,8 @@ export function AttendanceCard({
   geolocationError,
   locationPermissionStatus,
   isGettingLocation,
+  isLocationReady,
+  isLocationBlocked,
   onRequestLocationAccess,
   onSignIn,
   onSignOut,
@@ -65,13 +69,30 @@ export function AttendanceCard({
   onLocationChange,
 }: AttendanceCardProps) {
 
-  const attendanceStatus = attendanceLoading 
-    ? "Checking status…" 
-    : !todayAttendance 
-    ? "Not signed in" 
-    : todayAttendance.signOut 
-    ? "Signed out" 
-    : "Signed in";
+  // Determine if the button should be completely disabled
+  const isButtonDisabled =
+    attendanceLoading ||
+    signInMutation.isPending ||
+    signOutMutation.isPending ||
+    Boolean(todayAttendance?.signOut) ||
+    !isDeviceAllowed ||
+    (captureEmployeeLocation && !isLocationReady);
+
+  // Determine the reason for being blocked (for label/icon)
+  const getBlockReason = (): "device" | "location" | null => {
+    if (!isDeviceAllowed) return "device";
+    if (captureEmployeeLocation && !isLocationReady) return "location";
+    return null;
+  };
+  const blockReason = getBlockReason();
+
+  const attendanceStatus = attendanceLoading
+    ? "Checking status…"
+    : !todayAttendance
+      ? "Not signed in"
+      : todayAttendance.signOut
+        ? "Signed out"
+        : "Signed in";
 
   return (
     <Card className="border-2">
@@ -122,11 +143,13 @@ export function AttendanceCard({
         {/* Enhanced Circular Button Design */}
         <div className={cn(
           "relative rounded-xl p-6 transition-all duration-300",
-          !todayAttendance?.signIn && isDeviceAllowed
-            ? " from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border border-green-200 dark:border-green-900/50"
-            : todayAttendance && !todayAttendance.signOut && isDeviceAllowed
-              ? " from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border border-orange-200 dark:border-orange-900/50"
-              : "bg-muted/30 border border-muted"
+          blockReason !== null
+            ? "bg-muted/30 border border-muted"
+            : !todayAttendance?.signIn
+              ? " from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border border-green-200 dark:border-green-900/50"
+              : todayAttendance && !todayAttendance.signOut
+                ? " from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border border-orange-200 dark:border-orange-900/50"
+                : "bg-muted/30 border border-muted"
         )}>
           <div className="flex flex-col items-center justify-center">
             {/* Time Display */}
@@ -156,32 +179,30 @@ export function AttendanceCard({
             {/* Enhanced Circular Toggle Button */}
             <Button
               onClick={!todayAttendance?.signIn ? onSignIn : onSignOut}
-              disabled={
-                attendanceLoading ||
-                signInMutation.isPending ||
-                signOutMutation.isPending ||
-                Boolean(todayAttendance?.signOut) ||
-                !isDeviceAllowed
-              }
+              disabled={isButtonDisabled}
               className={cn(
                 "rounded-full w-24 h-24 p-0 transition-all duration-300",
                 "shadow-2xl hover:shadow-2xl hover:scale-110 active:scale-95",
                 "ring-4",
-                !todayAttendance?.signIn && isDeviceAllowed
-                  ? "bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-500/50 dark:shadow-green-900/50 ring-green-200/50 dark:ring-green-900/30"
-                  : todayAttendance && !todayAttendance.signOut && isDeviceAllowed
-                    ? "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/50 dark:shadow-orange-900/50 ring-orange-200/50 dark:ring-orange-900/30"
-                    : "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
+                blockReason !== null
+                  ? "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
+                  : !todayAttendance?.signIn
+                    ? "bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-500/50 dark:shadow-green-900/50 ring-green-200/50 dark:ring-green-900/30"
+                    : todayAttendance && !todayAttendance.signOut
+                      ? "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/50 dark:shadow-orange-900/50 ring-orange-200/50 dark:ring-orange-900/30"
+                      : "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
               )}
             >
               {attendanceLoading || signInMutation.isPending || signOutMutation.isPending ? (
                 <Loader2 className="size-7 animate-spin text-white" />
-              ) : !isDeviceAllowed ? (
-                <Monitor className="size-7 text-white" />
+              ) : blockReason === "device" ? (
+                <Monitor className="size-7 text-muted-foreground" />
+              ) : blockReason === "location" ? (
+                <MapPin className="size-7 text-muted-foreground" />
               ) : !todayAttendance?.signIn ? (
                 <CheckCircle2 className="size-7 text-white" />
               ) : todayAttendance?.signOut ? (
-                <CheckCircle2 className="size-7 text-white" />
+                <CheckCircle2 className="size-7 text-muted-foreground" />
               ) : (
                 <LogOut className="size-7 text-white" />
               )}
@@ -190,19 +211,23 @@ export function AttendanceCard({
             {/* Button Label */}
             <p className={cn(
               "mt-4 text-base font-semibold transition-colors",
-              !todayAttendance?.signIn && isDeviceAllowed
-                ? "text-green-700 dark:text-green-300"
-                : todayAttendance && !todayAttendance.signOut && isDeviceAllowed
-                  ? "text-orange-700 dark:text-orange-300"
-                  : "text-muted-foreground"
-            )}>
-              {!isDeviceAllowed
-                ? "PC Required"
+              blockReason !== null
+                ? "text-muted-foreground"
                 : !todayAttendance?.signIn
-                  ? "Sign In"
-                  : todayAttendance?.signOut
-                    ? "Signed Out"
-                    : "Sign Out"}
+                  ? "text-green-700 dark:text-green-300"
+                  : todayAttendance && !todayAttendance.signOut
+                    ? "text-orange-700 dark:text-orange-300"
+                    : "text-muted-foreground"
+            )}>
+              {blockReason === "device"
+                ? "PC Required"
+                : blockReason === "location"
+                  ? "Location Required"
+                  : !todayAttendance?.signIn
+                    ? "Sign In"
+                    : todayAttendance?.signOut
+                      ? "Signed Out"
+                      : "Sign Out"}
             </p>
           </div>
         </div>
