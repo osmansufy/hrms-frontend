@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Calendar, Loader2 } from "lucide-react";
+import { Calendar, Info, Loader2 } from "lucide-react";
 import { useSession } from "@/components/auth/session-provider";
 import { useMyLostHoursReport, useMyAttendanceRecords } from "@/lib/queries/attendance";
 import { formatMinutesToHours, toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePre
 import { Badge } from "@/components/ui/badge";
 
 import { formatTimeInTimezone, formatInDhakaTimezone, formatDateInDhaka } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 function formatTime(value?: string | null) {
     return formatTimeInTimezone(value || "");
@@ -46,7 +47,8 @@ export function ComprehensiveHistoryTab() {
 
     const myData = useMemo(() => lostHoursData?.find(r => r.userId === userId), [lostHoursData, userId]);
     const records = attendanceData?.data || [];
-
+// covered lost hours
+const coveredLostHours = myData?.totalLostMinutes && myData?.totalLostMinutes > myData?.totalOvertimeMinutes ? myData?.totalLostMinutes - myData?.totalOvertimeMinutes : 0;
     // Calculate daily metrics from attendance records
     const dailyRecords = useMemo(() => {
         return records.map(record => {
@@ -180,14 +182,24 @@ export function ComprehensiveHistoryTab() {
 
                 <Card className="border-green-200 dark:border-green-900/50">
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Overtime</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            Covered Lost Hours
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Info className="h-4 w-4" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    Covered lost hours are the lost hours that are covered by the overtime.
+                                </TooltipContent>
+                            </Tooltip>
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
                             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         ) : (
                             <div className="text-2xl font-bold text-green-700">
-                                {formatMinutesToHours(myData?.totalOvertimeMinutes || 0)}
+                                {formatMinutesToHours(coveredLostHours || 0)}
                             </div>
                         )}
                     </CardContent>
