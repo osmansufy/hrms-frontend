@@ -95,7 +95,6 @@ export default function EmployeeDashboard() {
 
   // Geolocation hook - handles all geolocation logic
   const {
-    geolocation,
     geolocationError,
     geolocationStatus,
     isGettingLocation,
@@ -362,11 +361,15 @@ export default function EmployeeDashboard() {
           <span className="font-mono text-2xl font-bold text-green-700">{formatWorkedTime(workedSeconds)}</span>
         </div>
       </div>
-      <div className="flex justify-end">
-        <Link href="/dashboard/employee/attendance/reconciliation">
-          <Button variant="secondary">Attendance Reconciliation</Button>
-        </Link>
-      </div>
+      {
+        // check user is signed 
+        todayAttendance && todayAttendance.signIn &&
+        <div className="flex justify-end">
+          <Link href="/dashboard/employee/attendance/reconciliation">
+            <Button variant="secondary">Attendance Reconciliation</Button>
+          </Link>
+        </div>
+      }
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">Welcome back</p>

@@ -1,40 +1,37 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, CalendarDays, Loader2, NotebookPen, Send, Info, ExternalLink, Upload, FileText, X } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { AlertTriangle, CalendarDays, ExternalLink, FileText, Info, Loader2, NotebookPen, Send, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import Link from "next/link";
 
 import { useSession } from "@/components/auth/session-provider";
+import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useApplyLeave, useLeaveTypes, useMyLeaves, useUserBalances, useLeavePolicy } from "@/lib/queries/leave";
 import { uploadLeaveDocument } from "@/lib/api/leave";
-import { LeavePieChart } from "./leave-pie-chart";
-import { LeaveDeductionRecords } from "../components/leave-deduction-records";
-import { useBalanceDetails } from "@/lib/queries/leave-balance";
+import { useApplyLeave, useLeavePolicy, useLeaveTypes, useMyLeaves, useUserBalances } from "@/lib/queries/leave";
 import { formatInDhakaTimezone } from "@/lib/utils";
-import { LeaveBalanceCard } from "@/components/leave/leave-balance-card";
-import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 import { handleLeaveError } from "@/lib/utils/error-handler";
+import { LeaveDeductionRecords } from "../components/leave-deduction-records";
 
 const schema = z.object({
   leaveTypeId: z.string().min(1, "Choose a leave type"),
@@ -406,13 +403,6 @@ export default function LeavePage() {
         </div>
       </div>
 
-      {/* Usage awareness: show leaves taken this year */}
-      {leaves && (
-        <div className="mb-2 text-xs text-gray-500">
-          Leaves taken this year: {leaves.filter(l => new Date(l.startDate).getUTCFullYear() === new Date().getUTCFullYear()).length}
-        </div>
-      )}
-
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
@@ -421,25 +411,9 @@ export default function LeavePage() {
           </CardHeader>
           <CardContent>
             {/* Warning for pending leaves */}
-            {(() => {
-              if (pendingLeaves.length > 0) {
-                const pendingLeave = pendingLeaves[0];
-                const leaveTypeName = pendingLeave.leaveType?.name || 'Leave';
-                const dateRange = formatRange(pendingLeave.startDate, pendingLeave.endDate);
-                return (
-                  <Alert variant="warning" className="my-2">
-                    <AlertTriangle className="size-4" />
-                    <AlertDescription>
-                      You have a {pendingLeave.status.toLowerCase()} {leaveTypeName} request from {dateRange}.
-                      Please wait for it to be processed before applying for a new leave.
-                    </AlertDescription>
-                  </Alert>
-                );
-              }
-              return null;
-            })()}
+
             {
-              pendingLeaves.length <= 0 && (
+              pendingLeaves.length != 0 && (
                 <Form {...form}>
                   <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
                     <FormField
@@ -512,8 +486,9 @@ export default function LeavePage() {
                         render={({ field }) => {
                           // For sick leave: can only select past/current dates (not future)
                           // For other leave: can select from today onwards
+                          const twoWeeksAgo = 14 * 24 * 60 * 60 * 1000;
                           const minDate = isSickLeave
-                            ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days back
+                            ? new Date(Date.now() - twoWeeksAgo).toISOString().split('T')[0]  // Sick leave: allow past 2 weeks
                             : today;
                           const maxDateValue = isSickLeave
                             ? today // Sick leave: max today
@@ -525,11 +500,6 @@ export default function LeavePage() {
                               <FormControl>
                                 <Input type="date" min={minDate} max={maxDateValue} {...field} />
                               </FormControl>
-                              {isSickLeave && (
-                                <FormDescription className="text-xs text-muted-foreground">
-                                  Sick leave: Past/current dates only
-                                </FormDescription>
-                              )}
                               <FormMessage />
                             </FormItem>
                           );

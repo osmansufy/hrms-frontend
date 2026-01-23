@@ -126,12 +126,6 @@ export default function ProfilePage() {
                 </CardTitle>
                 <CardDescription>Your personal and contact details</CardDescription>
               </div>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/dashboard/employee/profile/edit">
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Link>
-              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
