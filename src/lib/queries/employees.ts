@@ -9,6 +9,7 @@ import {
   updateEmployeeApi,
   assignManager,
   getSubordinates,
+  getSubordinateDetails,
   type ApiEmployee,
   type ListEmployeesParams,
   type UpdateEmployeePayload,
@@ -88,6 +89,8 @@ export const employeeKeys = {
   detailRaw: (id: string) => [...employeeKeys.all, "detail-raw", id] as const,
   subordinates: (id: string) =>
     [...employeeKeys.all, "subordinates", id] as const,
+  subordinateDetails: (userId: string) =>
+    [...employeeKeys.all, "subordinate", "details", userId] as const,
 };
 
 export function useEmployees(params?: ListEmployeesParams) {
@@ -226,5 +229,17 @@ export function useManagerSubordinates(employeeId?: string) {
       return getSubordinates(employeeId);
     },
     enabled: Boolean(employeeId),
+  });
+}
+
+export function useSubordinateDetails(subordinateUserId: string | undefined) {
+  return useQuery({
+    queryKey: employeeKeys.subordinateDetails(subordinateUserId || ""),
+    queryFn: () => {
+      if (!subordinateUserId) throw new Error("Subordinate user ID required");
+      return getSubordinateDetails(subordinateUserId);
+    },
+    enabled: Boolean(subordinateUserId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

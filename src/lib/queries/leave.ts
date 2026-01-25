@@ -40,6 +40,8 @@ export const leaveKeys = {
   managerPending: ["leave", "manager", "pending"] as const,
   managerApproved: ["leave", "manager", "approved"] as const,
   subordinatesLeaves: ["leave", "subordinates"] as const,
+  subordinateLeaves: (userId: string, params?: GetSubordinateLeavesParams) =>
+    ["leave", "subordinate", userId, params ?? {}] as const,
 };
 
 export function useLeaveTypes() {
@@ -77,6 +79,8 @@ import {
   getPendingLeavesForManager,
   getApprovedByManagerPendingHR,
   getSubordinatesLeaves,
+  getSubordinateLeaves,
+  type GetSubordinateLeavesParams,
 } from "@/lib/api/leave";
 
 // Line Manager - Get pending leaves from subordinates
@@ -102,6 +106,22 @@ export function useSubordinatesLeaves() {
   return useQuery({
     queryKey: leaveKeys.subordinatesLeaves,
     queryFn: () => getSubordinatesLeaves(),
+    staleTime: 2 * 60_000, // 2 minutes
+  });
+}
+
+// Line Manager - Get leaves for a specific subordinate
+export function useSubordinateLeaves(
+  subordinateUserId: string | undefined,
+  params?: GetSubordinateLeavesParams
+) {
+  return useQuery({
+    queryKey: leaveKeys.subordinateLeaves(subordinateUserId || "", params),
+    queryFn: () => {
+      if (!subordinateUserId) throw new Error("Subordinate user ID required");
+      return getSubordinateLeaves(subordinateUserId, params);
+    },
+    enabled: Boolean(subordinateUserId),
     staleTime: 2 * 60_000, // 2 minutes
   });
 }

@@ -16,6 +16,7 @@ import {
   getAttendanceStats,
   getAttendanceRecords,
   getMyAttendanceRecords,
+  getSubordinateAttendance,
   createAttendanceRecord,
   updateAttendanceRecord,
   deleteAttendanceRecord,
@@ -44,6 +45,8 @@ export const attendanceKeys = {
     ["attendance", "list", params] as const,
   employeeHistory: (userId: string | undefined) =>
     ["attendance", "employee", userId] as const,
+  subordinateAttendance: (userId: string, params?: AttendanceListParams) =>
+    ["attendance", "subordinate", userId, params ?? {}] as const,
 };
 
 // Employee hooks
@@ -91,6 +94,25 @@ export function useSignOut(userId?: string) {
 export function useExportAttendanceReport() {
   return useMutation({
     mutationFn: exportAttendanceReport,
+  });
+}
+
+// Manager - Get attendance records for a specific subordinate
+export function useSubordinateAttendance(
+  subordinateUserId: string | undefined,
+  params?: AttendanceListParams
+) {
+  return useQuery({
+    queryKey: attendanceKeys.subordinateAttendance(
+      subordinateUserId || "",
+      params
+    ),
+    queryFn: () => {
+      if (!subordinateUserId) throw new Error("Subordinate user ID required");
+      return getSubordinateAttendance(subordinateUserId, params || {});
+    },
+    enabled: Boolean(subordinateUserId),
+    staleTime: 2 * 60_000, // 2 minutes
   });
 }
 

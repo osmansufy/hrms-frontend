@@ -3,3 +3,7 @@ export { ApprovedLeavesTab } from "./approved-leaves-tab";
 export { TeamCalendarTab } from "./team-calendar-tab";
 export { AttendanceTab } from "./attendance-tab";
 export { TeamMembersTab } from "./team-members-tab";
+export { EmployeeDetailDialog } from "./employee-detail-dialog";
+export { JobCardTab } from "./job-card-tab";
+export { SubordinateLeaveRecordsTab } from "./subordinate-leave-records-tab";
+export { SubordinateAttendanceRecordsTab } from "./subordinate-attendance-records-tab";

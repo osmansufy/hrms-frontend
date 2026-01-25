@@ -22,6 +22,7 @@ export type LeaveRecord = {
   status: string;
   startDate: string;
   endDate: string;
+  totalDays?: number;
   createdAt: string;
   user: {
     id: string;
@@ -449,6 +450,34 @@ export async function getApprovedByManagerPendingHR() {
 export async function getSubordinatesLeaves() {
   const response = await apiClient.get<LeaveWithApprovals[]>(
     "/leave/manager/subordinates"
+  );
+  return response.data;
+}
+
+// Manager endpoint: Get subordinate leave records
+export type GetSubordinateLeavesParams = {
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type SubordinateLeavesResponse = {
+  data: LeaveRecord[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export async function getSubordinateLeaves(
+  subordinateUserId: string,
+  params?: GetSubordinateLeavesParams
+) {
+  const response = await apiClient.get<SubordinateLeavesResponse>(
+    `/leave/manager/subordinate/${subordinateUserId}`,
+    { params }
   );
   return response.data;
 }

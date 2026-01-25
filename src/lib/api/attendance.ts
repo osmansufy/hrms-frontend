@@ -520,7 +520,7 @@ export async function getEmployeeMonthlySummary(
   return response.data;
 }
 
-// Attendance History for line manager
+// Attendance History for line manager (all subordinates)
 export async function getManagerAttendanceRecords(
   userId: string,
   params: AttendanceListParams
@@ -531,7 +531,22 @@ export async function getManagerAttendanceRecords(
     page: number;
     limit: number;
     totalPages: number;
-  }>(`/attendance/manager/${userId}/records`, { params });
+  }>(`/attendance/employee/${userId}/attendance-history`, { params });
+  return response.data;
+}
+
+// Manager endpoint: Get subordinate attendance records
+export async function getSubordinateAttendance(
+  subordinateUserId: string,
+  params: AttendanceListParams
+) {
+  const response = await apiClient.get<{
+    data: ExtendedAttendanceRecord[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/attendance/manager/subordinate/${subordinateUserId}`, { params });
   return response.data;
 }
 

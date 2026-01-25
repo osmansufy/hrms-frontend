@@ -235,3 +235,11 @@ export async function getSubordinates(employeeId: string) {
   );
   return response.data;
 }
+
+// Manager endpoint: Get subordinate employee details (job card)
+export async function getSubordinateDetails(subordinateUserId: string) {
+  const response = await apiClient.get<ApiEmployee>(
+    `/employees/manager/subordinate/${subordinateUserId}`
+  );
+  return response.data;
+}
