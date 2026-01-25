@@ -255,7 +255,7 @@ export function TodayAttendanceCard() {
                                         filteredRecords.map((record) => (
                                             <TableRow key={record.id}>
                                                 <TableCell>
-                                                <Link href={`/dashboard/admin/employees/${record.user?.employee?.employeeId}`}>
+                                                <Link href={`/dashboard/admin/employees/${record.user?.employee?.id}`}>
 
                                                     <div className="flex items-center gap-3">
                                                         <Avatar className="h-8 w-8">

@@ -28,7 +28,7 @@ export type ExtendedAttendanceRecord = AttendanceRecord & {
     name: string;
     email: string;
     employee?: {
-      employeeId: string;
+      id: string;
       employeeCode: string;
       department?: { id: string; name: string };
       designation?: { id: string; title: string };

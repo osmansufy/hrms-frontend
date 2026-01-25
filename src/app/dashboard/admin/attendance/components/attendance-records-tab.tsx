@@ -301,7 +301,7 @@ export function AttendanceRecordsTab() {
                                                 </Avatar>
                                                 <div className="flex flex-col">
                                                     <Link
-                                                        href={`/dashboard/admin/employees/${record.user.employee?.employeeId}`}
+                                                        href={`/dashboard/admin/employees/${record.user.employee?.id}`}
                                                         className="font-medium text-primary hover:underline"
                                                         rel="noopener noreferrer"
                                                     >
