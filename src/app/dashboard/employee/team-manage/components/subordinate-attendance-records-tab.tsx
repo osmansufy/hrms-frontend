@@ -35,6 +35,7 @@ interface FilterState {
   startDate: string;
   endDate: string;
   page: number;
+  limit: number;
   isLate: boolean | undefined;
   activePreset: DateFilterPreset;
 }
@@ -44,6 +45,7 @@ type FilterAction =
   | { type: "SET_START_DATE"; payload: string }
   | { type: "SET_END_DATE"; payload: string }
   | { type: "SET_PAGE"; payload: number }
+  | { type: "SET_LIMIT"; payload: number }
   | { type: "SET_IS_LATE"; payload: boolean | undefined }
   | { type: "RESET" };
 
@@ -56,6 +58,7 @@ const getInitialState = (): FilterState => {
     startDate: firstDay.toISOString().split("T")[0],
     endDate: lastDay.toISOString().split("T")[0],
     page: 1,
+    limit: 20,
     isLate: undefined,
     activePreset: "monthly",
   };
@@ -90,6 +93,12 @@ const filterReducer = (state: FilterState, action: FilterAction): FilterState =>
         ...state,
         page: action.payload,
       };
+    case "SET_LIMIT":
+      return {
+        ...state,
+        limit: action.payload,
+        page: 1, // Reset to first page when changing limit
+      };
     case "SET_IS_LATE":
       return {
         ...state,
@@ -108,19 +117,18 @@ export function SubordinateAttendanceRecordsTab({
 }: SubordinateAttendanceRecordsTabProps) {
   const timezone = "Asia/Dhaka"; // Default timezone, can be made configurable
   const [state, dispatch] = useReducer(filterReducer, getInitialState());
-  const limit = 20;
 
   const queryParams = useMemo(
     () => ({
       page: state.page.toString(),
-      limit: limit.toString(),
+      limit: state.limit.toString(),
       startDate: toStartOfDayISO(state.startDate),
       endDate: toEndOfDayISO(state.endDate),
       isLate: state.isLate,
       sortBy: "date" as const,
       sortOrder: "desc" as const,
     }),
-    [state.page, state.startDate, state.endDate, state.isLate]
+    [state.page, state.limit, state.startDate, state.endDate, state.isLate]
   );
 
   const { data, isLoading, error } = useSubordinateAttendance(
@@ -474,11 +482,31 @@ export function SubordinateAttendanceRecordsTab({
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-sm text-muted-foreground text-center sm:text-left">
-                  Page {state.page} of {totalPages} ({data?.total || 0} total records)
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="text-sm text-muted-foreground">
+                  Showing {records.length > 0 ? (state.page - 1) * state.limit + 1 : 0} to{" "}
+                  {Math.min(state.page * state.limit, data?.total || 0)} of {data?.total || 0} records
                 </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground whitespace-nowrap">Per page:</label>
+                  <Select
+                    value={state.limit.toString()}
+                    onValueChange={(value) => dispatch({ type: "SET_LIMIT", payload: Number(value) })}
+                  >
+                    <SelectTrigger className="h-9 w-[70px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {totalPages > 1 && (
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -488,6 +516,11 @@ export function SubordinateAttendanceRecordsTab({
                   >
                     Previous
                   </Button>
+                  <div className="flex items-center gap-2 px-3">
+                    <span className="text-sm text-muted-foreground">
+                      Page {state.page} of {totalPages}
+                    </span>
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
@@ -497,8 +530,8 @@ export function SubordinateAttendanceRecordsTab({
                     Next
                   </Button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </CardContent>
