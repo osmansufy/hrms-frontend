@@ -704,6 +704,22 @@ export async function getAllUsersBalances() {
   return response.data;
 }
 
+// Get subordinate balances - filters from all users balances
+export async function getSubordinateBalances(
+  subordinateUserId: string
+): Promise<LeaveBalance[]> {
+  const response = await apiClient.get<UserBalanceWithEmployee[]>(
+    "/leave/balance/all/users"
+  );
+
+  // Filter for the specific subordinate - now each item is a balance with user info
+  const subordinateBalances = response.data.filter(
+    (balance) => balance.user?.id === subordinateUserId || balance.userId === subordinateUserId
+  );
+
+  return subordinateBalances as LeaveBalance[];
+}
+
 // Admin Dashboard API Functions
 
 export type AdminLeaveBalanceItem = {

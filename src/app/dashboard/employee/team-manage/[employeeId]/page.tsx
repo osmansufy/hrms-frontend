@@ -8,6 +8,7 @@ import { ArrowLeft, UserCircle, Briefcase, Calendar, Clock } from "lucide-react"
 import { JobCardTab } from "../components/job-card-tab";
 import { SubordinateLeaveRecordsTab } from "../components/subordinate-leave-records-tab";
 import { SubordinateAttendanceRecordsTab } from "../components/subordinate-attendance-records-tab";
+import { SubordinateLeaveBalances } from "../components/subordinate-leave-balances";
 import { Breadcrumb } from "../components/breadcrumb";
 import { useManagerSubordinates } from "@/lib/queries/employees";
 import { useSession } from "@/components/auth/session-provider";
@@ -144,6 +145,9 @@ console.log({employeeId});
           </div>
         </CardContent>
       </Card>
+
+      {/* Leave Balances */}
+      <SubordinateLeaveBalances userId={subordinate.userId || ""} />
 
       {/* Tabs for Details */}
       <Tabs defaultValue="job-card" className="space-y-4">

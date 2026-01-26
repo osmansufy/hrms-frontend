@@ -24,6 +24,7 @@ import {
   getUserLeaveBalance,
   getBalanceDetails,
   getAllUsersBalances,
+  getSubordinateBalances,
   adjustBalance,
   initializeBalance,
   getMyLedgerHistory,
@@ -430,6 +431,8 @@ export const balanceKeys = {
   balanceDetails: (leaveTypeId: string) =>
     [...balanceKeys.all, "details", leaveTypeId] as const,
   allUsersBalances: () => [...balanceKeys.all, "all-users"] as const,
+  subordinateBalances: (userId: string) =>
+    [...balanceKeys.all, "subordinate", userId] as const,
 };
 
 // Leave Balance Hooks
@@ -454,6 +457,18 @@ export function useAllUsersBalances() {
   return useQuery({
     queryKey: balanceKeys.allUsersBalances(),
     queryFn: () => getAllUsersBalances(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useSubordinateBalances(subordinateUserId: string | undefined) {
+  return useQuery({
+    queryKey: balanceKeys.subordinateBalances(subordinateUserId || ""),
+    queryFn: () => {
+      if (!subordinateUserId) throw new Error("Subordinate user ID required");
+      return getSubordinateBalances(subordinateUserId);
+    },
+    enabled: Boolean(subordinateUserId),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useMemo } from "react";
+import { useReducer, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -20,9 +20,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSubordinateAttendance } from "@/lib/queries/attendance";
-import { Calendar, Clock, MapPin, CalendarDays, CalendarRange, Filter, X } from "lucide-react";
+import { 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  CalendarDays, 
+  CalendarRange, 
+  Filter, 
+  X,
+  TrendingUp,
+  TrendingDown,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  BarChart3
+} from "lucide-react";
 import { toStartOfDayISO, toEndOfDayISO, formatDateInDhaka } from "@/lib/utils";
 
 interface SubordinateAttendanceRecordsTabProps {
@@ -117,6 +132,12 @@ export function SubordinateAttendanceRecordsTab({
 }: SubordinateAttendanceRecordsTabProps) {
   const timezone = "Asia/Dhaka"; // Default timezone, can be made configurable
   const [state, dispatch] = useReducer(filterReducer, getInitialState());
+  const [viewMode, setViewMode] = useState<"records" | "monthly">("monthly");
+  
+  // Month/Year selector state for monthly view
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   const queryParams = useMemo(
     () => ({
@@ -135,6 +156,74 @@ export function SubordinateAttendanceRecordsTab({
     userId,
     queryParams
   );
+
+  // Separate query for monthly view
+  const monthlyStartDate = new Date(selectedYear, selectedMonth, 1).toISOString().split("T")[0];
+  const monthlyEndDate = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split("T")[0];
+  
+  const { data: monthlyData, isLoading: monthlyLoading } = useSubordinateAttendance(
+    userId,
+    {
+      page: "1",
+      limit: "1000",
+      startDate: toStartOfDayISO(monthlyStartDate),
+      endDate: toEndOfDayISO(monthlyEndDate),
+      sortBy: "date",
+      sortOrder: "desc",
+    }
+  );
+
+  // Calculate monthly statistics
+  const monthlyStats = useMemo(() => {
+    if (!monthlyData?.data) return null;
+
+    const records = monthlyData.data;
+    const stats = {
+      totalDays: 0,
+      presentDays: 0,
+      absentDays: 0,
+      lateDays: 0,
+      weekendDays: 0,
+      leaveDays: 0,
+      totalWorkedHours: 0,
+      averageWorkedHours: 0,
+      attendanceRate: 0,
+      onTimeDays: 0,
+    };
+
+    records.forEach((record) => {
+      stats.totalDays++;
+
+      if (record.isWeekend) {
+        stats.weekendDays++;
+      } else if (record.isOnLeave) {
+        stats.leaveDays++;
+      } else if (record.signIn) {
+        stats.presentDays++;
+        if (record.isLate) {
+          stats.lateDays++;
+        } else {
+          stats.onTimeDays++;
+        }
+        if (record.workedMinutes) {
+          stats.totalWorkedHours += record.workedMinutes / 60;
+        }
+      } else {
+        stats.absentDays++;
+      }
+    });
+
+    if (stats.presentDays > 0) {
+      stats.averageWorkedHours = stats.totalWorkedHours / stats.presentDays;
+    }
+
+    const workingDays = stats.totalDays - stats.weekendDays;
+    if (workingDays > 0) {
+      stats.attendanceRate = ((stats.presentDays + stats.leaveDays) / workingDays) * 100;
+    }
+
+    return stats;
+  }, [monthlyData]);
 
   const formatWorkedHours = (workedMinutes?: number) => {
     if (!workedMinutes) return "—";
@@ -237,12 +326,292 @@ export function SubordinateAttendanceRecordsTab({
   const records = data?.data || [];
   const totalPages = data?.totalPages || 0;
 
+  // Month names for selector
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  // Generate year options (current year and 2 previous years)
+  const yearOptions = [selectedYear, selectedYear - 1, selectedYear - 2];
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Attendance Records</CardTitle>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Attendance Overview
+          </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Tab Switcher */}
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "records" | "monthly")}>
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="monthly" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Monthly Summary
+            </TabsTrigger>
+            <TabsTrigger value="records" className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Detailed Records
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Monthly Summary View */}
+          <TabsContent value="monthly" className="space-y-6 mt-6">
+            {/* Month/Year Selector */}
+            <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/30">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div className="flex items-center gap-2 flex-1">
+                <Select
+                  value={selectedMonth.toString()}
+                  onValueChange={(value) => setSelectedMonth(Number(value))}
+                >
+                  <SelectTrigger className="w-[140px] bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthNames.map((month, index) => (
+                      <SelectItem key={index} value={index.toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={selectedYear.toString()}
+                  onValueChange={(value) => setSelectedYear(Number(value))}
+                >
+                  <SelectTrigger className="w-[100px] bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedMonth(currentDate.getMonth());
+                  setSelectedYear(currentDate.getFullYear());
+                }}
+              >
+                Today
+              </Button>
+            </div>
+
+            {monthlyLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-32" />
+                ))}
+              </div>
+            ) : monthlyStats ? (
+              <>
+                {/* Key Metrics Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Attendance Rate */}
+                  <Card className="border-2">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <TrendingUp className="h-5 w-5 text-primary" />
+                        </div>
+                        <Badge 
+                          variant={monthlyStats.attendanceRate >= 90 ? "default" : monthlyStats.attendanceRate >= 75 ? "secondary" : "destructive"}
+                        >
+                          {monthlyStats.attendanceRate >= 90 ? "Excellent" : monthlyStats.attendanceRate >= 75 ? "Good" : "Needs Attention"}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Attendance Rate</p>
+                        <p className="text-3xl font-bold">{monthlyStats.attendanceRate.toFixed(1)}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          {monthlyStats.totalDays - monthlyStats.weekendDays} working days
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Present Days */}
+                  <Card className="border-2">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="p-2 rounded-lg bg-green-500/10">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        </div>
+                        <Badge variant="outline" className="text-green-600 border-green-200">
+                          {monthlyStats.onTimeDays} on time
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Present Days</p>
+                        <p className="text-3xl font-bold text-green-600">{monthlyStats.presentDays}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {monthlyStats.lateDays > 0 && `${monthlyStats.lateDays} late arrival${monthlyStats.lateDays > 1 ? 's' : ''}`}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Absent Days */}
+                  <Card className="border-2">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="p-2 rounded-lg bg-destructive/10">
+                          <XCircle className="h-5 w-5 text-destructive" />
+                        </div>
+                        {monthlyStats.absentDays > 0 && (
+                          <Badge variant="destructive">
+                            Alert
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Absent Days</p>
+                        <p className="text-3xl font-bold text-destructive">{monthlyStats.absentDays}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {monthlyStats.leaveDays} approved leave{monthlyStats.leaveDays !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Average Hours */}
+                  <Card className="border-2">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="p-2 rounded-lg bg-blue-500/10">
+                          <Clock className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <Badge variant="outline" className="text-blue-600 border-blue-200">
+                          Avg
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Avg Work Hours</p>
+                        <p className="text-3xl font-bold text-blue-600">
+                          {monthlyStats.averageWorkedHours.toFixed(1)}h
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {monthlyStats.totalWorkedHours.toFixed(0)}h total
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Detailed Breakdown */}
+                <Card className="border">
+                  <CardHeader>
+                    <CardTitle className="text-base">Breakdown by Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Visual Progress Bar */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Day Distribution</span>
+                          <span className="text-muted-foreground">{monthlyStats.totalDays} total days</span>
+                        </div>
+                        <div className="h-3 bg-muted rounded-full overflow-hidden flex">
+                          <div
+                            className="bg-green-500 transition-all"
+                            style={{ width: `${(monthlyStats.presentDays / monthlyStats.totalDays) * 100}%` }}
+                            title={`Present: ${monthlyStats.presentDays} days`}
+                          />
+                          <div
+                            className="bg-blue-500 transition-all"
+                            style={{ width: `${(monthlyStats.leaveDays / monthlyStats.totalDays) * 100}%` }}
+                            title={`Leave: ${monthlyStats.leaveDays} days`}
+                          />
+                          <div
+                            className="bg-destructive transition-all"
+                            style={{ width: `${(monthlyStats.absentDays / monthlyStats.totalDays) * 100}%` }}
+                            title={`Absent: ${monthlyStats.absentDays} days`}
+                          />
+                          <div
+                            className="bg-muted-foreground/30 transition-all"
+                            style={{ width: `${(monthlyStats.weekendDays / monthlyStats.totalDays) * 100}%` }}
+                            title={`Weekend: ${monthlyStats.weekendDays} days`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Legend with values */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+                          <div className="w-3 h-3 rounded-full bg-green-500" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">Present</p>
+                            <p className="text-sm font-semibold">{monthlyStats.presentDays} days</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+                          <div className="w-3 h-3 rounded-full bg-blue-500" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">Leave</p>
+                            <p className="text-sm font-semibold">{monthlyStats.leaveDays} days</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+                          <div className="w-3 h-3 rounded-full bg-destructive" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">Absent</p>
+                            <p className="text-sm font-semibold">{monthlyStats.absentDays} days</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+                          <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">Weekend</p>
+                            <p className="text-sm font-semibold">{monthlyStats.weekendDays} days</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Additional Stats */}
+                      <div className="pt-4 border-t grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Late Arrivals</p>
+                          <p className="text-2xl font-bold text-yellow-600">{monthlyStats.lateDays}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">On-Time Days</p>
+                          <p className="text-2xl font-bold text-green-600">{monthlyStats.onTimeDays}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Working Days</p>
+                          <p className="text-2xl font-bold">{monthlyStats.totalDays - monthlyStats.weekendDays}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No attendance data available for the selected month</p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Detailed Records View */}
+          <TabsContent value="records" className="space-y-6 mt-6">
         {/* Filters Section */}
         <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
           <div className="flex items-center gap-2 mb-2">
@@ -534,6 +903,8 @@ export function SubordinateAttendanceRecordsTab({
             </div>
           </>
         )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
