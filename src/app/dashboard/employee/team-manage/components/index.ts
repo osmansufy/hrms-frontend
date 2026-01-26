@@ -7,3 +7,4 @@ export { EmployeeDetailDialog } from "./employee-detail-dialog";
 export { JobCardTab } from "./job-card-tab";
 export { SubordinateLeaveRecordsTab } from "./subordinate-leave-records-tab";
 export { SubordinateAttendanceRecordsTab } from "./subordinate-attendance-records-tab";
+export { Breadcrumb } from "./breadcrumb";
