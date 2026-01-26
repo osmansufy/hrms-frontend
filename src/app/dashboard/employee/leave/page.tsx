@@ -411,9 +411,25 @@ export default function LeavePage() {
           </CardHeader>
           <CardContent>
             {/* Warning for pending leaves */}
-
+            {(() => {
+              if (pendingLeaves.length > 0) {
+                const pendingLeave = pendingLeaves[0];
+                const leaveTypeName = pendingLeave.leaveType?.name || 'Leave';
+                const dateRange = formatRange(pendingLeave.startDate, pendingLeave.endDate);
+                return (
+                  <Alert variant="warning" className="my-2">
+                    <AlertTriangle className="size-4" />
+                    <AlertDescription>
+                      You have a {pendingLeave.status.toLowerCase()} {leaveTypeName} request from {dateRange}.
+                      Please wait for it to be processed before applying for a new leave.
+                    </AlertDescription>
+                  </Alert>
+                );
+              }
+              return null;
+            })()}
             {
-              pendingLeaves.length != 0 && (
+              pendingLeaves.length <= 0 && (
                 <Form {...form}>
                   <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
                     <FormField
