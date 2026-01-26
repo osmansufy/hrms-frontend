@@ -23,6 +23,7 @@ export type LeaveRecord = {
   startDate: string;
   endDate: string;
   totalDays?: number;
+  supportingDocumentUrl?: string | null;
   createdAt: string;
   user: {
     id: string;
@@ -111,6 +112,16 @@ export async function uploadLeaveDocument(
         "Content-Type": "multipart/form-data",
       },
     }
+  );
+  return response.data;
+}
+
+// Get secure document URL with presigned access
+export async function getLeaveDocumentUrl(
+  leaveId: string
+): Promise<{ url: string; expiresAt: string }> {
+  const response = await apiClient.get<{ url: string; expiresAt: string }>(
+    `/leave/document/${leaveId}`
   );
   return response.data;
 }

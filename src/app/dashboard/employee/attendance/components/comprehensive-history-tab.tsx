@@ -47,8 +47,9 @@ export function ComprehensiveHistoryTab() {
 
     const myData = useMemo(() => lostHoursData?.find(r => r.userId === userId), [lostHoursData, userId]);
     const records = attendanceData?.data || [];
-// covered lost hours
-const coveredLostHours = myData?.totalLostMinutes && myData?.totalLostMinutes > myData?.totalOvertimeMinutes ? myData?.totalLostMinutes - myData?.totalOvertimeMinutes : 0;
+// Amount of lost hours covered by overtime
+// Shows minimum of (lost hours, overtime hours) - can't cover more than the actual lost hours
+const coveredLostHours = Math.min((myData?.totalLostMinutes || 0), (myData?.totalOvertimeMinutes || 0));
     // Calculate daily metrics from attendance records
     const dailyRecords = useMemo(() => {
         return records.map(record => {

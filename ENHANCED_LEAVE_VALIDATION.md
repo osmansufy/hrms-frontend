@@ -306,7 +306,7 @@ The system expects backend errors in this format:
 This feature requires:
 1. `src/components/leave/document-upload.tsx`
 2. `src/components/leave/document-viewer.tsx`
-3. File storage service integration (AWS S3, Cloudinary, etc.)
+3. File storage service integration (Cloudflare R2, Cloudinary, etc.)
 4. Backend upload endpoint
 
 ---

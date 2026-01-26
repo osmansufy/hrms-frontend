@@ -28,9 +28,10 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { useApproveLeave, usePendingHRApprovals, useRejectLeave, useOverrideLeave, useAllUsersBalances } from "@/lib/queries/leave";
-import { AlertCircle, Check, Loader2, X, Edit, History } from "lucide-react";
+import { AlertCircle, Check, Loader2, X, Edit, History, FileText, ExternalLink } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { getLeaveDocumentUrl } from "@/lib/api/leave";
 import { EmployeeLeaveHistoryDialog } from "@/components/employee-leave-history-dialog";
 
 import { formatDateInDhaka } from "@/lib/utils";
@@ -55,6 +56,21 @@ export function LeaveApprovalsTab() {
         reason: "",
         overrideReason: "",
     });
+    const [loadingDocument, setLoadingDocument] = useState<string | null>(null);
+
+    const handleViewDocument = async (leaveId: string) => {
+        setLoadingDocument(leaveId);
+        try {
+            const { url } = await getLeaveDocumentUrl(leaveId);
+            window.open(url, '_blank');
+        } catch (error: any) {
+            toast.error("Failed to load document", {
+                description: error?.response?.data?.message || "Unable to access the document"
+            });
+        } finally {
+            setLoadingDocument(null);
+        }
+    };
 
 
 
@@ -195,6 +211,7 @@ export function LeaveApprovalsTab() {
                                             <TableHead>Dates</TableHead>
                                             <TableHead>Duration</TableHead>
                                             <TableHead>Reason</TableHead>
+                                            <TableHead>Document</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
@@ -245,6 +262,27 @@ export function LeaveApprovalsTab() {
                                                         {duration} {duration === 1 ? "day" : "days"}
                                                     </TableCell>
                                                     <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
+                                                    <TableCell>
+                                                        {leave.supportingDocumentUrl ? (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                onClick={() => handleViewDocument(leave.id)}
+                                                                disabled={loadingDocument === leave.id}
+                                                            >
+                                                                {loadingDocument === leave.id ? (
+                                                                    <Loader2 className="mr-1 size-4 animate-spin" />
+                                                                ) : (
+                                                                    <FileText className="mr-1 size-4" />
+                                                                )}
+                                                                View
+                                                                <ExternalLink className="ml-1 size-3" />
+                                                            </Button>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">—</span>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell>
                                                         <Badge variant="secondary">{leave.status}</Badge>
                                                     </TableCell>

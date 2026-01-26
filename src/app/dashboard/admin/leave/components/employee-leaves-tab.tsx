@@ -27,8 +27,10 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useAllEmployeeLeaves } from "@/lib/queries/leave";
-import { Loader2, Search, Filter } from "lucide-react";
+import { Loader2, Search, Filter, FileText, ExternalLink } from "lucide-react";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
+import { getLeaveDocumentUrl } from "@/lib/api/leave";
+import { toast } from "sonner";
 
 import { formatDateInDhaka, formatInDhakaTimezone, formatTimeInTimezone } from "@/lib/utils";
 
@@ -53,6 +55,21 @@ export function EmployeeLeavesTab() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [leaveTypeFilter, setLeaveTypeFilter] = useState("all");
+    const [loadingDocument, setLoadingDocument] = useState<string | null>(null);
+
+    const handleViewDocument = async (leaveId: string) => {
+        setLoadingDocument(leaveId);
+        try {
+            const { url } = await getLeaveDocumentUrl(leaveId);
+            window.open(url, '_blank');
+        } catch (error: any) {
+            toast.error("Failed to load document", {
+                description: error?.response?.data?.message || "Unable to access the document"
+            });
+        } finally {
+            setLoadingDocument(null);
+        }
+    };
 
     // Get unique statuses and leave types for filters
     const uniqueStatuses = useMemo(() => {
@@ -171,6 +188,7 @@ export function EmployeeLeavesTab() {
                                         <TableHead>Period</TableHead>
                                         <TableHead>Days</TableHead>
                                         <TableHead>Reason</TableHead>
+                                        <TableHead>Document</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Applied On</TableHead>
                                     </TableRow>
@@ -206,6 +224,27 @@ export function EmployeeLeavesTab() {
                                                 </TableCell>
                                                 <TableCell className="max-w-xs truncate text-sm">
                                                     {leave.reason}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {leave.supportingDocumentUrl ? (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                            onClick={() => handleViewDocument(leave.id)}
+                                                            disabled={loadingDocument === leave.id}
+                                                        >
+                                                            {loadingDocument === leave.id ? (
+                                                                <Loader2 className="mr-1 size-4 animate-spin" />
+                                                            ) : (
+                                                                <FileText className="mr-1 size-4" />
+                                                            )}
+                                                            View
+                                                            <ExternalLink className="ml-1 size-3" />
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">—</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <LeaveStatusBadge status={leave.status} />
