@@ -197,19 +197,38 @@ function MobileNav() {
 
   const navItems = useMemo(() => {
     const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
-    // Filter to only include items with href (exclude parent items with children)
-    // and hide Team Leave if user has no subordinates
-    return filtered.filter(item => {
-      if (!item.href) {
-        return false;
+    // Flatten navigation for mobile: include items with href and children of parent items
+    const flatItems: typeof filtered = [];
+    
+    filtered.forEach(item => {
+      if (item.href) {
+        // Direct items with href
+        if (item.href === "/dashboard/employee/team-manage" && !hasSubordinates) {
+          return; // Skip team management if no subordinates
+        }
+        flatItems.push(item);
+      } else if (item.children && item.children.length > 0) {
+        // Items with children - add parent linking to first child's href
+        const firstChild = item.children[0];
+        if (firstChild?.href) {
+          // Add parent item pointing to first child's destination
+          flatItems.push({
+            ...item,
+            href: firstChild.href,
+            label: item.label, // Keep parent label (e.g., "Attendance")
+          });
+        }
+        // Add remaining children (skip first since parent links there)
+        item.children.slice(1).forEach(child => {
+          if (child.href) {
+            flatItems.push(child);
+          }
+        });
       }
-      if (item.href === "/dashboard/employee/team-manage") {
-        return hasSubordinates;
-      }
-      return true;
     });
+    
+    return flatItems;
   }, [permissions, roles, primaryRole, hasSubordinates]);
-
   return (
     <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <SheetTrigger asChild className="lg:hidden">
