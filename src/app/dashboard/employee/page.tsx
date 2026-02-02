@@ -395,7 +395,7 @@ export default function EmployeeDashboard() {
                   <p className="text-sm font-medium">Monthly Late Count</p>
                   <p className="text-xs text-muted-foreground">
                     {monthlyLateCount >= leaveDeductionDay - 1
-                      ? `Warning: One more late will reach the configured leave deduction threshold (${leaveDeductionDay})`
+                      ? `Warning: One more late will result in a leave adjustment. Leave will be deducted starting from the ${leaveDeductionDay}th late in a month.`
                       : `Keep track of your attendance. Leave is deducted starting from the ${leaveDeductionDay}th late in a month.`}
                   </p>
                 </div>

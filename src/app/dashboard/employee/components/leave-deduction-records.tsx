@@ -9,6 +9,7 @@ import { useUserBalances } from "@/lib/queries/leave";
 import { formatDateInDhaka } from "@/lib/utils";
 import { Calendar, Minus, Plus, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { LedgerEntry } from "@/lib/api/leave";
 
 interface LeaveDeductionRecordsProps {
     leaveTypeId?: string;
@@ -26,17 +27,17 @@ export function LeaveDeductionRecords({ leaveTypeId }: LeaveDeductionRecordsProp
 
     // Show ONLY late-attendance deduction entries
     const deductionEntries = useMemo(() => {
-        if (!ledgerData) return [];
-
-        return ledgerData
-            .filter(entry => entry.transactionType === "LEAVE_DEDUCTION")
-            .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime())
+        if (!ledgerData?.data) return [];
+        return ledgerData.data
+            .filter((entry: LedgerEntry) => entry.transactionType === "LEAVE_DEDUCTION" || entry.transactionType === "RECONCILIATION_REVERSAL" )
+            .sort((a: LedgerEntry, b: LedgerEntry) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime())
             .slice(0, 10); // Show last 10 deductions
     }, [ledgerData]);
 
     const getTransactionTypeIcon = (transactionType: string) => {
         switch (transactionType) {
             case "LEAVE_DEDUCTION":
+          
                 return <Minus className="h-4 w-4 text-red-500" />;
             case "LEAVE_APPROVED":
                 return <Minus className="h-4 w-4 text-red-500" />;
@@ -46,6 +47,8 @@ export function LeaveDeductionRecords({ leaveTypeId }: LeaveDeductionRecordsProp
                 return <Minus className="h-4 w-4 text-blue-500" />;
             case "ADJUSTMENT":
                 return <Minus className="h-4 w-4 text-purple-500" />;
+            case "RECONCILIATION_REVERSAL":
+                return <Plus className="h-4 w-4 text-green-500" />;
             default:
                 return <Minus className="h-4 w-4 text-gray-500" />;
         }
@@ -65,6 +68,8 @@ export function LeaveDeductionRecords({ leaveTypeId }: LeaveDeductionRecordsProp
                 return "Adjustment";
             case "AMENDMENT_DEBIT":
                 return "Amendment";
+            case "RECONCILIATION_REVERSAL":
+                return "Reconciliation Reversal";
             default:
                 return transactionType.replace("_", " ").toLowerCase();
         }
@@ -138,7 +143,7 @@ export function LeaveDeductionRecords({ leaveTypeId }: LeaveDeductionRecordsProp
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {deductionEntries.map((entry) => (
+                                {deductionEntries.map((entry: LedgerEntry) => (
                                     <TableRow key={entry.id}>
                                         <TableCell>
                                             {getTransactionTypeIcon(entry.transactionType)}

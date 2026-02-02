@@ -461,12 +461,12 @@ export function useAllUsersBalances() {
   });
 }
 
-export function useSubordinateBalances(subordinateUserId: string | undefined) {
+export function useSubordinateBalances(managerUserId: string, subordinateUserId: string | undefined) {
   return useQuery({
     queryKey: balanceKeys.subordinateBalances(subordinateUserId || ""),
     queryFn: () => {
       if (!subordinateUserId) throw new Error("Subordinate user ID required");
-      return getSubordinateBalances(subordinateUserId);
+      return getSubordinateBalances(managerUserId, subordinateUserId);
     },
     enabled: Boolean(subordinateUserId),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -510,10 +510,14 @@ export function useInitializeBalance() {
 }
 
 // Leave Ledger History Hooks
+import { getSubordinateLedgerHistory, type SubordinateLedgerParams } from "@/lib/api/leave";
+
 export const ledgerKeys = {
   all: ["leave-ledger"] as const,
   myLedger: (leaveTypeId: string) =>
     ["leave-ledger", "my", leaveTypeId] as const,
+  subordinateLedger: (subordinateUserId: string, leaveTypeId: string, params?: SubordinateLedgerParams) =>
+    ["leave-ledger", "subordinate", subordinateUserId, leaveTypeId, params] as const,
 };
 
 export function useMyLedgerHistory(leaveTypeId: string) {
@@ -521,6 +525,24 @@ export function useMyLedgerHistory(leaveTypeId: string) {
     queryKey: ledgerKeys.myLedger(leaveTypeId),
     queryFn: () => getMyLedgerHistory(leaveTypeId),
     enabled: Boolean(leaveTypeId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useSubordinateLedgerHistory(
+  subordinateUserId: string | undefined,
+  leaveTypeId: string | undefined,
+  params?: SubordinateLedgerParams
+) {
+  return useQuery({
+    queryKey: ledgerKeys.subordinateLedger(subordinateUserId || "", leaveTypeId || "", params),
+    queryFn: () => {
+      if (!subordinateUserId || !leaveTypeId) {
+        throw new Error("Subordinate user ID and leave type ID required");
+      }
+      return getSubordinateLedgerHistory(subordinateUserId, leaveTypeId, params);
+    },
+    enabled: Boolean(subordinateUserId) && Boolean(leaveTypeId),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

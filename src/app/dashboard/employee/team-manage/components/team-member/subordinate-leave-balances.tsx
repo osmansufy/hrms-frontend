@@ -1,11 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useSession } from "@/components/auth/session-provider";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSubordinateBalances } from "@/lib/queries/leave";
-import type { LeaveBalance } from "@/lib/api/leave";
-import { TrendingDown, TrendingUp, AlertCircle } from "lucide-react";
+import { AlertCircle, TrendingDown, TrendingUp } from "lucide-react";
 
 interface SubordinateLeaveBalancesProps {
   userId: string;
@@ -14,7 +14,10 @@ interface SubordinateLeaveBalancesProps {
 export function SubordinateLeaveBalances({
   userId,
 }: SubordinateLeaveBalancesProps) {
-  const { data: balances, isLoading, error } = useSubordinateBalances(userId);
+  const { session } = useSession();
+  const managerUserId = session?.user?.id || "";
+  const { data: balancesResponse, isLoading, error } = useSubordinateBalances(managerUserId, userId);
+  const balances = balancesResponse?.data || [];
 
   if (isLoading) {
     return (

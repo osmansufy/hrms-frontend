@@ -5,15 +5,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, UserCircle, Briefcase, Calendar, Clock } from "lucide-react";
-import { JobCardTab } from "../components/job-card-tab";
-import { SubordinateLeaveRecordsTab } from "../components/subordinate-leave-records-tab";
-import { SubordinateAttendanceRecordsTab } from "../components/subordinate-attendance-records-tab";
-import { SubordinateLeaveBalances } from "../components/subordinate-leave-balances";
+import { JobCardTab } from "../components/team-member/job-card-tab";
+import { SubordinateLeaveRecordsTab } from "../components/team-member/subordinate-leave-records-tab";
+import { SubordinateAttendanceRecordsTab } from "../components/team-member/subordinate-attendance-records-tab";
+import { SubordinateLeaveBalances } from "../components/team-member/subordinate-leave-balances";
+import { SubordinateLedgerHistory } from "../components/team-member/subordinate-ledger-history";
 import { Breadcrumb } from "../components/breadcrumb";
 import { useManagerSubordinates } from "@/lib/queries/employees";
 import { useSession } from "@/components/auth/session-provider";
 import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import SubordinateLeaveTab from "../components/team-member/subordinate-leave-tab";
 
 export default function SubordinateDetailPage() {
   const params = useParams();
@@ -146,8 +148,7 @@ console.log({employeeId});
         </CardContent>
       </Card>
 
-      {/* Leave Balances */}
-      <SubordinateLeaveBalances userId={subordinate.userId || ""} />
+     
 
       {/* Tabs for Details */}
       <Tabs defaultValue="job-card" className="space-y-4">
@@ -159,12 +160,12 @@ console.log({employeeId});
           </TabsTrigger>
           <TabsTrigger value="leaves" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            <span className="hidden sm:inline">Leave Records</span>
+            <span className="hidden sm:inline">Leave Details </span>
             <span className="sm:hidden">Leaves</span>
           </TabsTrigger>
           <TabsTrigger value="attendance" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
-            <span className="hidden sm:inline">Attendance Records</span>
+            <span className="hidden sm:inline">Attendance Details </span>
             <span className="sm:hidden">Attendance</span>
           </TabsTrigger>
         </TabsList>
@@ -177,8 +178,8 @@ console.log({employeeId});
         </TabsContent>
 
         <TabsContent value="leaves" className="space-y-4">
-          <SubordinateLeaveRecordsTab userId={subordinate.userId || ""} />
-        </TabsContent>
+       <SubordinateLeaveTab userId={subordinate.userId || ""} />
+            </TabsContent>
 
         <TabsContent value="attendance" className="space-y-4">
           <SubordinateAttendanceRecordsTab userId={subordinate.userId || ""} />

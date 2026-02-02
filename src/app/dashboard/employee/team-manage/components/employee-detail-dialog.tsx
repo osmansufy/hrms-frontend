@@ -9,9 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { JobCardTab } from "./job-card-tab";
-import { SubordinateLeaveRecordsTab } from "./subordinate-leave-records-tab";
-import { SubordinateAttendanceRecordsTab } from "./subordinate-attendance-records-tab";
+import { JobCardTab } from "./team-member/job-card-tab";
+import { SubordinateLeaveRecordsTab } from "./team-member/subordinate-leave-records-tab";
+import { SubordinateAttendanceRecordsTab } from "./team-member/subordinate-attendance-records-tab";
 
 interface EmployeeDetailDialogProps {
   open: boolean;

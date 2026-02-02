@@ -661,8 +661,8 @@ export async function getBalanceDetails(leaveTypeId: string) {
   return response.data;
 }
 
-export async function getMyLedgerHistory(leaveTypeId: string) {
-  const response = await apiClient.get<LedgerEntry[]>(
+export async function getMyLedgerHistory(leaveTypeId: string): Promise<PaginatedLedgerResponse> {
+  const response = await apiClient.get<PaginatedLedgerResponse>(
     `/leave/my-ledger/${leaveTypeId}`
   );
   return response.data;
@@ -704,20 +704,66 @@ export async function getAllUsersBalances() {
   return response.data;
 }
 
-// Get subordinate balances - filters from all users balances
+// Get subordinate balances
+export type SubordinateBalancesParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+export type PaginatedBalancesResponse = {
+  data: LeaveBalance[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+};
+
 export async function getSubordinateBalances(
-  subordinateUserId: string
-): Promise<LeaveBalance[]> {
-  const response = await apiClient.get<UserBalanceWithEmployee[]>(
-    "/leave/balance/all/users"
+  managerUserId: string,
+  subordinateUserId: string,
+  params?: SubordinateBalancesParams
+): Promise<PaginatedBalancesResponse> {
+  const response = await apiClient.get<PaginatedBalancesResponse>(
+    `/leave/balance/manager/${managerUserId}/subordinate/${subordinateUserId}`,
+    { params }
   );
+  return response.data;
+}
 
-  // Filter for the specific subordinate - now each item is a balance with user info
-  const subordinateBalances = response.data.filter(
-    (balance) => balance.user?.id === subordinateUserId || balance.userId === subordinateUserId
+// Get subordinate ledger history (Manager endpoint)
+export type SubordinateLedgerParams = {
+  page?: number;
+  pageSize?: number;
+  leaveYear?: number;
+  transactionType?: string;
+};
+
+export type PaginatedLedgerResponse = {
+  data: LedgerEntry[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+};
+
+export async function getSubordinateLedgerHistory(
+  subordinateUserId: string,
+  leaveTypeId: string,
+  params?: SubordinateLedgerParams
+): Promise<PaginatedLedgerResponse> {
+  const response = await apiClient.get<PaginatedLedgerResponse>(
+    `/leave/manager/subordinate/${subordinateUserId}/ledger/${leaveTypeId}`,
+    { params }
   );
-
-  return subordinateBalances as LeaveBalance[];
+  return response.data;
 }
 
 // Admin Dashboard API Functions
