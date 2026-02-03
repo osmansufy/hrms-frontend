@@ -14,6 +14,9 @@ import {
   type ListEmployeesParams,
   type UpdateEmployeePayload,
   type AssignManagerPayload,
+  uploadProfilePicture,
+  getProfilePictureUrl,
+  deleteProfilePicture,
 } from "@/lib/api/employees";
 import type { Employee } from "@/lib/data/employees";
 import { listDepartments } from "@/lib/api/departments";
@@ -241,5 +244,88 @@ export function useSubordinateDetails(subordinateUserId: string | undefined) {
     },
     enabled: Boolean(subordinateUserId),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useUploadProfilePicture(employeeId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => uploadProfilePicture(employeeId, file),
+    onSuccess: (data) => {
+      if (!data?.employee) return;
+      
+      // Update the cache with fresh employee data
+      queryClient.setQueryData(
+        employeeKeys.detailRaw(employeeId),
+        data.employee
+      );
+      queryClient.setQueryData(
+        employeeKeys.detail(employeeId),
+        toEmployee(data.employee)
+      );
+      
+      // Invalidate all related queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(employeeId) });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.detailRaw(employeeId) });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
+      
+      // Invalidate employee list queries (for employee profile page)
+      queryClient.invalidateQueries({ queryKey: ["employees", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["employees", "profile"] });
+      
+      // Invalidate profile picture URL to get new presigned URL
+      queryClient.invalidateQueries({ 
+        queryKey: [...employeeKeys.all, "profile-picture-url", employeeId] 
+      });
+    },
+  });
+}
+
+export function useDeleteProfilePicture(employeeId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => deleteProfilePicture(employeeId),
+    onSuccess: (data) => {
+      if (!data?.employee) return;
+      
+      // Update the cache with fresh employee data
+      queryClient.setQueryData(
+        employeeKeys.detailRaw(employeeId),
+        data.employee
+      );
+      queryClient.setQueryData(
+        employeeKeys.detail(employeeId),
+        toEmployee(data.employee)
+      );
+      
+      // Invalidate all related queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(employeeId) });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.detailRaw(employeeId) });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
+      
+      // Invalidate employee list queries (for employee profile page)
+      queryClient.invalidateQueries({ queryKey: ["employees", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["employees", "profile"] });
+      
+      // Invalidate profile picture URL to clear cached presigned URL
+      queryClient.invalidateQueries({ 
+        queryKey: [...employeeKeys.all, "profile-picture-url", employeeId] 
+      });
+    },
+  });
+}
+
+export function useProfilePictureUrl(employeeId?: string) {
+  return useQuery({
+    queryKey: [...employeeKeys.all, "profile-picture-url", employeeId] as const,
+    queryFn: () => {
+      if (!employeeId) throw new Error("Employee ID required");
+      return getProfilePictureUrl(employeeId);
+    },
+    enabled: Boolean(employeeId),
+    staleTime: 6 * 60 * 60 * 1000, // 6 hours (refresh before 7 day expiry)
+    gcTime: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 }

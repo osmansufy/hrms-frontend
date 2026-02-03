@@ -104,7 +104,7 @@ export type CreateEmployeePayload = {
 };
 
 export type UpdateEmployeePayload = Partial<
-  Omit<CreateEmployeePayload, "email" | "password">
+  Omit<CreateEmployeePayload, "password">
 > & {
   employeeCode?: string;
 };
@@ -241,5 +241,61 @@ export async function getSubordinateDetails(subordinateUserId: string) {
   const response = await apiClient.get<ApiEmployee>(
     `/employees/manager/subordinate/${subordinateUserId}`
   );
+  return response.data;
+}
+
+// Profile Picture APIs
+export type ProfilePictureUploadResponse = {
+  message: string;
+  profilePicture: string;
+  profilePictureUrl: string;
+  isPublic: boolean;
+  employee: ApiEmployee;
+};
+
+export type ProfilePictureUrlResponse = {
+  url: string;
+  originalUrl: string;
+  expiresIn: number | null;
+  isPublic: boolean;
+  employeeId: string;
+  employeeName: string;
+};
+
+export async function uploadProfilePicture(
+  employeeId: string,
+  file: File
+): Promise<ProfilePictureUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await apiClient.post<ProfilePictureUploadResponse>(
+    `/employees/${employeeId}/profile-picture`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data;
+}
+
+export async function getProfilePictureUrl(
+  employeeId: string
+): Promise<ProfilePictureUrlResponse> {
+  const response = await apiClient.get<ProfilePictureUrlResponse>(
+    `/employees/${employeeId}/profile-picture-url`
+  );
+  return response.data;
+}
+
+export async function deleteProfilePicture(
+  employeeId: string
+): Promise<{ message: string; employee: ApiEmployee }> {
+  const response = await apiClient.delete<{
+    message: string;
+    employee: ApiEmployee;
+  }>(`/employees/${employeeId}/profile-picture`);
   return response.data;
 }

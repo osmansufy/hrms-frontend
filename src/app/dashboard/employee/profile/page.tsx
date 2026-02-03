@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listEmployees, type ApiEmployee } from "@/lib/api/employees";
 import { useUserBalances } from "@/lib/queries/leave";
 import { formatDateInDhaka } from "@/lib/utils";
+import { ProfilePictureUpload } from "@/components/profile-picture-upload";
 
 export default function ProfilePage() {
   const { session } = useSession();
@@ -75,10 +76,19 @@ export default function ProfilePage() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-            <Avatar className="h-24 w-24">
-              <AvatarImage src={employee?.profilePicture || undefined} alt={fullName} />
-              <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
-            </Avatar>
+            {employee?.id ? (
+              <ProfilePictureUpload
+                employeeId={employee.id}
+                currentPicture={employee.profilePicture}
+                employeeName={fullName}
+                employeeInitials={initials}
+              />
+            ) : (
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={employee?.profilePicture || undefined} alt={fullName} />
+                <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
+              </Avatar>
+            )}
             <div className="flex-1 space-y-2">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-2xl font-bold">{fullName}</h2>
