@@ -51,7 +51,7 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
     const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
     // Hide Team Leave if user has no subordinates
     return filtered.filter(item => {
-      if (item.href === "/dashboard/employee/leave-manager") {
+      if (item.href === "/dashboard/employee/team-manage") {
         return hasSubordinates;
       }
       return true;
