@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const LOCATION_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache duration
 const LOCATION_STALE_THRESHOLD = 30 * 1000; // 30 seconds - consider refreshing if older
-const REVERSE_GEOCODE_DEBOUNCE = 1000; // 1 second debounce for reverse geocoding
 
 export interface GeolocationData {
   latitude?: number;
@@ -37,10 +37,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
   // Use ref to track latest geolocation for checking in async contexts
   const geolocationRef = useRef(geolocation);
   const watchIdRef = useRef<number | null>(null);
-  const reverseGeocodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastReverseGeocodeRef = useRef<{ lat: number; lng: number } | null>(
-    null,
-  );
   const hasAutoPromptedRef = useRef(false); // Track if we've already auto-prompted
 
   useEffect(() => {
@@ -61,20 +57,22 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     (locationPermissionStatus === "denied" ||
       locationPermissionStatus === "unavailable");
 
-  // Debounced reverse geocoding function
-  const reverseGeocode = useCallback(
-    async (
-      latitude: number,
-      longitude: number,
-    ): Promise<string | undefined> => {
-      // Skip if we recently geocoded the same location (within ~50m)
-      if (lastReverseGeocodeRef.current) {
-        const { lat, lng } = lastReverseGeocodeRef.current;
-        const latDiff = Math.abs(lat - latitude);
-        const lngDiff = Math.abs(lng - longitude);
-        if (latDiff < 0.0005 && lngDiff < 0.0005) {
-          return geolocationRef.current.address;
-        }
+  // Reverse geocoding via React Query
+  const { data: reverseGeocodeAddress } = useQuery({
+    queryKey: [
+      "reverseGeocode",
+      captureEmployeeLocation ? geolocation.latitude : null,
+      captureEmployeeLocation ? geolocation.longitude : null,
+    ],
+    enabled:
+      captureEmployeeLocation &&
+      geolocation.latitude !== undefined &&
+      geolocation.longitude !== undefined,
+    staleTime: LOCATION_CACHE_DURATION,
+    queryFn: async () => {
+      const { latitude, longitude } = geolocationRef.current;
+      if (latitude === undefined || longitude === undefined) {
+        return undefined;
       }
 
       try {
@@ -88,33 +86,23 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         if (response.ok) {
           const data = await response.json();
           if (data.display_name) {
-            lastReverseGeocodeRef.current = { lat: latitude, lng: longitude };
-            return data.display_name;
+            return data.display_name as string;
           }
         }
       } catch (error) {
         console.warn("Failed to reverse geocode:", error);
       }
+
       return undefined;
     },
-    [],
-  );
+  });
 
-  // Schedule debounced reverse geocoding
-  const scheduleReverseGeocode = useCallback(
-    (latitude: number, longitude: number) => {
-      if (reverseGeocodeTimeoutRef.current) {
-        clearTimeout(reverseGeocodeTimeoutRef.current);
-      }
-      reverseGeocodeTimeoutRef.current = setTimeout(async () => {
-        const address = await reverseGeocode(latitude, longitude);
-        if (address) {
-          setGeolocation((prev) => ({ ...prev, address }));
-        }
-      }, REVERSE_GEOCODE_DEBOUNCE);
-    },
-    [reverseGeocode],
-  );
+  // Sync reverse geocoded address into local geolocation state
+  useEffect(() => {
+    if (reverseGeocodeAddress) {
+      setGeolocation((prev) => ({ ...prev, address: reverseGeocodeAddress }));
+    }
+  }, [reverseGeocodeAddress]);
 
   // Check geolocation permission status on mount and start watching if granted
   useEffect(() => {
@@ -176,7 +164,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           const { latitude, longitude } = position.coords;
           setGeolocation({ latitude, longitude, timestamp: Date.now() });
           setGeolocationStatus("available");
-          scheduleReverseGeocode(latitude, longitude);
           startWatchingPosition();
         },
         (error) => {
@@ -204,7 +191,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           }));
           setGeolocationStatus("available");
           setGeolocationError(null);
-          scheduleReverseGeocode(latitude, longitude);
         },
         (error) => {
           console.warn("Watch position error:", error);
@@ -234,11 +220,8 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     // Cleanup on unmount
     return () => {
       stopWatchingPosition();
-      if (reverseGeocodeTimeoutRef.current) {
-        clearTimeout(reverseGeocodeTimeoutRef.current);
-      }
     };
-  }, [captureEmployeeLocation, scheduleReverseGeocode]);
+  }, [captureEmployeeLocation]);
 
   // Auto-prompt for location permission on first visit if status is "prompt"
   // This effect runs after permission status is determined
@@ -259,7 +242,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           setGeolocation({ latitude, longitude, timestamp: Date.now() });
           setGeolocationStatus("available");
           setLocationPermissionStatus("granted");
-          scheduleReverseGeocode(latitude, longitude);
         },
         (error) => {
           console.warn("Auto-prompt location error:", error);
@@ -280,11 +262,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     }, 500); // 500ms delay for better UX
 
     return () => clearTimeout(timeoutId);
-  }, [
-    captureEmployeeLocation,
-    locationPermissionStatus,
-    scheduleReverseGeocode,
-  ]);
+  }, [captureEmployeeLocation, locationPermissionStatus]);
 
   // Optimized getCurrentLocation - uses cached data from watchPosition when available
   const getCurrentLocation = useCallback(
@@ -374,9 +352,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
             setLocationPermissionStatus("granted");
             setIsGettingLocation(false);
 
-            // Schedule reverse geocoding in background (non-blocking)
-            scheduleReverseGeocode(latitude, longitude);
-
             // Return immediately without waiting for address
             resolve({ latitude, longitude, address: currentGeo.address });
           },
@@ -429,7 +404,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         );
       });
     },
-    [isGettingLocation, locationPermissionStatus, scheduleReverseGeocode],
+    [isGettingLocation, locationPermissionStatus],
   );
 
   const requestLocationAccess = useCallback(async () => {

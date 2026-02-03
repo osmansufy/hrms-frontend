@@ -1,5 +1,4 @@
 import { detectDevice } from "@/lib/utils/device-detection";
-import { toast } from "sonner";
 import type { GeolocationData } from "../hooks/use-geolocation";
 import type React from "react";
 
@@ -29,11 +28,6 @@ export async function buildAttendancePayload(
     if (geoData.address) {
       payload.address = geoData.address;
     }
-    console.log("Including geolocation in payload:", {
-      latitude: payload.latitude,
-      longitude: payload.longitude,
-      address: payload.address,
-    });
   } else {
     console.warn("No geolocation data to include in payload");
   }
@@ -93,25 +87,19 @@ export async function getGeolocationForAttendance(
     const geoData = await getCurrentLocation(isSignOut);
 
     if (geoData) {
-      console.log(`Geolocation obtained (forceRefresh=${isSignOut}):`, geoData);
       return geoData;
     }
 
     // Fallback 1: Wait for geolocation to become available (up to 3s)
-    console.log(
-      "Primary location fetch returned null, waiting for geolocation...",
-    );
     const waitedGeoData = await waitForGeolocation();
 
     if (waitedGeoData) {
-      console.log("Geolocation obtained after waiting:", waitedGeoData);
       return waitedGeoData;
     }
 
     // Fallback 2: Check ref directly for any cached coordinates
     const cachedGeo = geolocationRef.current;
     if (cachedGeo?.latitude && cachedGeo?.longitude) {
-      console.log("Using cached geolocation from ref:", cachedGeo);
       return {
         latitude: cachedGeo.latitude,
         longitude: cachedGeo.longitude,
@@ -128,7 +116,6 @@ export async function getGeolocationForAttendance(
     // Last resort: check ref for cached data
     const cachedGeo = geolocationRef.current;
     if (cachedGeo?.latitude && cachedGeo?.longitude) {
-      console.log("Using cached geolocation after error:", cachedGeo);
       return {
         latitude: cachedGeo.latitude,
         longitude: cachedGeo.longitude,

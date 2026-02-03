@@ -160,7 +160,6 @@ export default function EmployeeDashboard() {
     }
 
     const payload = await buildAttendancePayload(location, geoData);
-    console.log("Final payload before API call:", payload);
 
     try {
       const result = await signInMutation.mutateAsync(payload);
@@ -308,7 +307,6 @@ export default function EmployeeDashboard() {
     }
 
     const payload = await buildAttendancePayload(location, geoData);
-    console.log("Final sign-out payload before API call:", payload);
 
     try {
       await signOutMutation.mutateAsync(payload);
