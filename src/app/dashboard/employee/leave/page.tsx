@@ -61,9 +61,8 @@ export default function LeavePage() {
   const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState("");
   const [today, setToday] = useState("");
   const [maxDate, setMaxDate] = useState("");
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [documentUrl, setDocumentUrl] = useState<string>("");
 
   // Calculate dates on client side only to prevent hydration mismatch
   useEffect(() => {
@@ -139,8 +138,8 @@ export default function LeavePage() {
     return requestedDays > threshold;
   }, [isSickLeave, leavePolicy, requestedDays]);
 
-  // Handle file selection
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file selection - Validate and store locally (no immediate upload)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -150,6 +149,8 @@ export default function LeavePage() {
       toast.error("Invalid file type", {
         description: "Please upload PDF, JPG, or PNG files only"
       });
+      // Clear the input
+      e.target.value = '';
       return;
     }
 
@@ -159,33 +160,25 @@ export default function LeavePage() {
       toast.error("File too large", {
         description: "Maximum file size is 5MB"
       });
+      // Clear the input
+      e.target.value = '';
       return;
     }
 
-    setUploadedFile(file);
-
-    // Upload immediately
-    try {
-      setIsUploading(true);
-      const response = await uploadLeaveDocument(file);
-      setDocumentUrl(response.url);
-      form.setValue('supportingDocumentUrl', response.url);
-      toast.success("Document uploaded successfully");
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Upload failed", {
-        description: "Could not upload document. Please try again."
-      });
-      setUploadedFile(null);
-    } finally {
-      setIsUploading(false);
-    }
+    // Store file locally - will upload on form submit
+    setSelectedFile(file);
+    toast.success("Document selected", {
+      description: "File will be uploaded when you submit the form"
+    });
   };
 
   const handleRemoveFile = () => {
-    setUploadedFile(null);
-    setDocumentUrl("");
-    form.setValue('supportingDocumentUrl', undefined);
+    setSelectedFile(null);
+    // Clear the file input
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   };
 
   // Check notice period requirement
@@ -324,7 +317,7 @@ export default function LeavePage() {
     }
 
     // Check document requirement for sick leave
-    if (documentRequired && !documentUrl) {
+    if (documentRequired && !selectedFile) {
       toast.error("Document required", {
         description: `Medical certificate is required for sick leave of ${requestedDays} days`
       });
@@ -354,17 +347,45 @@ export default function LeavePage() {
     }
 
     try {
+      let documentUrl: string | undefined = undefined;
+
+      // Upload document if file is selected
+      if (selectedFile) {
+        setIsUploading(true);
+        toast.info("Uploading document...");
+        try {
+          const uploadResponse = await uploadLeaveDocument(selectedFile);
+          documentUrl = uploadResponse.url;
+        } catch (uploadError) {
+          console.error("Document upload failed:", uploadError);
+          setIsUploading(false);
+          toast.error("Document upload failed", {
+            description: "Could not upload document. Please try again."
+          });
+          return;
+        }
+        setIsUploading(false);
+      }
+
+      // Submit leave application with document URL
       await applyMutation.mutateAsync({
         ...values,
-        supportingDocumentUrl: documentUrl || undefined,
+        supportingDocumentUrl: documentUrl,
       });
+      
       toast.success("Leave request submitted", {
         description: "Your leave request has been submitted for approval"
       });
+      
+      // Reset form and state
       form.reset();
       setSelectedLeaveTypeId("");
-      setUploadedFile(null);
-      setDocumentUrl("");
+      setSelectedFile(null);
+      // Clear file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
     } catch (error) {
       // Use generic error handler with leave-specific context
       const pendingLeaves = (leaves || []).filter(l =>
@@ -574,30 +595,35 @@ export default function LeavePage() {
                           </FormDescription>
                         )}
 
-                        {!uploadedFile && !documentUrl && (
+                        {!selectedFile && (
                           <div className="flex items-center gap-2">
                             <Input
                               type="file"
                               accept=".pdf,.jpg,.jpeg,.png"
                               onChange={handleFileChange}
-                              disabled={isUploading}
+                              disabled={applyMutation.isPending || isUploading}
                               className="cursor-pointer"
                             />
-                            {isUploading && <Loader2 className="size-4 animate-spin" />}
                           </div>
                         )}
 
-                        {uploadedFile && documentUrl && (
-                          <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3">
-                            <FileText className="size-4 text-green-600" />
-                            <span className="flex-1 text-sm text-green-700">
-                              {uploadedFile.name}
-                            </span>
+                        {selectedFile && (
+                          <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+                            <FileText className="size-4 text-blue-600" />
+                            <div className="flex-1">
+                              <span className="text-sm text-blue-700">
+                                {selectedFile.name}
+                              </span>
+                              <p className="text-xs text-blue-600">
+                                {(selectedFile.size / 1024).toFixed(2)} KB • Ready to upload
+                              </p>
+                            </div>
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
                               onClick={handleRemoveFile}
+                              disabled={applyMutation.isPending || isUploading}
                               className="size-6 p-0"
                             >
                               <X className="size-4" />
@@ -605,9 +631,9 @@ export default function LeavePage() {
                           </div>
                         )}
 
-                        {documentRequired && !documentUrl && (
+                        {documentRequired && !selectedFile && (
                           <p className="text-xs text-destructive">
-                            Please upload a medical certificate to proceed
+                            Please select a medical certificate to proceed
                           </p>
                         )}
                       </div>
@@ -678,16 +704,17 @@ export default function LeavePage() {
                       className="w-full"
                       disabled={
                         applyMutation.isPending ||
+                        isUploading ||
                         !balanceCheck.sufficient ||
                         !noticeCheck.valid ||
                         overlapCheck.hasOverlap ||
                         hasPendingLeaves
                       }
                     >
-                      {applyMutation.isPending ? (
+                      {(applyMutation.isPending || isUploading) ? (
                         <>
                           <Loader2 className="mr-2 size-4 animate-spin" />
-                          Submitting...
+                          {isUploading ? 'Uploading document...' : 'Submitting...'}
                         </>
                       ) : (
                         <>
