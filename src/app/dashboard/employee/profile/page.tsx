@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
 import { listEmployees, type ApiEmployee } from "@/lib/api/employees";
-import { useUserBalances } from "@/lib/queries/leave";
+import { useManagerSubordinates, useMyEmployeeProfile } from "@/lib/queries/employees";
 import { formatDateInDhaka } from "@/lib/utils";
 import { ProfilePictureUpload } from "@/components/profile-picture-upload";
 
@@ -19,17 +19,8 @@ export default function ProfilePage() {
   const { session } = useSession();
   const userId = session?.user.id;
 
-  // Find employee by userId
-  const { data: employees, isLoading: employeeLoading } = useQuery({
-    queryKey: ["employees", "profile", userId],
-    queryFn: async () => {
-      const allEmployees = await listEmployees();
-      return allEmployees.find((emp: ApiEmployee) => emp.userId === userId);
-    },
-    enabled: Boolean(userId),
-  });
-
-  const employee = employees;
+  // Get current employee profile via dedicated endpoint
+  const { data: employee, isLoading: employeeLoading } = useMyEmployeeProfile();
   // const { data: balances, isLoading: balancesLoading } = useUserBalances();
 
   // Find subordinates (employees reporting to this employee)
@@ -40,10 +31,8 @@ export default function ProfilePage() {
     },
   });
 
-  const subordinates = useMemo(() => {
-    if (!employee?.id || !allEmployees) return [];
-    return allEmployees.filter((emp: ApiEmployee) => emp.reportingManagerId === employee.id);
-  }, [employee?.id, allEmployees]);
+  // get manager subordinates
+  const { data: managerSubordinates, isLoading: isManagerSubordinatesLoading, error: isManagerSubordinatesError } = useManagerSubordinates();
 
   const fullName = useMemo(() => {
     if (!employee) return session?.user.name || "N/A";
@@ -313,7 +302,7 @@ export default function ProfilePage() {
       )}
 
       {/* Team Members (Subordinates) */}
-      {subordinates && subordinates.length > 0 && (
+      {managerSubordinates && managerSubordinates.length > 0 && (
         <Card className="border-blue-200 dark:border-blue-900/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -321,12 +310,12 @@ export default function ProfilePage() {
               Your Team
             </CardTitle>
             <CardDescription>
-              Employees reporting to you ({subordinates.length} {subordinates.length === 1 ? 'member' : 'members'})
+              Employees reporting to you ({managerSubordinates.length} {managerSubordinates.length === 1 ? 'member' : 'members'})
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {subordinates.map((subordinate: ApiEmployee) => (
+              {managerSubordinates.map((subordinate: ApiEmployee) => (
                 <div key={subordinate.id} className="rounded-lg border p-4 space-y-3 hover:shadow-md transition-shadow">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-12 w-12">

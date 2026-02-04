@@ -33,6 +33,7 @@ import {
   deleteWorkSchedule,
   getMonthlyLateCount,
   getMonthlyAttendanceSummary,
+  getMyMonthlyAttendanceSummary,
   getAttendanceReconciliationRequests,
 } from "@/lib/api/attendance";
 
@@ -69,8 +70,8 @@ export function useSignIn(userId?: string) {
     onSuccess: () => {
       if (!userId) return;
       queryClient.invalidateQueries({ queryKey: attendanceKeys.today(userId) });
-      queryClient.invalidateQueries({ 
-        queryKey: ["attendance", "monthly-late-count", userId] 
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", "monthly-late-count", userId],
       });
     },
   });
@@ -100,12 +101,12 @@ export function useExportAttendanceReport() {
 // Manager - Get attendance records for a specific subordinate
 export function useSubordinateAttendance(
   subordinateUserId: string | undefined,
-  params?: AttendanceListParams
+  params?: AttendanceListParams,
 ) {
   return useQuery({
     queryKey: attendanceKeys.subordinateAttendance(
       subordinateUserId || "",
-      params
+      params,
     ),
     queryFn: () => {
       if (!subordinateUserId) throw new Error("Subordinate user ID required");
@@ -140,7 +141,7 @@ export function useAttendanceRecords(params: AttendanceListParams) {
 }
 export function useMyAttendanceRecords(
   userId: string | undefined,
-  params: Omit<AttendanceListParams, "userId">
+  params: Omit<AttendanceListParams, "userId">,
 ) {
   return useQuery({
     queryKey: ["attendance", "my-records", userId, params],
@@ -182,7 +183,7 @@ export function useUpdateAttendanceRecord() {
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error ? error.message : "Failed to update record"
+        error instanceof Error ? error.message : "Failed to update record",
       );
     },
   });
@@ -209,7 +210,7 @@ export function useDeleteAttendanceRecord() {
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete record"
+        error instanceof Error ? error.message : "Failed to delete record",
       );
     },
   });
@@ -278,7 +279,7 @@ export function useMyLostHoursReport(
   params: {
     startDate: string;
     endDate: string;
-  }
+  },
 ) {
   return useQuery({
     queryKey: ["attendance", "my-lost-hours", userId, params],
@@ -346,7 +347,7 @@ export function useDeleteWorkSchedule() {
 export function useMonthlyLateCount(
   userId: string | undefined,
   year?: number,
-  month?: number
+  month?: number,
 ) {
   return useQuery({
     queryKey: ["attendance", "monthly-late-count", userId, year, month],
@@ -371,6 +372,19 @@ export function useMonthlyAttendanceSummary(params: {
     queryFn: () => getMonthlyAttendanceSummary(params),
     enabled: Boolean(params.year && params.month),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Employee self monthly attendance summary (uses authenticated user on backend)
+export function useMyMonthlyAttendanceSummary(params: {
+  year: number;
+  month: number;
+}) {
+  return useQuery({
+    queryKey: ["attendance", "my-monthly-summary", params],
+    queryFn: () => getMyMonthlyAttendanceSummary(params),
+    enabled: Boolean(params.year && params.month),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

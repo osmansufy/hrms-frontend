@@ -10,6 +10,7 @@ import {
   assignManager,
   getSubordinates,
   getSubordinateDetails,
+  getMyEmployeeProfile,
   type ApiEmployee,
   type ListEmployeesParams,
   type UpdateEmployeePayload,
@@ -62,7 +63,7 @@ const formatEmploymentType = (type?: string | null) =>
 const toEmployee = (
   apiEmp: ApiEmployeeShape & {
     workSchedule?: { id: string; name?: string } | null;
-  }
+  },
 ): Employee => ({
   id: apiEmp.id,
   employeeCode: apiEmp.employeeCode,
@@ -213,11 +214,11 @@ export function useAssignManager(employeeId: string) {
       if (!data?.employee) return;
       queryClient.setQueryData(
         employeeKeys.detail(employeeId),
-        toEmployee(data.employee)
+        toEmployee(data.employee),
       );
       queryClient.setQueryData(
         employeeKeys.detailRaw(employeeId),
-        data.employee
+        data.employee,
       );
       queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
     },
@@ -247,6 +248,28 @@ export function useSubordinateDetails(subordinateUserId: string | undefined) {
   });
 }
 
+// Logged-in employee's own profile
+export function useMyEmployeeProfile() {
+  return useQuery({
+    queryKey: [...employeeKeys.all, "me"],
+    queryFn: () => getMyEmployeeProfile(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useEmployeeByUserId(userId: string | undefined) {
+  return useQuery({
+    queryKey: employeeKeys.subordinateDetails(userId || ""),
+    queryFn: () => {
+      if (!userId) throw new Error("User ID required");
+      return getSubordinateDetails(userId);
+    },
+    enabled: Boolean(userId),
+    staleTime: 5 * 60 * 1000,
+    select: (apiEmp: ApiEmployee) => toEmployee(apiEmp),
+  });
+}
+
 export function useUploadProfilePicture(employeeId: string) {
   const queryClient = useQueryClient();
 
@@ -254,29 +277,33 @@ export function useUploadProfilePicture(employeeId: string) {
     mutationFn: (file: File) => uploadProfilePicture(employeeId, file),
     onSuccess: (data) => {
       if (!data?.employee) return;
-      
+
       // Update the cache with fresh employee data
       queryClient.setQueryData(
         employeeKeys.detailRaw(employeeId),
-        data.employee
+        data.employee,
       );
       queryClient.setQueryData(
         employeeKeys.detail(employeeId),
-        toEmployee(data.employee)
+        toEmployee(data.employee),
       );
-      
+
       // Invalidate all related queries to trigger refetch
-      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(employeeId) });
-      queryClient.invalidateQueries({ queryKey: employeeKeys.detailRaw(employeeId) });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detailRaw(employeeId),
+      });
       queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
-      
+
       // Invalidate employee list queries (for employee profile page)
       queryClient.invalidateQueries({ queryKey: ["employees", "all"] });
       queryClient.invalidateQueries({ queryKey: ["employees", "profile"] });
-      
+
       // Invalidate profile picture URL to get new presigned URL
-      queryClient.invalidateQueries({ 
-        queryKey: [...employeeKeys.all, "profile-picture-url", employeeId] 
+      queryClient.invalidateQueries({
+        queryKey: [...employeeKeys.all, "profile-picture-url", employeeId],
       });
     },
   });
@@ -289,29 +316,33 @@ export function useDeleteProfilePicture(employeeId: string) {
     mutationFn: () => deleteProfilePicture(employeeId),
     onSuccess: (data) => {
       if (!data?.employee) return;
-      
+
       // Update the cache with fresh employee data
       queryClient.setQueryData(
         employeeKeys.detailRaw(employeeId),
-        data.employee
+        data.employee,
       );
       queryClient.setQueryData(
         employeeKeys.detail(employeeId),
-        toEmployee(data.employee)
+        toEmployee(data.employee),
       );
-      
+
       // Invalidate all related queries to trigger refetch
-      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(employeeId) });
-      queryClient.invalidateQueries({ queryKey: employeeKeys.detailRaw(employeeId) });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detailRaw(employeeId),
+      });
       queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
-      
+
       // Invalidate employee list queries (for employee profile page)
       queryClient.invalidateQueries({ queryKey: ["employees", "all"] });
       queryClient.invalidateQueries({ queryKey: ["employees", "profile"] });
-      
+
       // Invalidate profile picture URL to clear cached presigned URL
-      queryClient.invalidateQueries({ 
-        queryKey: [...employeeKeys.all, "profile-picture-url", employeeId] 
+      queryClient.invalidateQueries({
+        queryKey: [...employeeKeys.all, "profile-picture-url", employeeId],
       });
     },
   });

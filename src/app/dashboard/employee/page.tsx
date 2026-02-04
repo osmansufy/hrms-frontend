@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AttendanceCard } from "./components/attendance-card";
 import { AttendanceCharts } from "./components/attendance-charts";
+import { EmployeeSummaryCard } from "./components/employee-summary-card";
 import { LateAttendanceConfirmationModal } from "./components/late-attendance-confirmation-modal";
 import { LateAttendanceWarningModal } from "./components/late-attendance-warning-modal";
 import { useGeolocation } from "./hooks/use-geolocation";
@@ -342,101 +343,161 @@ export default function EmployeeDashboard() {
 
   // Leave status icon/badge helpers removed from dashboard
 
+  const hasSignedInToday = Boolean(todayAttendance?.signIn);
+
+  const isTopAttendanceButtonDisabled =
+    attendanceLoading ||
+    signInMutation.isPending ||
+    signOutMutation.isPending ||
+    Boolean(todayAttendance?.signOut) ||
+    !isDeviceAllowed ||
+    (captureEmployeeLocation && !isLocationReady);
+
+  const topAttendanceStatus = attendanceLoading
+    ? "Checking status…"
+    : !todayAttendance
+      ? "Not signed in"
+      : todayAttendance.signOut
+        ? "Signed out"
+        : "Signed in";
+
   return (
     <div className="container space-y-6">
-      <div className="flex justify-between items-center mb-2">
-        <Badge variant="outline" className="text-base px-4 py-2  from-blue-50 to-indigo-50 border-blue-400 text-blue-900 font-semibold tracking-wide rounded-full">
-          {`Keep pushing! Your productivity matters${session?.user?.name ? ", " + session.user.name : ""}. 🚀`}
-        </Badge>
-      </div>
-      <div className="flex flex-wrap gap-4 items-center justify-end">
-        <div className="flex flex-col items-end">
-          <span className="text-xs text-muted-foreground">Date</span>
-          <span className="font-medium">{todayDate}</span>
-        </div>
-        <div className="flex flex-col items-end px-4 py-3 rounded-lg  from-green-100 to-emerald-100 border-2 border-green-400 shadow-md hover:shadow-lg transition-shadow">
-          <span className="text-xs font-semibold text-green-700 uppercase tracking-widest">⏱️ Live Work Time</span>
-          <span className="font-mono text-2xl font-bold text-green-700">{formatWorkedTime(workedSeconds)}</span>
-        </div>
-      </div>
-      {
-        // check user is signed 
-        todayAttendance && todayAttendance.signIn &&
-        <div className="flex justify-end">
-          <Link href="/dashboard/employee/attendance/reconciliation">
-            <Button variant="secondary">Attendance Reconciliation</Button>
-          </Link>
-        </div>
-      }
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">Welcome back</p>
           <h1 className="text-2xl font-semibold">Your Dashboard</h1>
         </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-3">
+            <div className="text-right text-xs text-muted-foreground">
+              <div className="font-medium text-foreground">Today</div>
+              <div>{todayDate}</div>
+            </div>
+            <Button
+              size="sm"
+              disabled={isTopAttendanceButtonDisabled}
+              onClick={() => (!todayAttendance?.signIn ? handleSignIn() : handleSignOut())}
+              className="rounded-full px-4 py-1.5 text-sm font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
+            >
+              {!todayAttendance?.signIn
+                ? "Sign In"
+                : todayAttendance?.signOut
+                  ? "Signed Out"
+                  : "Sign Out"}
+            </Button>
+          </div>
+          <span className="text-[11px] text-muted-foreground">{topAttendanceStatus}</span>
+        </div>
       </div>
 
+      {userId && <EmployeeSummaryCard userId={userId} />}
+      <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex-1 min-w-[200px]">
+          <Badge
+            variant="outline"
+            className="text-sm sm:text-base px-4 py-2 from-blue-50 to-indigo-50 border-blue-400 text-blue-900 font-semibold tracking-wide rounded-full"
+          >
+            {`Keep pushing! Your productivity matters${session?.user?.name ? ", " + session.user.name : ""}. 🚀`}
+          </Badge>
+        </div>
+        <div className="flex flex-col items-end px-4 py-3 rounded-lg from-green-100 to-emerald-100 border-2 border-green-400 shadow-md hover:shadow-lg transition-shadow">
+          <span className="text-xs font-semibold text-green-700 uppercase tracking-widest">⏱️ Live Work Time</span>
+          <span className="font-mono text-2xl font-bold text-green-700">{formatWorkedTime(workedSeconds)}</span>
+        </div>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)] items-start">
+        {/* Attendance Quick Actions & Monthly Late Count */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <h2 className="text-lg font-semibold">Attendance</h2>
+            {hasSignedInToday && (
+              <Link href="/dashboard/employee/attendance/reconciliation">
+                <Button variant="outline" size="sm">
+                  Attendance Reconciliation
+                </Button>
+              </Link>
+            )}
+          </div>
 
-      {/* Monthly Late Count */}
-      {monthlyLateCount > 0 && (
-        <Card className={cn(
-          "border-2",
-          monthlyLateCount >= 3 ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" : "border-orange-200"
-        )}>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <ClockAlert className={cn(
-                  "h-5 w-5",
-                  monthlyLateCount >= 3 ? "text-yellow-600" : "text-orange-600"
-                )} />
+          {!hasSignedInToday && !attendanceLoading && (
+            <Card className="border-2 border-emerald-500/60 bg-emerald-500/5 dark:bg-emerald-900/10">
+              <CardContent className="py-3 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium">Monthly Late Count</p>
+                  <p className="text-sm font-medium">You haven&apos;t signed in today</p>
                   <p className="text-xs text-muted-foreground">
-                    {monthlyLateCount >= leaveDeductionDay - 1
-                      ? `Warning: One more late will result in a leave adjustment. Leave will be deducted starting from the ${leaveDeductionDay}th late in a month.`
-                      : `Keep track of your attendance. Leave is deducted starting from the ${leaveDeductionDay}th late in a month.`}
+                    Tap the green button below to mark your attendance for today.
                   </p>
                 </div>
-              </div>
-              <Badge
-                variant={monthlyLateCount >= 3 ? "destructive" : "secondary"}
-                className="text-lg px-4 py-1"
-              >
-                {monthlyLateCount} /month
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Attendance Quick Actions */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Attendance</h2>
-        <AttendanceCard
-          todayAttendance={todayAttendance}
-          attendanceLoading={attendanceLoading}
-          attendanceFetching={attendanceFetching}
-          signInMutation={signInMutation}
-          signOutMutation={signOutMutation}
-          captureEmployeeLocation={captureEmployeeLocation}
-          deviceInfo={deviceInfo}
-          isDeviceAllowed={isDeviceAllowed}
-          geolocationStatus={geolocationStatus}
-          geolocationError={geolocationError}
-          locationPermissionStatus={locationPermissionStatus}
-          isGettingLocation={isGettingLocation}
-          isLocationReady={isLocationReady}
-          isLocationBlocked={isLocationBlocked}
-          onRequestLocationAccess={requestLocationAccess}
-          onSignIn={handleSignIn}
-          onSignOut={handleSignOut}
-          location={location}
-          onLocationChange={setLocation}
-        />
+          <AttendanceCard
+            todayAttendance={todayAttendance}
+            attendanceLoading={attendanceLoading}
+            attendanceFetching={attendanceFetching}
+            signInMutation={signInMutation}
+            signOutMutation={signOutMutation}
+            captureEmployeeLocation={captureEmployeeLocation}
+            deviceInfo={deviceInfo}
+            isDeviceAllowed={isDeviceAllowed}
+            geolocationStatus={geolocationStatus}
+            geolocationError={geolocationError}
+            locationPermissionStatus={locationPermissionStatus}
+            isGettingLocation={isGettingLocation}
+            isLocationReady={isLocationReady}
+            isLocationBlocked={isLocationBlocked}
+            onRequestLocationAccess={requestLocationAccess}
+            onSignIn={handleSignIn}
+            onSignOut={handleSignOut}
+            location={location}
+            onLocationChange={setLocation}
+          />
+
+          {/* Monthly Late Count */}
+          {monthlyLateCount > 0 && (
+            <Card className={cn(
+              "border-2",
+              monthlyLateCount >= 3
+                ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
+                : "border-orange-200"
+            )}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ClockAlert
+                      className={cn(
+                        "h-5 w-5",
+                        monthlyLateCount >= 3 ? "text-yellow-600" : "text-orange-600"
+                      )}
+                    />
+                    <div>
+                      <p className="text-sm font-medium">Monthly Late Count</p>
+                      <p className="text-xs text-muted-foreground">
+                        {monthlyLateCount >= leaveDeductionDay - 1
+                          ? `Warning: One more late will result in a leave adjustment. Leave will be deducted starting from the ${leaveDeductionDay}th late in a month.`
+                          : `Keep track of your attendance. Leave is deducted starting from the ${leaveDeductionDay}th late in a month.`}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant={monthlyLateCount >= 3 ? "destructive" : "secondary"}
+                    className="text-lg px-4 py-1"
+                  >
+                    {monthlyLateCount} /month
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+
+        {/* Attendance Charts */}
+        <section className="space-y-4">
+          <AttendanceCharts attendanceBarData={attendanceBarData} />
+        </section>
       </div>
-
-      {/* Attendance Charts */}
-      <AttendanceCharts attendanceBarData={attendanceBarData} />
 
 
 

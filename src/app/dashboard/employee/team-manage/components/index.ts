@@ -1,7 +1,5 @@
 export { PendingApprovalsTab } from "./pending-approvals-tab";
-export { ApprovedLeavesTab } from "./approved-leaves-tab";
 export { TeamCalendarTab } from "./team-calendar-tab";
-export { AttendanceTab } from "./attendance-tab";
 export { TeamMembersTab } from "./team-members-tab";
 export { EmployeeDetailDialog } from "./employee-detail-dialog";
 export { JobCardTab } from "./team-member/job-card-tab";

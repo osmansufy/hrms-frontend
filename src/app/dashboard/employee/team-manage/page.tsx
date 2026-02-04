@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
     PendingApprovalsTab,
-    ApprovedLeavesTab,
     TeamCalendarTab,
-    AttendanceTab,
     TeamMembersTab
 } from "./components";
 
@@ -77,39 +75,22 @@ export default function TeamManagePage() {
                         <ClipboardCheck className="size-4" />
                         Pending Approvals
                     </TabsTrigger>
-                    <TabsTrigger value="approved" className="flex items-center gap-2">
-                        <Clock className="size-4" />
-                        Awaiting HR
-                    </TabsTrigger>
-                    <TabsTrigger value="calendar" className="flex items-center gap-2">
-                        <Users className="size-4" />
-                        Team Calendar
-                    </TabsTrigger>
-                    {/* Divider */}
-
-                </TabsList>
-                {/* Divider */}
-                <div className="w-full h-[1px] bg-muted" />
-                {/* Attendance Tab list */}
-                <TabsList className="grid w-full grid-cols-3">
                     {/* if manager has subordinates, show attendance tab */}
 
                     <TabsTrigger value="subordinates" className="flex items-center gap-2">
                         <Users className="size-4" />
                         Team Members
                     </TabsTrigger>
-                    <TabsTrigger value="attendance" className="flex items-center gap-2">
-                        <Clock className="size-4" />
-                        Attendance History
+                    <TabsTrigger value="calendar" className="flex items-center gap-2">
+                        <Users className="size-4" />
+                        Leave Calendar
                     </TabsTrigger>
+                    {/* Divider */}
+
                 </TabsList>
 
                 <TabsContent value="pending" className="space-y-4">
                     <PendingApprovalsTab />
-                </TabsContent>
-
-                <TabsContent value="approved" className="space-y-4">
-                    <ApprovedLeavesTab />
                 </TabsContent>
 
                 <TabsContent value="calendar" className="space-y-4">
@@ -117,9 +98,6 @@ export default function TeamManagePage() {
                 </TabsContent>
                 <TabsContent value="subordinates" className="space-y-4">
                     <TeamMembersTab />
-                </TabsContent>
-                <TabsContent value="attendance" className="space-y-4">
-                    <AttendanceTab />
                 </TabsContent>
             </Tabs>
         </div>

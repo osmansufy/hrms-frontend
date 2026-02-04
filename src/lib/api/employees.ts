@@ -142,36 +142,36 @@ export async function createEmployee(payload: CreateEmployeePayload) {
 export async function bulkCreateEmployees(payload: CreateEmployeePayload[]) {
   const response = await apiClient.post<ApiEmployee[]>(
     "/employees/bulk",
-    payload
+    payload,
   );
   return response.data;
 }
 
 export async function updateEmployeeApi(
   id: string,
-  payload: UpdateEmployeePayload
+  payload: UpdateEmployeePayload,
 ) {
   const response = await apiClient.patch<ApiEmployee>(
     `/employees/${id}`,
-    payload
+    payload,
   );
   return response.data;
 }
 
 export async function updatePersonalInfo(
   id: string,
-  payload: UpdatePersonalInfoPayload
+  payload: UpdatePersonalInfoPayload,
 ) {
   const response = await apiClient.patch<ApiEmployee>(
     `/employees/${id}/personal-info`,
-    payload
+    payload,
   );
   return response.data;
 }
 
 export async function deleteEmployee(id: string) {
   const response = await apiClient.delete<{ success: boolean }>(
-    `/employees/${id}`
+    `/employees/${id}`,
   );
   return response.data;
 }
@@ -220,26 +220,32 @@ export type AssignManagerResponse = {
 
 export async function assignManager(
   employeeId: string,
-  payload: AssignManagerPayload
+  payload: AssignManagerPayload,
 ) {
   const response = await apiClient.patch<AssignManagerResponse>(
     `/employees/${employeeId}/manager`,
-    payload
+    payload,
   );
   return response.data;
 }
 
 export async function getSubordinates(employeeId: string) {
   const response = await apiClient.get<ApiEmployee[]>(
-    `/employees/${employeeId}/subordinates`
+    `/employees/${employeeId}/subordinates`,
   );
+  return response.data;
+}
+
+// Get the currently authenticated employee's own profile
+export async function getMyEmployeeProfile(): Promise<ApiEmployee | null> {
+  const response = await apiClient.get<ApiEmployee | null>(`/employees/me`);
   return response.data;
 }
 
 // Manager endpoint: Get subordinate employee details (job card)
 export async function getSubordinateDetails(subordinateUserId: string) {
   const response = await apiClient.get<ApiEmployee>(
-    `/employees/manager/subordinate/${subordinateUserId}`
+    `/employees/manager/subordinate/${subordinateUserId}`,
   );
   return response.data;
 }
@@ -264,7 +270,7 @@ export type ProfilePictureUrlResponse = {
 
 export async function uploadProfilePicture(
   employeeId: string,
-  file: File
+  file: File,
 ): Promise<ProfilePictureUploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
@@ -276,22 +282,22 @@ export async function uploadProfilePicture(
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
   );
   return response.data;
 }
 
 export async function getProfilePictureUrl(
-  employeeId: string
+  employeeId: string,
 ): Promise<ProfilePictureUrlResponse> {
   const response = await apiClient.get<ProfilePictureUrlResponse>(
-    `/employees/${employeeId}/profile-picture-url`
+    `/employees/${employeeId}/profile-picture-url`,
   );
   return response.data;
 }
 
 export async function deleteProfilePicture(
-  employeeId: string
+  employeeId: string,
 ): Promise<{ message: string; employee: ApiEmployee }> {
   const response = await apiClient.delete<{
     message: string;
