@@ -6,12 +6,14 @@ import { useDepartments } from "@/lib/queries/departments";
 import { useDesignationsList } from "@/lib/queries/designations";
 import { usePendingHRApprovals } from "@/lib/queries/leave";
 import { Loader2 } from "lucide-react";
+import { useSession } from "@/components/auth/session-provider";
 
 export default function DashboardPage() {
+  const { session } = useSession();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
   const { data: departments, isLoading: departmentsLoading } = useDepartments();
   const { data: designations, isLoading: designationsLoading } = useDesignationsList();
-  const { data: pendingApprovals, isLoading: approvalsLoading } = usePendingHRApprovals();
+  const { data: pendingApprovals, isLoading: approvalsLoading } = usePendingHRApprovals(session?.user.roles[0] || "");
 
   const employeesCount = employees?.length ?? 0;
   const departmentsCount = departments?.length ?? 0;
@@ -28,27 +30,27 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard 
-          title="Employees" 
-          value={isLoading ? "..." : employeesCount.toString()} 
+        <DashboardCard
+          title="Employees"
+          value={isLoading ? "..." : employeesCount.toString()}
           helper="Total employees"
           isLoading={employeesLoading}
         />
-        <DashboardCard 
-          title="Departments" 
-          value={isLoading ? "..." : departmentsCount.toString()} 
+        <DashboardCard
+          title="Departments"
+          value={isLoading ? "..." : departmentsCount.toString()}
           helper="Active departments"
           isLoading={departmentsLoading}
         />
-        <DashboardCard 
-          title="Designations" 
-          value={isLoading ? "..." : designationsCount.toString()} 
+        <DashboardCard
+          title="Designations"
+          value={isLoading ? "..." : designationsCount.toString()}
           helper="Job roles"
           isLoading={designationsLoading}
         />
-        <DashboardCard 
-          title="Pending Approvals" 
-          value={isLoading ? "..." : pendingApprovalsCount.toString()} 
+        <DashboardCard
+          title="Pending Approvals"
+          value={isLoading ? "..." : pendingApprovalsCount.toString()}
           helper="Awaiting approval"
           isLoading={approvalsLoading}
         />

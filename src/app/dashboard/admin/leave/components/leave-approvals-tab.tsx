@@ -35,6 +35,7 @@ import { getLeaveDocumentUrl } from "@/lib/api/leave";
 import { EmployeeLeaveHistoryDialog } from "@/components/employee-leave-history-dialog";
 
 import { formatDateInDhaka } from "@/lib/utils";
+import { useSession } from "@/components/auth/session-provider";
 
 // Helper function to format dates
 function formatDate(dateString: string) {
@@ -42,7 +43,8 @@ function formatDate(dateString: string) {
 }
 
 export function LeaveApprovalsTab() {
-    const { data: pendingLeaves, isLoading } = usePendingHRApprovals();
+    const { session } = useSession();
+    const { data: pendingLeaves, isLoading } = usePendingHRApprovals(session?.user.roles[0] || "");
     const { data: allBalances } = useAllUsersBalances();
     const approveMutation = useApproveLeave();
     const rejectMutation = useRejectLeave();

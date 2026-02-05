@@ -23,6 +23,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { formatDateInDhaka } from "@/lib/utils";
+import { useSession } from "@/components/auth/session-provider";
 
 // Helper function to format dates
 function formatDate(dateString: string | null | undefined) {
@@ -31,7 +32,8 @@ function formatDate(dateString: string | null | undefined) {
 }
 
 export function AmendmentApprovalsTab() {
-    const { data: amendments, isLoading } = useAmendments();
+    const { session } = useSession();
+    const { data: amendments, isLoading } = useAmendments(session?.user.roles[0] || "");
     const approveMutation = useApproveAmendment();
     const rejectMutation = useRejectAmendment();
     const [selectedAmendment, setSelectedAmendment] = useState<{ id: string; action: "approve" | "reject" } | null>(null);
