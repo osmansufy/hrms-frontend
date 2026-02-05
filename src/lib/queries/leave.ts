@@ -114,7 +114,7 @@ export function useSubordinatesLeaves() {
 // Line Manager - Get leaves for a specific subordinate
 export function useSubordinateLeaves(
   subordinateUserId: string | undefined,
-  params?: GetSubordinateLeavesParams
+  params?: GetSubordinateLeavesParams,
 ) {
   return useQuery({
     queryKey: leaveKeys.subordinateLeaves(subordinateUserId || "", params),
@@ -322,11 +322,12 @@ export function useDeleteNoticeRule() {
 }
 
 // Leave Approval Hooks
-export function usePendingHRApprovals() {
+export function usePendingHRApprovals(role: string) {
   return useQuery({
     queryKey: adminLeaveKeys.pendingApprovals,
     queryFn: () => getPendingHRApprovals(),
     refetchInterval: 30_000, // Refetch every 30 seconds
+    enabled: role === "admin" || role === "super-admin",
   });
 }
 
@@ -386,11 +387,12 @@ export function useOverrideLeave() {
 }
 
 // Amendment Hooks
-export function useAmendments() {
+export function useAmendments(role: string) {
   return useQuery({
     queryKey: adminLeaveKeys.amendments,
     queryFn: () => listAmendments(),
     refetchInterval: 30_000,
+    enabled: role === "admin" || role === "super-admin",
   });
 }
 
@@ -461,7 +463,10 @@ export function useAllUsersBalances() {
   });
 }
 
-export function useSubordinateBalances(managerUserId: string, subordinateUserId: string | undefined) {
+export function useSubordinateBalances(
+  managerUserId: string,
+  subordinateUserId: string | undefined,
+) {
   return useQuery({
     queryKey: balanceKeys.subordinateBalances(subordinateUserId || ""),
     queryFn: () => {
@@ -477,7 +482,7 @@ export function useSubordinateBalances(managerUserId: string, subordinateUserId:
 export function useEmployeeLeaveBalance(
   userId: string,
   leaveTypeId: string,
-  leaveYear?: string
+  leaveYear?: string,
 ) {
   return useQuery({
     queryKey: ["leave-balance", "employee", userId, leaveTypeId, leaveYear],
@@ -510,14 +515,27 @@ export function useInitializeBalance() {
 }
 
 // Leave Ledger History Hooks
-import { getSubordinateLedgerHistory, type SubordinateLedgerParams } from "@/lib/api/leave";
+import {
+  getSubordinateLedgerHistory,
+  type SubordinateLedgerParams,
+} from "@/lib/api/leave";
 
 export const ledgerKeys = {
   all: ["leave-ledger"] as const,
   myLedger: (leaveTypeId: string) =>
     ["leave-ledger", "my", leaveTypeId] as const,
-  subordinateLedger: (subordinateUserId: string, leaveTypeId: string, params?: SubordinateLedgerParams) =>
-    ["leave-ledger", "subordinate", subordinateUserId, leaveTypeId, params] as const,
+  subordinateLedger: (
+    subordinateUserId: string,
+    leaveTypeId: string,
+    params?: SubordinateLedgerParams,
+  ) =>
+    [
+      "leave-ledger",
+      "subordinate",
+      subordinateUserId,
+      leaveTypeId,
+      params,
+    ] as const,
 };
 
 export function useMyLedgerHistory(leaveTypeId: string) {
@@ -532,15 +550,23 @@ export function useMyLedgerHistory(leaveTypeId: string) {
 export function useSubordinateLedgerHistory(
   subordinateUserId: string | undefined,
   leaveTypeId: string | undefined,
-  params?: SubordinateLedgerParams
+  params?: SubordinateLedgerParams,
 ) {
   return useQuery({
-    queryKey: ledgerKeys.subordinateLedger(subordinateUserId || "", leaveTypeId || "", params),
+    queryKey: ledgerKeys.subordinateLedger(
+      subordinateUserId || "",
+      leaveTypeId || "",
+      params,
+    ),
     queryFn: () => {
       if (!subordinateUserId || !leaveTypeId) {
         throw new Error("Subordinate user ID and leave type ID required");
       }
-      return getSubordinateLedgerHistory(subordinateUserId, leaveTypeId, params);
+      return getSubordinateLedgerHistory(
+        subordinateUserId,
+        leaveTypeId,
+        params,
+      );
     },
     enabled: Boolean(subordinateUserId) && Boolean(leaveTypeId),
     staleTime: 5 * 60 * 1000, // 5 minutes

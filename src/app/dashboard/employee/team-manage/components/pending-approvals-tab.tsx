@@ -36,33 +36,12 @@ function formatDate(dateString: string) {
 export function PendingApprovalsTab() {
     const queryClient = useQueryClient();
     const { data: pendingLeaves, isLoading } = useManagerPendingLeaves();
-    const { data: allBalances } = useAllUsersBalances();
     const approveMutation = useManagerApproveLeave();
     const rejectMutation = useManagerRejectLeave();
     const [selectedLeave, setSelectedLeave] = useState<{ id: string; action: "approve" | "reject"; employeeName: string } | null>(null);
     const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
     const [showBulkConfirm, setShowBulkConfirm] = useState<{ action: "approve" | "reject" } | null>(null);
     const [viewHistoryFor, setViewHistoryFor] = useState<{ userId: string; employeeName: string } | null>(null);
-
-    // Create a map of userId + leaveTypeId -> balance for quick lookup
-    const balanceMap = useMemo(() => {
-        const map = new Map<string, number>();
-        if (allBalances) {
-            allBalances.forEach((balance) => {
-                const key = `${balance.userId}-${balance.leaveTypeId}`;
-                const available = typeof balance.available === 'number' ? balance.available : Number(balance.available) || 0;
-                map.set(key, available);
-            });
-        }
-        return map;
-    }, [allBalances]);
-
-    // Helper function to get balance for a specific leave
-    const getLeaveBalance = (userId: string, leaveTypeId: string): number | null => {
-        const key = `${userId}-${leaveTypeId}`;
-        const balance = balanceMap.get(key);
-        return balance !== undefined ? balance : null;
-    };
 
     const bulkApproveMutation = useMutation({
         mutationFn: (leaveIds: string[]) => bulkApproveLeaves(leaveIds),
@@ -275,7 +254,7 @@ export function PendingApprovalsTab() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {leavesInPending.map((leave: any) => {
+                                        {leavesInPending.map((leave) => {
                                             const startDate = new Date(leave.startDate);
                                             const endDate = new Date(leave.endDate);
                                             const duration = Math.ceil(
@@ -284,9 +263,7 @@ export function PendingApprovalsTab() {
                                             const employeeName = leave?.employee
                                                 ? `${leave?.employee?.firstName} ${leave?.employee?.lastName}`
                                                 : "Unknown";
-                                            const balance = leave.user?.id && leave.leaveTypeId 
-                                                ? getLeaveBalance(leave.user.id, leave.leaveTypeId)
-                                                : null;
+                                            const balance = null;
                                             const hasInsufficientBalance = balance !== null && duration > balance;
 
                                             return (
@@ -312,7 +289,7 @@ export function PendingApprovalsTab() {
                                                         {balance !== null && typeof balance === 'number' ? (
                                                             <div className="flex flex-col">
                                                                 <span className={hasInsufficientBalance ? "font-semibold text-red-600" : "font-medium"}>
-                                                                    {balance.toFixed(1)} days
+                                                                    {balance} days
                                                                 </span>
                                                                 {hasInsufficientBalance && (
                                                                     <span className="text-xs text-red-500 mt-0.5">

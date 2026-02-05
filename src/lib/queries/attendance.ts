@@ -389,10 +389,11 @@ export function useMyMonthlyAttendanceSummary(params: {
 }
 
 // Attendance Reconciliation hooks
-export function useAttendanceReconciliationRequests() {
+export function useAttendanceReconciliationRequests(role: string) {
   return useQuery({
     queryKey: ["attendance-reconciliation-requests"],
     queryFn: () => getAttendanceReconciliationRequests(),
     refetchInterval: 30_000, // Refetch every 30 seconds
+    enabled: role === "admin" || role === "super-admin",
   });
 }

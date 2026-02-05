@@ -21,14 +21,15 @@ export default function SubordinateDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { session } = useSession();
-  const employeeId = params?.employeeId as string;    
-console.log({employeeId});
+  console.log({ session });
+  const employeeId = params?.employeeId as string;
+  console.log({ employeeId });
   // Get subordinates to verify access and get employee details
   const { data: managerSubordinates, isLoading } = useManagerSubordinates(session?.user.id);
   // Find the specific subordinate
   const subordinate = useMemo(() => {
     if (!managerSubordinates || !employeeId) return null;
-    return managerSubordinates.find((sub) => sub.userId == employeeId);
+    return managerSubordinates.find((sub) => sub.id == employeeId);
   }, [managerSubordinates, employeeId]);
   const subordinateName = subordinate
     ? `${subordinate.firstName} ${subordinate.lastName}`
@@ -117,7 +118,7 @@ console.log({employeeId});
               <h1 className="text-2xl font-semibold tracking-tight">{subordinateName}</h1>
             </div>
             <p className="text-sm text-muted-foreground">
-              {subordinate.designation?.name || subordinate.designation?.title || "Employee"} 
+              {subordinate.designation?.name || subordinate.designation?.title || "Employee"}
               {subordinate.department?.name && ` • ${subordinate.department.name}`}
             </p>
           </div>
@@ -141,14 +142,14 @@ console.log({employeeId});
               <p className="text-sm font-medium">{subordinate.employeeCode || "—"}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Status</p> 
+              <p className="text-sm text-muted-foreground">Status</p>
               <p className="text-sm font-medium capitalize">{subordinate.user?.status || "—"}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-     
+
 
       {/* Tabs for Details */}
       <Tabs defaultValue="job-card" className="space-y-4">
@@ -178,8 +179,8 @@ console.log({employeeId});
         </TabsContent>
 
         <TabsContent value="leaves" className="space-y-4">
-       <SubordinateLeaveTab userId={subordinate.userId || ""} />
-            </TabsContent>
+          <SubordinateLeaveTab userId={subordinate.userId || ""} />
+        </TabsContent>
 
         <TabsContent value="attendance" className="space-y-4">
           <SubordinateAttendanceRecordsTab userId={subordinate.userId || ""} />

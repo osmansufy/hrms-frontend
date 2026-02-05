@@ -137,16 +137,16 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
 
 function Header({ pathname, title }: { pathname: string; title: string }) {
   const { roles } = usePermissions();
-  const { data: pendingApprovals } = usePendingHRApprovals();
-  const { data: amendments } = useAmendments();
-  const { data: reconciliationRequests } = useAttendanceReconciliationRequests();
+  const { data: pendingApprovals } = usePendingHRApprovals(roles[0]);
+  const { data: amendments } = useAmendments(roles[0]);
+  const { data: reconciliationRequests } = useAttendanceReconciliationRequests(roles[0]);
   const isAdmin = roles.includes("admin") || roles.includes("super-admin");
   const pendingCount = pendingApprovals?.length ?? 0;
-  const pendingAmendments = amendments?.filter((amendment) => 
+  const pendingAmendments = amendments?.filter((amendment) =>
     amendment.status === "PENDING" || amendment.status === "PROCESSING"
   ) ?? [];
   const amendmentCount = pendingAmendments.length;
-  const pendingReconciliations = reconciliationRequests?.data?.filter((request) => 
+  const pendingReconciliations = reconciliationRequests?.data?.filter((request) =>
     request.status === "PENDING"
   ) ?? [];
   const reconciliationCount = pendingReconciliations.length;
@@ -172,9 +172,9 @@ function Header({ pathname, title }: { pathname: string; title: string }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <NotificationMenu 
-          isAdmin={isAdmin} 
-          pendingCount={pendingCount} 
+        <NotificationMenu
+          isAdmin={isAdmin}
+          pendingCount={pendingCount}
           amendmentCount={amendmentCount}
           reconciliationCount={reconciliationCount}
         />
@@ -190,20 +190,17 @@ function MobileNav() {
   const { permissions, roles } = usePermissions();
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useUIStore();
   const primaryRole = useMemo(() => getPrimaryRole(roles), [roles]);
-  const { data: subordinatesData } = useSubordinatesLeaves();
-  const hasSubordinates = useMemo(() => {
-    return subordinatesData && subordinatesData.length > 0;
-  }, [subordinatesData]);
+
 
   const navItems = useMemo(() => {
     const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
     // Flatten navigation for mobile: include items with href and children of parent items
     const flatItems: typeof filtered = [];
-    
+
     filtered.forEach(item => {
       if (item.href) {
         // Direct items with href
-        if (item.href === "/dashboard/employee/team-manage" && !hasSubordinates) {
+        if (item.href === "/dashboard/employee/team-manage") {
           return; // Skip team management if no subordinates
         }
         flatItems.push(item);
@@ -226,9 +223,9 @@ function MobileNav() {
         });
       }
     });
-    
+
     return flatItems;
-  }, [permissions, roles, primaryRole, hasSubordinates]);
+  }, [permissions, roles, primaryRole]);
   return (
     <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <SheetTrigger asChild className="lg:hidden">
@@ -342,13 +339,13 @@ function UserMenu() {
   );
 }
 
-function NotificationMenu({ 
-  isAdmin, 
-  pendingCount, 
+function NotificationMenu({
+  isAdmin,
+  pendingCount,
   amendmentCount,
   reconciliationCount
-}: { 
-  isAdmin: boolean; 
+}: {
+  isAdmin: boolean;
   pendingCount: number;
   amendmentCount: number;
   reconciliationCount: number;
@@ -361,8 +358,8 @@ function NotificationMenu({
         <Button variant="ghost" size="icon" aria-label="notifications" className="relative">
           <Bell className="size-5" />
           {isAdmin && totalNotifications > 0 && (
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
               className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full p-0 text-xs"
             >
               {totalNotifications > 99 ? "99+" : totalNotifications}
@@ -382,8 +379,8 @@ function NotificationMenu({
                   <div>
                     <p className="text-sm font-medium">Pending Leave Approvals</p>
                     <p className="text-xs text-muted-foreground">
-                      {pendingCount === 0 
-                        ? "No pending approvals" 
+                      {pendingCount === 0
+                        ? "No pending approvals"
                         : `${pendingCount} leave request${pendingCount > 1 ? "s" : ""} awaiting approval`
                       }
                     </p>
@@ -403,8 +400,8 @@ function NotificationMenu({
                   <div>
                     <p className="text-sm font-medium">Amendment Requests</p>
                     <p className="text-xs text-muted-foreground">
-                      {amendmentCount === 0 
-                        ? "No pending amendments" 
+                      {amendmentCount === 0
+                        ? "No pending amendments"
                         : `${amendmentCount} amendment request${amendmentCount > 1 ? "s" : ""} awaiting review`
                       }
                     </p>
@@ -424,8 +421,8 @@ function NotificationMenu({
                   <div>
                     <p className="text-sm font-medium">Attendance Reconciliation</p>
                     <p className="text-xs text-muted-foreground">
-                      {reconciliationCount === 0 
-                        ? "No pending reconciliations" 
+                      {reconciliationCount === 0
+                        ? "No pending reconciliations"
                         : `${reconciliationCount} reconciliation request${reconciliationCount > 1 ? "s" : ""} awaiting review`
                       }
                     </p>

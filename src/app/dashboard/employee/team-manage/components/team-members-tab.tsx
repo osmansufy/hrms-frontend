@@ -1,11 +1,9 @@
 "use client";
-
-import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableHead, TableRow, TableBody, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { useManagerSubordinates, useEmployees } from '@/lib/queries/employees';
+import { useManagerSubordinates } from '@/lib/queries/employees';
 import { useSession } from '@/components/auth/session-provider';
 import { Eye, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,17 +11,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 export const TeamMembersTab = () => {
     const router = useRouter();
     const { session } = useSession();
-    const userId = session?.user.id;
-    
-    // Get all employees to find current user's employee record
-    const { data: allEmployees } = useEmployees();
-    const currentEmployee = useMemo(() => {
-        if (!allEmployees || !userId) return null;
-        return allEmployees.find(emp => emp.userId === userId);
-    }, [allEmployees, userId]);
-    
-    const { data: managerSubordinates, isLoading: isManagerSubordinatesLoading, error: isManagerSubordinatesError } = useManagerSubordinates(currentEmployee?.id);
-console.log("managerSubordinates", managerSubordinates);
+    const employeeId = session?.user.employeeId;
+
+    const { data: managerSubordinates, isLoading: isManagerSubordinatesLoading, error: isManagerSubordinatesError } = useManagerSubordinates(employeeId);
+    console.log("managerSubordinates", managerSubordinates);
     if (isManagerSubordinatesLoading) {
         return (
             <Card>
@@ -83,7 +74,7 @@ console.log("managerSubordinates", managerSubordinates);
                                 managerSubordinates.map((subordinate) => {
                                     const fullName = `${subordinate.firstName} ${subordinate.lastName}`;
                                     return (
-                                        <TableRow 
+                                        <TableRow
                                             key={subordinate.id}
                                             className="cursor-pointer hover:bg-muted/50"
                                             onClick={() => handleViewDetails(subordinate.id)}
@@ -109,7 +100,7 @@ console.log("managerSubordinates", managerSubordinates);
                                                     size="sm"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleViewDetails(subordinate.userId);
+                                                        handleViewDetails(subordinate.id);
                                                     }}
                                                 >
                                                     <Eye className="h-4 w-4 sm:mr-2" />

@@ -133,6 +133,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     persistSession({
       user: {
         id: payload?.sub || "user-1",
+        employeeId: payload?.employeeId,
         name: payload?.name || email.split("@")[0] || "HR User",
         email: payload?.email || email,
         roles: resolvedRoles,

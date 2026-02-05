@@ -53,7 +53,7 @@ export default function ProfilePage() {
       </div>
     );
   }
-
+  console.log({ managerSubordinates });
   return (
     <div className="container space-y-6">
       <div>
@@ -302,7 +302,7 @@ export default function ProfilePage() {
       )}
 
       {/* Team Members (Subordinates) */}
-      {managerSubordinates && managerSubordinates.length > 0 && (
+      {managerSubordinates && !isManagerSubordinatesLoading && managerSubordinates?.length > 0 && (
         <Card className="border-blue-200 dark:border-blue-900/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

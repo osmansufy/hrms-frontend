@@ -99,7 +99,7 @@ export type ApplyLeavePayload = {
 };
 
 export async function uploadLeaveDocument(
-  file: File
+  file: File,
 ): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append("file", file);
@@ -111,17 +111,17 @@ export async function uploadLeaveDocument(
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
   );
   return response.data;
 }
 
 // Get secure document URL with presigned access
 export async function getLeaveDocumentUrl(
-  leaveId: string
+  leaveId: string,
 ): Promise<{ url: string; expiresAt: string }> {
   const response = await apiClient.get<{ url: string; expiresAt: string }>(
-    `/leave/document/${leaveId}`
+    `/leave/document/${leaveId}`,
   );
   return response.data;
 }
@@ -301,29 +301,29 @@ export async function createLeavePolicy(payload: CreateLeavePolicyPayload) {
 
 export async function getLeavePolicy(leaveTypeId: string) {
   const response = await apiClient.get<LeavePolicy>(
-    `/leave/policy/${leaveTypeId}`
+    `/leave/policy/${leaveTypeId}`,
   );
   return response.data;
 }
 
 export async function updateLeavePolicy(
   leaveTypeId: string,
-  payload: Partial<CreateLeavePolicyPayload>
+  payload: Partial<CreateLeavePolicyPayload>,
 ) {
   const response = await apiClient.put<LeavePolicy>(
     `/leave/policy/${leaveTypeId}`,
-    payload
+    payload,
   );
   return response.data;
 }
 
 export async function addNoticeRule(
   leavePolicyId: string,
-  payload: { minLength?: number; maxLength?: number; noticeDays: number }
+  payload: { minLength?: number; maxLength?: number; noticeDays: number },
 ) {
   const response = await apiClient.post<LeaveNoticeRule>(
     `/leave/policy/${leavePolicyId}/notice-rule`,
-    payload
+    payload,
   );
   return response.data;
 }
@@ -341,19 +341,18 @@ export type NoticeRuleWithPolicy = LeaveNoticeRule & {
 };
 
 export async function listNoticeRules() {
-  const response = await apiClient.get<NoticeRuleWithPolicy[]>(
-    "/leave/notice-rule"
-  );
+  const response =
+    await apiClient.get<NoticeRuleWithPolicy[]>("/leave/notice-rule");
   return response.data;
 }
 
 export async function updateNoticeRule(
   id: string,
-  payload: { minLength?: number; maxLength?: number; noticeDays: number }
+  payload: { minLength?: number; maxLength?: number; noticeDays: number },
 ) {
   const response = await apiClient.put<LeaveNoticeRule>(
     `/leave/notice-rule/${id}`,
-    payload
+    payload,
   );
   return response.data;
 }
@@ -366,32 +365,32 @@ export async function deleteNoticeRule(id: string) {
 export async function createAccrualRule(payload: CreateAccrualRulePayload) {
   const response = await apiClient.post<LeaveAccrualRule>(
     "/leave/accrual-rule",
-    payload
+    payload,
   );
   return response.data;
 }
 
 export async function listAccrualRules() {
   const response = await apiClient.get<LeaveAccrualRule[]>(
-    "/leave/accrual-rule"
+    "/leave/accrual-rule",
   );
   return response.data;
 }
 
 export async function getAccrualRule(id: string) {
   const response = await apiClient.get<LeaveAccrualRule>(
-    `/leave/accrual-rule/${id}`
+    `/leave/accrual-rule/${id}`,
   );
   return response.data;
 }
 
 export async function updateAccrualRule(
   id: string,
-  payload: Partial<CreateAccrualRulePayload>
+  payload: Partial<CreateAccrualRulePayload>,
 ) {
   const response = await apiClient.put<LeaveAccrualRule>(
     `/leave/accrual-rule/${id}`,
-    payload
+    payload,
   );
   return response.data;
 }
@@ -414,11 +413,11 @@ export async function overrideLeave(
     endDate?: string;
     reason?: string;
     overrideReason: string;
-  }
+  },
 ) {
   const response = await apiClient.patch<LeaveRecord>(
     `/leave/${id}/override`,
-    payload
+    payload,
   );
   return response.data;
 }
@@ -444,7 +443,7 @@ export async function bulkRejectLeaves(leaveIds: string[], comment: string) {
 // Get pending leaves from subordinates (PENDING status, waiting for manager approval)
 export async function getPendingLeavesForManager() {
   const response = await apiClient.get<LeaveWithApprovals[]>(
-    "/leave/manager/pending"
+    "/leave/manager/pending",
   );
   return response.data;
 }
@@ -452,7 +451,7 @@ export async function getPendingLeavesForManager() {
 // Get leaves approved by manager, waiting for HR (PROCESSING status)
 export async function getApprovedByManagerPendingHR() {
   const response = await apiClient.get<LeaveWithApprovals[]>(
-    "/leave/manager/approved-pending-hr"
+    "/leave/manager/approved-pending-hr",
   );
   return response.data;
 }
@@ -460,7 +459,7 @@ export async function getApprovedByManagerPendingHR() {
 // Get all leaves from subordinates (for viewing team leave calendar)
 export async function getSubordinatesLeaves() {
   const response = await apiClient.get<LeaveWithApprovals[]>(
-    "/leave/manager/subordinates"
+    "/leave/manager/subordinates",
   );
   return response.data;
 }
@@ -484,11 +483,11 @@ export type SubordinateLeavesResponse = {
 
 export async function getSubordinateLeaves(
   subordinateUserId: string,
-  params?: GetSubordinateLeavesParams
+  params?: GetSubordinateLeavesParams,
 ) {
   const response = await apiClient.get<SubordinateLeavesResponse>(
     `/leave/manager/subordinate/${subordinateUserId}`,
-    { params }
+    { params },
   );
   return response.data;
 }
@@ -496,7 +495,7 @@ export async function getSubordinateLeaves(
 // Admin endpoint - kept for backwards compatibility
 export async function getPendingHRApprovals() {
   const response = await apiClient.get<LeaveWithApprovals[]>(
-    "/leave/manager/approved-pending-hr"
+    "/leave/manager/approved-pending-hr",
   );
   return response.data;
 }
@@ -511,7 +510,7 @@ export async function getAllEmployeeLeaves() {
 export async function createAmendment(payload: CreateAmendmentPayload) {
   const response = await apiClient.post<LeaveAmendment>(
     "/leave/amendment",
-    payload
+    payload,
   );
   return response.data;
 }
@@ -523,21 +522,21 @@ export async function listAmendments() {
 
 export async function getAmendment(id: string) {
   const response = await apiClient.get<LeaveAmendment>(
-    `/leave/amendment/${id}`
+    `/leave/amendment/${id}`,
   );
   return response.data;
 }
 
 export async function approveAmendment(id: string) {
   const response = await apiClient.patch<LeaveAmendment>(
-    `/leave/amendment/${id}/approve`
+    `/leave/amendment/${id}/approve`,
   );
   return response.data;
 }
 
 export async function rejectAmendment(id: string) {
   const response = await apiClient.patch<LeaveAmendment>(
-    `/leave/amendment/${id}/reject`
+    `/leave/amendment/${id}/reject`,
   );
   return response.data;
 }
@@ -545,7 +544,7 @@ export async function rejectAmendment(id: string) {
 // Accrual Processing
 export async function processAccruals(userId: string, leaveTypeId: string) {
   const response = await apiClient.post(
-    `/leave/accrual/process/${userId}/${leaveTypeId}`
+    `/leave/accrual/process/${userId}/${leaveTypeId}`,
   );
   return response.data;
 }
@@ -656,14 +655,16 @@ export async function getUserBalances() {
 
 export async function getBalanceDetails(leaveTypeId: string) {
   const response = await apiClient.get<LeaveBalanceDetails>(
-    `/leave/balance/${leaveTypeId}`
+    `/leave/balance/${leaveTypeId}`,
   );
   return response.data;
 }
 
-export async function getMyLedgerHistory(leaveTypeId: string): Promise<PaginatedLedgerResponse> {
+export async function getMyLedgerHistory(
+  leaveTypeId: string,
+): Promise<PaginatedLedgerResponse> {
   const response = await apiClient.get<PaginatedLedgerResponse>(
-    `/leave/my-ledger/${leaveTypeId}`
+    `/leave/my-ledger/${leaveTypeId}`,
   );
   return response.data;
 }
@@ -671,12 +672,12 @@ export async function getMyLedgerHistory(leaveTypeId: string): Promise<Paginated
 export async function getUserLeaveBalance(
   userId: string,
   leaveTypeId: string,
-  leaveYear?: string
+  leaveYear?: string,
 ) {
   const params = leaveYear ? { leaveYear } : {};
   const response = await apiClient.get<LeaveBalanceDetails>(
     `/leave/balance/user/${userId}/type/${leaveTypeId}`,
-    { params }
+    { params },
   );
   return response.data;
 }
@@ -684,7 +685,7 @@ export async function getUserLeaveBalance(
 export async function adjustBalance(payload: AdjustBalancePayload) {
   const response = await apiClient.post<LeaveBalance>(
     "/leave/balance/adjust",
-    payload
+    payload,
   );
   return response.data;
 }
@@ -692,14 +693,14 @@ export async function adjustBalance(payload: AdjustBalancePayload) {
 export async function initializeBalance(payload: InitializeBalancePayload) {
   const response = await apiClient.post<LeaveBalance>(
     "/leave/balance/initialize",
-    payload
+    payload,
   );
   return response.data;
 }
 
 export async function getAllUsersBalances() {
   const response = await apiClient.get<UserBalanceWithEmployee[]>(
-    "/leave/balance/all/users"
+    "/leave/balance/all/users",
   );
   return response.data;
 }
@@ -725,11 +726,11 @@ export type PaginatedBalancesResponse = {
 export async function getSubordinateBalances(
   managerUserId: string,
   subordinateUserId: string,
-  params?: SubordinateBalancesParams
+  params?: SubordinateBalancesParams,
 ): Promise<PaginatedBalancesResponse> {
   const response = await apiClient.get<PaginatedBalancesResponse>(
     `/leave/balance/manager/${managerUserId}/subordinate/${subordinateUserId}`,
-    { params }
+    { params },
   );
   return response.data;
 }
@@ -757,11 +758,11 @@ export type PaginatedLedgerResponse = {
 export async function getSubordinateLedgerHistory(
   subordinateUserId: string,
   leaveTypeId: string,
-  params?: SubordinateLedgerParams
+  params?: SubordinateLedgerParams,
 ): Promise<PaginatedLedgerResponse> {
   const response = await apiClient.get<PaginatedLedgerResponse>(
     `/leave/manager/subordinate/${subordinateUserId}/ledger/${leaveTypeId}`,
-    { params }
+    { params },
   );
   return response.data;
 }
@@ -1050,7 +1051,7 @@ export type AdminBalanceExportParams = {
 export async function getAdminLeaveBalances(params?: AdminLeaveBalancesParams) {
   const response = await apiClient.get<AdminLeaveBalancesResponse>(
     "/admin/leave-balances",
-    { params }
+    { params },
   );
   return response.data;
 }
@@ -1063,12 +1064,12 @@ export async function getAdminLeaveBalances(params?: AdminLeaveBalancesParams) {
  */
 export async function getEmployeeLeaveBalances(
   userId: string,
-  year?: number
+  year?: number,
 ): Promise<AdminLeaveBalanceItem[]> {
   const params = year ? { year } : {};
   const response = await apiClient.get<AdminLeaveBalanceItem[]>(
     `/admin/leave-balances/user/${userId}`,
-    { params }
+    { params },
   );
   return response.data;
 }
@@ -1081,7 +1082,7 @@ export async function getEmployeeLeaveBalances(
 export async function getAdminBalanceSummary(year?: number) {
   const response = await apiClient.get<AdminBalanceSummaryResponse>(
     "/admin/leave-balances/summary",
-    { params: year ? { year } : undefined }
+    { params: year ? { year } : undefined },
   );
   return response.data;
 }
@@ -1094,7 +1095,7 @@ export async function getAdminBalanceSummary(year?: number) {
 export async function getAdminBalanceAlerts(year?: number) {
   const response = await apiClient.get<AdminBalanceAlertsResponse>(
     "/admin/leave-balances/alerts",
-    { params: year ? { year } : undefined }
+    { params: year ? { year } : undefined },
   );
   return response.data;
 }
@@ -1105,11 +1106,11 @@ export async function getAdminBalanceAlerts(year?: number) {
  * @returns Paginated list of adjustment history with before/after values
  */
 export async function getAdminAdjustmentHistory(
-  params?: AdminAdjustmentHistoryParams
+  params?: AdminAdjustmentHistoryParams,
 ) {
   const response = await apiClient.get<AdminAdjustmentHistoryResponse>(
     "/admin/leave-balances/adjustments",
-    { params }
+    { params },
   );
   return response.data;
 }
@@ -1186,7 +1187,7 @@ export async function bulkResetLeaveBalances(payload: {
 export async function bulkInitializeBalances(payload: BulkInitializePayload) {
   const response = await apiClient.post<BulkInitializeResponse>(
     "/admin/leave-balances/bulk-initialize",
-    payload
+    payload,
   );
   return response.data;
 }
@@ -1199,7 +1200,7 @@ export async function bulkInitializeBalances(payload: BulkInitializePayload) {
 export async function bulkAdjustBalances(payload: BulkAdjustPayload) {
   const response = await apiClient.post<BulkAdjustResponse>(
     "/admin/leave-balances/bulk-adjust",
-    payload
+    payload,
   );
   return response.data;
 }
@@ -1264,7 +1265,7 @@ export type LeaveTypeWithStats = {
 export async function createLeaveType(payload: CreateLeaveTypePayload) {
   const response = await apiClient.post<LeaveTypeWithStats>(
     "/admin/leave-types",
-    payload
+    payload,
   );
   return response.data;
 }
@@ -1287,7 +1288,7 @@ export async function listLeaveTypesAdmin(filters?: {
   }
   const queryString = params.toString();
   const response = await apiClient.get<LeaveTypeWithStats[]>(
-    `/admin/leave-types${queryString ? "?" + queryString : ""}`
+    `/admin/leave-types${queryString ? "?" + queryString : ""}`,
   );
   return response.data;
 }
@@ -1299,7 +1300,7 @@ export async function listLeaveTypesAdmin(filters?: {
  */
 export async function getLeaveTypeById(id: string) {
   const response = await apiClient.get<LeaveTypeWithStats>(
-    `/admin/leave-types/${id}`
+    `/admin/leave-types/${id}`,
   );
   return response.data;
 }
@@ -1311,7 +1312,7 @@ export async function getLeaveTypeById(id: string) {
  */
 export async function getLeaveTypeWithDetails(id: string) {
   const response = await apiClient.get<LeaveTypeWithStats>(
-    `/admin/leave-types/${id}/details`
+    `/admin/leave-types/${id}/details`,
   );
   return response.data;
 }
@@ -1339,11 +1340,11 @@ export async function getLeaveTypeStats(id: string) {
  */
 export async function updateLeaveType(
   id: string,
-  payload: UpdateLeaveTypePayload
+  payload: UpdateLeaveTypePayload,
 ) {
   const response = await apiClient.patch<LeaveTypeWithStats>(
     `/admin/leave-types/${id}`,
-    payload
+    payload,
   );
   return response.data;
 }
@@ -1355,7 +1356,7 @@ export async function updateLeaveType(
  */
 export async function deactivateLeaveType(id: string) {
   const response = await apiClient.delete<LeaveTypeWithStats>(
-    `/admin/leave-types/${id}`
+    `/admin/leave-types/${id}`,
   );
   return response.data;
 }
