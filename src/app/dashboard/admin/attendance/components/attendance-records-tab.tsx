@@ -63,6 +63,7 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet";
 import { MonthlySummaryCard } from "./monthly-summary-card";
+import { BreakMonitorCard } from "./break-monitor-card";
 const LIMITS = [10, 30, 50, 100];
 const LIMITS_OPTIONS = LIMITS.map((limit) => ({
     label: limit.toString(),
@@ -506,6 +507,16 @@ export function AttendanceRecordsTab() {
                                 </Card>
                             )}
 
+                            {/* Break Monitoring - Only show if there's an attendance record with sign-in */}
+                            {selectedEmployee.record?.signIn && (
+                                <BreakMonitorCard
+                                    attendanceId={selectedEmployee.record.id}
+                                    employeeName={selectedEmployee.name}
+                                    signInTime={selectedEmployee.record.signIn}
+                                    signOutTime={selectedEmployee.record.signOut}
+                                />
+                            )}
+
                             {/* Leave Balance Details */}
                             <EmployeeLeaveBalanceDetails
                                 userId={selectedEmployee.userId}
@@ -559,7 +570,7 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
             // record.date is UTC representing local midnight in record's timezone
             const localTimeToUTC = (timeStr: string, baseDate: Date): string => {
                 const [hours, minutes] = timeStr.split(":").map(Number);
-                
+
                 // Get date components from baseDate in record's timezone
                 const dateFormatter = new Intl.DateTimeFormat("en-CA", {
                     timeZone: recordTimezone,
@@ -569,11 +580,11 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
                 });
                 const datePart = dateFormatter.format(baseDate);
                 const [year, month, day] = datePart.split("-").map(Number);
-                
+
                 // Create ISO string for the local time, then find UTC equivalent
                 // Use iterative approach: start with approximate UTC, adjust until correct
                 let testUTC = new Date(Date.UTC(year, month - 1, day, hours - 6, minutes, 0)); // Initial guess: -6 hours for Asia/Dhaka
-                
+
                 const formatter = new Intl.DateTimeFormat("en-US", {
                     timeZone: recordTimezone,
                     year: "numeric",
@@ -583,37 +594,37 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
                     minute: "2-digit",
                     hour12: false,
                 });
-                
+
                 // Quick adjustment (usually converges in 1-2 iterations)
                 for (let i = 0; i < 3; i++) {
                     const parts = formatter.formatToParts(testUTC);
                     const localHour = parseInt(parts.find(p => p.type === "hour")?.value || "0");
                     const localMin = parseInt(parts.find(p => p.type === "minute")?.value || "0");
                     const localDay = parseInt(parts.find(p => p.type === "day")?.value || "0");
-                    
+
                     if (localHour === hours && localMin === minutes && localDay === day) {
                         return testUTC.toISOString();
                     }
-                    
+
                     // Adjust by the difference
                     const diffMinutes = (hours - localHour) * 60 + (minutes - localMin) + (day - localDay) * 24 * 60;
                     testUTC = new Date(testUTC.getTime() + diffMinutes * 60 * 1000);
                 }
-                
+
                 return testUTC.toISOString();
             };
 
             // Convert times to UTC ISO strings
             const signInIso = localTimeToUTC(signIn, new Date(record.date));
-            
+
             let signOutIso: string | null = null;
             if (signOut) {
                 const [signOutHour] = signOut.split(":").map(Number);
                 signOutIso = localTimeToUTC(signOut, new Date(record.date));
-                
+
                 const signOutDate = new Date(signOutIso);
                 const signInDate = new Date(signInIso);
-                
+
                 // Handle night shift (sign-out on next day if before 8 AM and before sign-in)
                 if (signOutDate <= signInDate && signOutHour < 8) {
                     const nextDay = new Date(record.date);
@@ -623,7 +634,7 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
                     toast.error("Sign-out time must be after sign-in time");
                     return;
                 }
-                
+
                 // Validate 24-hour limit
                 const diffMinutes = (new Date(signOutIso).getTime() - signInDate.getTime()) / (1000 * 60);
                 if (diffMinutes > 24 * 60) {
@@ -631,7 +642,7 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
                     return;
                 }
             }
-            console.log({signInIso, signOutIso});
+            console.log({ signInIso, signOutIso });
 
             await updateMutation.mutateAsync({
                 id: record.id,

@@ -11,7 +11,8 @@ import {
   LogOut,
   MapPin,
   Monitor,
-  Loader2
+  Loader2,
+  Coffee
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ interface AttendanceCardProps {
   isGettingLocation: boolean;
   isLocationReady: boolean;
   isLocationBlocked: boolean;
+  activeBreak: any;
   onRequestLocationAccess: () => void;
   onSignIn: () => Promise<void>;
   onSignOut: () => Promise<void>;
@@ -62,6 +64,7 @@ export function AttendanceCard({
   isGettingLocation,
   isLocationReady,
   isLocationBlocked,
+  activeBreak,
   onRequestLocationAccess,
   onSignIn,
   onSignOut,
@@ -70,18 +73,21 @@ export function AttendanceCard({
 }: AttendanceCardProps) {
 
   // Determine if the button should be completely disabled
+  const hasSignedInToday = Boolean(todayAttendance?.signIn);
   const isButtonDisabled =
     attendanceLoading ||
     signInMutation.isPending ||
     signOutMutation.isPending ||
     Boolean(todayAttendance?.signOut) ||
     !isDeviceAllowed ||
-    (captureEmployeeLocation && !isLocationReady);
+    (captureEmployeeLocation && !isLocationReady) ||
+    (Boolean(activeBreak) && hasSignedInToday); // Disable if on break
 
   // Determine the reason for being blocked (for label/icon)
-  const getBlockReason = (): "device" | "location" | null => {
+  const getBlockReason = (): "device" | "location" | "break" | null => {
     if (!isDeviceAllowed) return "device";
     if (captureEmployeeLocation && !isLocationReady) return "location";
+    if (activeBreak && hasSignedInToday) return "break";
     return null;
   };
   const blockReason = getBlockReason();
@@ -199,6 +205,8 @@ export function AttendanceCard({
                 <Monitor className="size-7 text-muted-foreground" />
               ) : blockReason === "location" ? (
                 <MapPin className="size-7 text-muted-foreground" />
+              ) : blockReason === "break" ? (
+                <Coffee className="size-7 text-orange-500" />
               ) : !todayAttendance?.signIn ? (
                 <CheckCircle2 className="size-7 text-white" />
               ) : todayAttendance?.signOut ? (
@@ -211,24 +219,33 @@ export function AttendanceCard({
             {/* Button Label */}
             <p className={cn(
               "mt-4 text-base font-semibold transition-colors",
-              blockReason !== null
-                ? "text-muted-foreground"
-                : !todayAttendance?.signIn
-                  ? "text-green-700 dark:text-green-300"
-                  : todayAttendance && !todayAttendance.signOut
-                    ? "text-orange-700 dark:text-orange-300"
-                    : "text-muted-foreground"
+              blockReason === "break"
+                ? "text-orange-600 dark:text-orange-400"
+                : blockReason !== null
+                  ? "text-muted-foreground"
+                  : !todayAttendance?.signIn
+                    ? "text-green-700 dark:text-green-300"
+                    : todayAttendance && !todayAttendance.signOut
+                      ? "text-orange-700 dark:text-orange-300"
+                      : "text-muted-foreground"
             )}>
               {blockReason === "device"
                 ? "PC Required"
                 : blockReason === "location"
                   ? "Location Required"
-                  : !todayAttendance?.signIn
-                    ? "Sign In"
-                    : todayAttendance?.signOut
-                      ? "Signed Out"
-                      : "Sign Out"}
+                  : blockReason === "break"
+                    ? "End Break First"
+                    : !todayAttendance?.signIn
+                      ? "Sign In"
+                      : todayAttendance?.signOut
+                        ? "Signed Out"
+                        : "Sign Out"}
             </p>
+            {blockReason === "break" && (
+              <p className="mt-1 text-xs text-orange-600/80 dark:text-orange-400/80">
+                Finish your break to sign out
+              </p>
+            )}
           </div>
         </div>
 

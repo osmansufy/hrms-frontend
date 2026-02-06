@@ -35,6 +35,13 @@ import {
   getMonthlyAttendanceSummary,
   getMyMonthlyAttendanceSummary,
   getAttendanceReconciliationRequests,
+  // Break tracking imports
+  startBreak,
+  endBreak,
+  getActiveBreak,
+  getMyBreaks,
+  getAttendanceBreaks,
+  type BreakType,
 } from "@/lib/api/attendance";
 
 export const attendanceKeys = {
@@ -48,6 +55,14 @@ export const attendanceKeys = {
     ["attendance", "employee", userId] as const,
   subordinateAttendance: (userId: string, params?: AttendanceListParams) =>
     ["attendance", "subordinate", userId, params ?? {}] as const,
+  // Break tracking keys
+  breaks: {
+    active: () => ["attendance", "breaks", "active"] as const,
+    myBreaks: (params?: { startDate?: string; endDate?: string }) =>
+      ["attendance", "breaks", "my", params] as const,
+    attendanceBreaks: (attendanceId: string) =>
+      ["attendance", "breaks", "attendance", attendanceId] as const,
+  },
 };
 
 // Employee hooks
@@ -395,5 +410,110 @@ export function useAttendanceReconciliationRequests(role: string) {
     queryFn: () => getAttendanceReconciliationRequests(),
     refetchInterval: 30_000, // Refetch every 30 seconds
     enabled: role === "admin" || role === "super-admin",
+  });
+}
+
+// ============================================
+// Break Tracking Hooks
+// ============================================
+
+/**
+ * Hook to get active break for current user
+ * Refetches every 30 seconds to keep timer accurate
+ */
+export function useActiveBreak() {
+  return useQuery({
+    queryKey: attendanceKeys.breaks.active(),
+    queryFn: getActiveBreak,
+    refetchInterval: 30_000, // Refetch every 30 seconds
+    retry: false, // Don't retry if no active break (404 is expected)
+  });
+}
+
+/**
+ * Hook to get user's break history with optional date range
+ */
+export function useMyBreaks(params?: { startDate?: string; endDate?: string }) {
+  return useQuery({
+    queryKey: attendanceKeys.breaks.myBreaks(params),
+    queryFn: () => getMyBreaks(params),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+/**
+ * Hook to get breaks for a specific attendance record (admin only)
+ */
+export function useAttendanceBreaks(attendanceId: string) {
+  return useQuery({
+    queryKey: attendanceKeys.breaks.attendanceBreaks(attendanceId),
+    queryFn: () => getAttendanceBreaks(attendanceId),
+    enabled: Boolean(attendanceId),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+/**
+ * Mutation hook to start a new break
+ */
+export function useStartBreak(userId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { breakType: BreakType; notes?: string }) =>
+      startBreak(payload),
+    onSuccess: () => {
+      // Invalidate active break query to refetch
+      queryClient.invalidateQueries({
+        queryKey: attendanceKeys.breaks.active(),
+      });
+      // Invalidate today's breaks
+      queryClient.invalidateQueries({
+        queryKey: attendanceKeys.breaks.myBreaks(),
+      });
+      // Invalidate today's attendance to update metrics
+      if (userId) {
+        queryClient.invalidateQueries({
+          queryKey: attendanceKeys.today(userId),
+        });
+      }
+      toast.success("Break started successfully");
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Failed to start break";
+      toast.error(message);
+    },
+  });
+}
+
+/**
+ * Mutation hook to end an active break
+ */
+export function useEndBreak(userId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (breakId: string) => endBreak(breakId),
+    onSuccess: () => {
+      // Invalidate active break query
+      queryClient.invalidateQueries({
+        queryKey: attendanceKeys.breaks.active(),
+      });
+      // Invalidate today's breaks
+      queryClient.invalidateQueries({
+        queryKey: attendanceKeys.breaks.myBreaks(),
+      });
+      // Invalidate today's attendance to update metrics
+      if (userId) {
+        queryClient.invalidateQueries({
+          queryKey: attendanceKeys.today(userId),
+        });
+      }
+      toast.success("Break ended successfully");
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Failed to end break";
+      toast.error(message);
+    },
   });
 }

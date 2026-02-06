@@ -64,6 +64,61 @@ export type Policy = {
   endTime?: string | null;
 };
 
+// Break Tracking Types
+export enum BreakType {
+  LUNCH = "LUNCH",
+  TEA = "TEA",
+  PRAYER = "PRAYER",
+  MEDICAL = "MEDICAL",
+  PERSONAL = "PERSONAL",
+  OTHER = "OTHER",
+}
+
+export type AttendanceBreak = {
+  id: string;
+  attendanceId: string;
+  userId: string;
+  breakType: BreakType;
+  startTime: string; // ISO DateTime
+  endTime: string | null; // ISO DateTime or null if still active
+  durationMinutes: number | null; // Calculated on backend when endTime is set
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AttendanceBreakWithUser = AttendanceBreak & {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    employee?: {
+      id: string;
+      employeeCode: string;
+      department?: { id: string; name: string };
+      profilePicture?: string | null;
+    };
+  };
+};
+
+export type AttendanceBreakListResponse = {
+  success: boolean;
+  breaks: AttendanceBreak[];
+  total: number;
+};
+
+export type AttendanceBreakResponse = {
+  success: boolean;
+  activeBreak: AttendanceBreak;
+};
+
+export type BreakSummary = {
+  totalBreaks: number;
+  totalMinutes: number;
+  activeBreak: AttendanceBreak | null;
+  byType: Record<BreakType, { count: number; minutes: number }>;
+};
+
 export type AttendanceListParams = {
   userId?: string;
   startDate?: string; // ISO DateTime string (use toStartOfDayISO from utils)
@@ -606,6 +661,151 @@ export type AttendanceReconciliationRequestResponse = {
     };
   };
 };
+
+// ============================================
+// Break Tracking API Functions
+// ============================================
+
+/**
+ * Start a new break for the current user
+ * @param payload - Break start data
+ */
+export async function startBreak(payload: {
+  breakType: BreakType;
+  notes?: string;
+}): Promise<AttendanceBreakResponse> {
+  const response = await apiClient.post<AttendanceBreakResponse>(
+    "/attendance/breaks/start",
+    payload,
+  );
+  return response.data;
+}
+
+/**
+ * End an active break
+ * @param breakId - ID of the break to end
+ */
+export async function endBreak(
+  breakId: string,
+): Promise<AttendanceBreakResponse> {
+  const response = await apiClient.patch<AttendanceBreakResponse>(
+    `/attendance/breaks/${breakId}/end`,
+  );
+  return response.data;
+}
+
+/**
+ * Get active break for current user
+ */
+export async function getActiveBreak(): Promise<AttendanceBreakResponse> {
+  const response = await apiClient.get<AttendanceBreakResponse>(
+    "/attendance/breaks/active",
+  );
+  return response.data;
+}
+
+/**
+ * Get user's break history with optional date filtering
+ */
+export async function getMyBreaks(params?: {
+  startDate?: string; // ISO date string YYYY-MM-DD
+  endDate?: string; // ISO date string YYYY-MM-DD
+}): Promise<AttendanceBreakListResponse> {
+  const response = await apiClient.get<AttendanceBreakListResponse>(
+    "/attendance/breaks/my-breaks",
+    { params },
+  );
+  return response.data;
+}
+
+/**
+ * Get breaks for a specific attendance record (admin only)
+ * @param attendanceId - Attendance record ID
+ */
+export async function getAttendanceBreaks(
+  attendanceId: string,
+): Promise<AttendanceBreakListResponse> {
+  const response = await apiClient.get<AttendanceBreakListResponse>(
+    `/attendance/breaks/admin/attendance/${attendanceId}`,
+  );
+  return response.data;
+}
+
+/**
+ * Calculate break summary statistics
+ * @param breaks - Array of breaks to summarize
+ */
+export function calculateBreakSummary(breaks: AttendanceBreak[]): BreakSummary {
+  const activeBreak = breaks?.find((b) => b.endTime === null) || null;
+
+  const summary: BreakSummary = {
+    totalBreaks: breaks.length,
+    totalMinutes: 0,
+    activeBreak,
+    byType: {
+      [BreakType.LUNCH]: { count: 0, minutes: 0 },
+      [BreakType.TEA]: { count: 0, minutes: 0 },
+      [BreakType.PRAYER]: { count: 0, minutes: 0 },
+      [BreakType.MEDICAL]: { count: 0, minutes: 0 },
+      [BreakType.PERSONAL]: { count: 0, minutes: 0 },
+      [BreakType.OTHER]: { count: 0, minutes: 0 },
+    },
+  };
+
+  breaks.forEach((breakRecord) => {
+    if (breakRecord.durationMinutes) {
+      summary.totalMinutes += breakRecord.durationMinutes;
+      summary.byType[breakRecord.breakType].count += 1;
+      summary.byType[breakRecord.breakType].minutes +=
+        breakRecord.durationMinutes;
+    }
+  });
+
+  return summary;
+}
+
+/**
+ * Format break duration for display
+ * @param minutes - Duration in minutes
+ */
+export function formatBreakDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h ${mins}m`;
+}
+
+/**
+ * Get break type display name
+ */
+export function getBreakTypeLabel(type: BreakType): string {
+  const labels: Record<BreakType, string> = {
+    [BreakType.LUNCH]: "Lunch Break",
+    [BreakType.TEA]: "Tea Break",
+    [BreakType.PRAYER]: "Prayer Break",
+    [BreakType.MEDICAL]: "Medical Break",
+    [BreakType.PERSONAL]: "Personal Break",
+    [BreakType.OTHER]: "Other Break",
+  };
+  return labels[type];
+}
+
+/**
+ * Get break type icon emoji
+ */
+export function getBreakTypeIcon(type: BreakType): string {
+  const icons: Record<BreakType, string> = {
+    [BreakType.LUNCH]: "🍽️",
+    [BreakType.TEA]: "☕",
+    [BreakType.PRAYER]: "🙏",
+    [BreakType.MEDICAL]: "🏥",
+    [BreakType.PERSONAL]: "👤",
+    [BreakType.OTHER]: "⏸️",
+  };
+  return icons[type];
+}
 
 /** GET /attendance/reconciliation response (backend uses pagination format) */
 export type AttendanceReconciliationListResponse = {

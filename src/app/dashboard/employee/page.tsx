@@ -7,22 +7,27 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   useMonthlyLateCount, useMyAttendanceRecords, useMyLostHoursReport, useSignIn,
   useSignOut,
-  useTodayAttendance
+  useTodayAttendance,
+  useMyBreaks
 } from "@/lib/queries/attendance";
 import { useMyLeaves } from "@/lib/queries/leave";
 import { useSystemSettings } from "@/lib/queries/system-settings";
-import { cn, formatDateInDhaka } from "@/lib/utils";
+import { cn, formatDateInDhaka, toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 import {
   detectDevice,
   isDeviceAllowedForAttendance
 } from "@/lib/utils/device-detection";
-import { ClockAlert } from "lucide-react";
+import { ClockAlert, Coffee } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AttendanceCard } from "./components/attendance-card";
 import { AttendanceCharts } from "./components/attendance-charts";
 import { EmployeeSummaryCard } from "./components/employee-summary-card";
+import { BreakTracker } from "./attendance/components/break-tracker";
+import { BreakHistoryCard } from "./attendance/components/break-history-card";
+import { useActiveBreak } from "@/lib/queries/attendance";
+import { getBreakTypeLabel, getBreakTypeIcon } from "@/lib/api/attendance";
 import { LateAttendanceConfirmationModal } from "./components/late-attendance-confirmation-modal";
 import { LateAttendanceWarningModal } from "./components/late-attendance-warning-modal";
 import { useGeolocation } from "./hooks/use-geolocation";
@@ -195,27 +200,71 @@ export default function EmployeeDashboard() {
     setGeolocationError,
   ]);
 
+  // Active break status
+  const { data: activeBreakResponse } = useActiveBreak();
+  const activeBreak = activeBreakResponse?.activeBreak;
+  const [breakElapsedMinutes, setBreakElapsedMinutes] = useState(0);
+
+  // Fetch today's breaks for work time calculation
+  const today = new Date().toISOString().split("T")[0];
+  const { data: todayBreaksData } = useMyBreaks({
+    startDate: toStartOfDayISO(today),
+    endDate: toEndOfDayISO(today),
+  });
+
   // Live worked hours clock
   const [workedSeconds, setWorkedSeconds] = useState(0);
   const todayDate = formatDateInDhaka(new Date(), "long");
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
+
+    // Calculate total break time in seconds
+    const calculateBreakSeconds = () => {
+      let totalBreakSeconds = 0;
+
+      // Add completed breaks
+      if (todayBreaksData?.breaks) {
+        todayBreaksData.breaks.forEach((breakRecord) => {
+          if (breakRecord.endTime) {
+            const start = new Date(breakRecord.startTime).getTime();
+            const end = new Date(breakRecord.endTime).getTime();
+            totalBreakSeconds += Math.floor((end - start) / 1000);
+          }
+        });
+      }
+
+      // Add active break time
+      if (activeBreak?.startTime) {
+        const start = new Date(activeBreak.startTime).getTime();
+        const now = Date.now();
+        totalBreakSeconds += Math.floor((now - start) / 1000);
+      }
+
+      return totalBreakSeconds;
+    };
+
     if (todayAttendance?.signIn && !todayAttendance?.signOut) {
       const signIn = new Date(todayAttendance.signIn);
       interval = setInterval(() => {
-        setWorkedSeconds(Math.floor((Date.now() - signIn.getTime()) / 1000));
+        const totalSeconds = Math.floor((Date.now() - signIn.getTime()) / 1000);
+        const breakSeconds = calculateBreakSeconds();
+        setWorkedSeconds(Math.max(0, totalSeconds - breakSeconds));
       }, 1000);
       // Set initial value
-      setWorkedSeconds(Math.floor((Date.now() - signIn.getTime()) / 1000));
+      const totalSeconds = Math.floor((Date.now() - signIn.getTime()) / 1000);
+      const breakSeconds = calculateBreakSeconds();
+      setWorkedSeconds(Math.max(0, totalSeconds - breakSeconds));
     } else if (todayAttendance?.signIn && todayAttendance?.signOut) {
       const signIn = new Date(todayAttendance.signIn);
       const signOut = new Date(todayAttendance.signOut);
-      setWorkedSeconds(Math.floor((signOut.getTime() - signIn.getTime()) / 1000));
+      const totalSeconds = Math.floor((signOut.getTime() - signIn.getTime()) / 1000);
+      const breakSeconds = calculateBreakSeconds();
+      setWorkedSeconds(Math.max(0, totalSeconds - breakSeconds));
     } else {
       setWorkedSeconds(0);
     }
     return () => interval && clearInterval(interval);
-  }, [todayAttendance?.signIn, todayAttendance?.signOut]);
+  }, [todayAttendance?.signIn, todayAttendance?.signOut, todayBreaksData?.breaks, activeBreak?.startTime]);
 
   function formatWorkedTime(seconds: number) {
     const h = Math.floor(seconds / 3600);
@@ -253,6 +302,25 @@ export default function EmployeeDashboard() {
     startDate: start7.toISOString().slice(0, 10),
     endDate: new Date().toISOString().slice(0, 10)
   });
+
+  // Calculate break elapsed time
+  useEffect(() => {
+    if (!activeBreak?.startTime) {
+      setBreakElapsedMinutes(0);
+      return;
+    }
+
+    const updateElapsed = () => {
+      const start = new Date(activeBreak.startTime);
+      const now = new Date();
+      const minutes = Math.floor((now.getTime() - start.getTime()) / 60000);
+      setBreakElapsedMinutes(minutes);
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [activeBreak?.startTime]);
 
 
   const handleSignIn = useCallback(async () => {
@@ -351,7 +419,8 @@ export default function EmployeeDashboard() {
     signOutMutation.isPending ||
     Boolean(todayAttendance?.signOut) ||
     !isDeviceAllowed ||
-    (captureEmployeeLocation && !isLocationReady);
+    (captureEmployeeLocation && !isLocationReady) ||
+    (Boolean(activeBreak) && hasSignedInToday); // Disable if on break
 
   const topAttendanceStatus = attendanceLoading
     ? "Checking status…"
@@ -374,20 +443,36 @@ export default function EmployeeDashboard() {
               <div className="font-medium text-foreground">Today</div>
               <div>{todayDate}</div>
             </div>
-            <Button
-              size="sm"
-              disabled={isTopAttendanceButtonDisabled}
-              onClick={() => (!todayAttendance?.signIn ? handleSignIn() : handleSignOut())}
-              className="rounded-full px-4 py-1.5 text-sm font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
-            >
-              {!todayAttendance?.signIn
-                ? "Sign In"
-                : todayAttendance?.signOut
-                  ? "Signed Out"
-                  : "Sign Out"}
-            </Button>
+            <div className="relative group">
+              <Button
+                size="sm"
+                disabled={isTopAttendanceButtonDisabled}
+                onClick={() => (!todayAttendance?.signIn ? handleSignIn() : handleSignOut())}
+                className="rounded-full px-4 py-1.5 text-sm font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
+              >
+                {!todayAttendance?.signIn
+                  ? "Sign In"
+                  : todayAttendance?.signOut
+                    ? "Signed Out"
+                    : "Sign Out"}
+              </Button>
+              {activeBreak && hasSignedInToday && (
+                <div className="hidden group-hover:block absolute top-full right-0 mt-2 w-48 p-2 bg-orange-100 border border-orange-300 rounded-md shadow-lg text-xs text-orange-800 z-10">
+                  <Coffee className="inline size-3 mr-1" />
+                  End your break first to sign out
+                </div>
+              )}
+            </div>
           </div>
-          <span className="text-[11px] text-muted-foreground">{topAttendanceStatus}</span>
+          <div className="flex items-center gap-2">
+            {activeBreak && (
+              <Badge variant="default" className="bg-orange-500 hover:bg-orange-600 text-xs">
+                <Coffee className="mr-1 size-3" />
+                On Break
+              </Badge>
+            )}
+            <span className="text-[11px] text-muted-foreground">{topAttendanceStatus}</span>
+          </div>
         </div>
       </div>
 
@@ -401,9 +486,26 @@ export default function EmployeeDashboard() {
             {`Keep pushing! Your productivity matters${session?.user?.name ? ", " + session.user.name : ""}. 🚀`}
           </Badge>
         </div>
-        <div className="flex flex-col items-end px-4 py-3 rounded-lg from-green-100 to-emerald-100 border-2 border-green-400 shadow-md hover:shadow-lg transition-shadow">
-          <span className="text-xs font-semibold text-green-700 uppercase tracking-widest">⏱️ Live Work Time</span>
-          <span className="font-mono text-2xl font-bold text-green-700">{formatWorkedTime(workedSeconds)}</span>
+
+        <div className="flex gap-3 items-center">
+          {/* Active Break Indicator */}
+          {hasSignedInToday && activeBreak && (
+            <div className="flex flex-col items-end px-4 py-3 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 border-2 border-orange-400 shadow-md hover:shadow-lg transition-all animate-pulse">
+              <span className="text-xs font-semibold text-orange-700 uppercase tracking-widest flex items-center gap-1">
+                {getBreakTypeIcon(activeBreak.breakType)} On Break
+              </span>
+              <span className="font-mono text-xl font-bold text-orange-700">
+                {Math.floor(breakElapsedMinutes / 60)}h {breakElapsedMinutes % 60}m
+              </span>
+              <span className="text-[10px] text-orange-600">{getBreakTypeLabel(activeBreak.breakType)}</span>
+            </div>
+          )}
+
+          {/* Work Time Counter */}
+          <div className="flex flex-col items-end px-4 py-3 rounded-lg from-green-100 to-emerald-100 border-2 border-green-400 shadow-md hover:shadow-lg transition-shadow">
+            <span className="text-xs font-semibold text-green-700 uppercase tracking-widest">⏱️ Live Work Time</span>
+            <span className="font-mono text-2xl font-bold text-green-700">{formatWorkedTime(workedSeconds)}</span>
+          </div>
         </div>
       </div>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)] items-start">
@@ -448,6 +550,7 @@ export default function EmployeeDashboard() {
             isGettingLocation={isGettingLocation}
             isLocationReady={isLocationReady}
             isLocationBlocked={isLocationBlocked}
+            activeBreak={activeBreak}
             onRequestLocationAccess={requestLocationAccess}
             onSignIn={handleSignIn}
             onSignOut={handleSignOut}
@@ -499,7 +602,24 @@ export default function EmployeeDashboard() {
         </section>
       </div>
 
+      {/* Break Management Section - Only show when signed in */}
+      {hasSignedInToday && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
+            <div className="flex items-center gap-2">
+              <Coffee className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-lg font-semibold">Break Management</h2>
+            </div>
+            <div className="h-px flex-1 bg-gradient-to-r from-border via-transparent to-transparent" />
+          </div>
 
+          <div className="grid gap-6 lg:grid-cols-2">
+            <BreakTracker />
+            <BreakHistoryCard />
+          </div>
+        </section>
+      )}
 
       {/* Late Attendance Modals */}
       <LateAttendanceWarningModal
