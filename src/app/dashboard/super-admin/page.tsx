@@ -9,10 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, Shield, Mail, Lock, User, Building, Briefcase, Code, Loader2, RefreshCw, Filter, X } from "lucide-react";
+import { Users, UserPlus, Shield, Mail, Lock, User, Building, Briefcase, Code, Loader2, RefreshCw, Filter, X, Database, Download, AlertCircle, Trash2, FileDown } from "lucide-react";
 import { useUsers, useCreateUser, useToggleUserStatus, useDeleteUser, useUpdateUserRole } from "@/lib/queries/users";
 import { useDepartments } from "@/lib/queries/departments";
 import { useDesignations } from "@/lib/queries/employees";
+import { useBackupStatus, useTriggerBackup, useListBackups, useDeleteBackup, useDownloadBackup, useRestoreBackup } from "@/lib/queries/backup";
+import { toast } from "sonner";
 
 export default function SuperAdminDashboard() {
   const { data: users, isLoading } = useUsers();
@@ -22,6 +24,14 @@ export default function SuperAdminDashboard() {
   const toggleStatusMutation = useToggleUserStatus();
   const deleteUserMutation = useDeleteUser();
   const updateRoleMutation = useUpdateUserRole();
+  
+  // Backup queries
+  const { data: backupStatus, isLoading: isBackupLoading, refetch: refetchBackupStatus } = useBackupStatus();
+  const { data: backups, isLoading: isBackupsLoading, refetch: refetchBackups } = useListBackups();
+  const triggerBackupMutation = useTriggerBackup();
+  const deleteBackupMutation = useDeleteBackup();
+  const downloadBackupMutation = useDownloadBackup();
+  const restoreBackupMutation = useRestoreBackup();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [roleChangeDialog, setRoleChangeDialog] = useState<{ isOpen: boolean; userId: string; currentRole: string }>({
@@ -93,6 +103,16 @@ export default function SuperAdminDashboard() {
     active: users?.filter(u => u.isActive).length || 0,
   };
 
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  // Format file size
+  const formatSize = (bytes: number) => {
+    return (bytes / 1024 / 1024).toFixed(2) + " MB";
+  };
+
   // Filter users by role
   const filteredUsers = users?.filter((user) => {
     if (roleFilter === "ALL") return true;
@@ -151,6 +171,260 @@ export default function SuperAdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Database Backup Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Database Backup
+              </CardTitle>
+              <CardDescription>
+                Manage database backups and view backup history. Creating backups may take several minutes for large databases.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => refetchBackupStatus()}
+                disabled={isBackupLoading}
+              >
+                {isBackupLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Refresh
+              </Button>
+              <Button
+                onClick={() => triggerBackupMutation.mutate()}
+                disabled={triggerBackupMutation.isPending}
+              >
+                {triggerBackupMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Create Backup
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {triggerBackupMutation.isPending && (
+            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Creating database backup...
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    This process may take several minutes depending on database size. Please do not close this page.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {!backupStatus ? (
+            <div className="text-center py-8">
+              <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">Click "Refresh" to view backup status</p>
+              <Button variant="outline" onClick={() => refetchBackupStatus()} disabled={isBackupLoading}>
+                {isBackupLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Load Backup Status
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <Badge variant={backupStatus.enabled ? "default" : "secondary"}>
+                    {backupStatus.enabled ? "Enabled" : "Disabled"}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Total Backups</p>
+                  <p className="text-2xl font-bold">{backupStatus.backupCount}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Storage Used</p>
+                  <p className="text-2xl font-bold">{backupStatus.totalSizeMB} MB</p>
+                </div>
+              </div>
+
+              {backupStatus.latestBackup ? (
+                <div className="border rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    Latest Backup
+                  </h4>
+                  <div className="grid gap-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Filename:</span>
+                      <span className="font-mono text-xs">{backupStatus.latestBackup.filename}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Created:</span>
+                      <span>{formatDate(backupStatus.latestBackup.date)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Size:</span>
+                      <span>{formatSize(backupStatus.latestBackup.size)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-dashed rounded-lg p-6 text-center">
+                  <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">No backups found</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Retention: {backupStatus.retentionDays} days
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-sm">
+                <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium">Automated Backups (Production Only)</p>
+                  <p className="text-muted-foreground text-xs">
+                    • Daily backup at 3:00 AM<br />
+                    • Automatic cleanup after {backupStatus.retentionDays} days<br />
+                    • Backups stored in Cloudflare R2
+                  </p>
+                </div>
+              </div>
+
+              {/* Backup Files List */}
+              <div className="border rounded-lg">
+                <div className="p-4 border-b flex items-center justify-between">
+                  <h4 className="font-medium">All Backups</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchBackups()}
+                    disabled={isBackupsLoading}
+                  >
+                    {isBackupsLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {isBackupsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : !backups || backups.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No backups found
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Filename</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Size</TableHead>
+                          <TableHead className="w-[220px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {backups.map((backup) => (
+                          <TableRow key={backup.filename}>
+                            <TableCell className="font-mono text-xs">
+                              {backup.filename}
+                            </TableCell>
+                            <TableCell>
+                              {formatDate(backup.date)}
+                            </TableCell>
+                            <TableCell>
+                              {backup.sizeMB} MB
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => downloadBackupMutation.mutate(backup.filename)}
+                                  disabled={downloadBackupMutation.isPending}
+                                  className="h-8 text-xs"
+                                  title="Download backup to your computer"
+                                >
+                                  {downloadBackupMutation.isPending ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <FileDown className="h-3 w-3" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (
+                                      confirm(
+                                        `⚠️ WARNING: This will OVERWRITE your entire database!\n\nAre you sure you want to restore from:\n${backup.filename}?\n\nThis action cannot be undone. Make sure you have a current backup before proceeding.`
+                                      ) &&
+                                      confirm(
+                                        `Final confirmation: You are about to REPLACE ALL DATA in your database.\n\nType "RESTORE" in your mind and click OK to proceed.`
+                                      )
+                                    ) {
+                                      restoreBackupMutation.mutate(backup.filename);
+                                    }
+                                  }}
+                                  disabled={restoreBackupMutation.isPending || triggerBackupMutation.isPending}
+                                  className="h-8 text-xs"
+                                  title="Restore database from this backup (DANGEROUS)"
+                                >
+                                  {restoreBackupMutation.isPending ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    "Restore"
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to delete ${backup.filename}?`)) {
+                                      deleteBackupMutation.mutate(backup.filename);
+                                    }
+                                  }}
+                                  disabled={deleteBackupMutation.isPending}
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  title="Delete this backup"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Users Table */}
       <Card>
