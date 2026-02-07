@@ -807,6 +807,143 @@ export function getBreakTypeIcon(type: BreakType): string {
   return icons[type];
 }
 
+// ============================================
+// Admin Break Management API Functions
+// ============================================
+
+export type AdminBreakListParams = {
+  page?: number;
+  limit?: number;
+  userId?: string;
+  attendanceId?: string;
+  departmentId?: string;
+  breakType?: BreakType;
+  status?: "open" | "closed";
+  startDate?: string; // ISO date string YYYY-MM-DD
+  endDate?: string; // ISO date string YYYY-MM-DD
+  search?: string;
+};
+
+export type AdminBreakListResponse = {
+  data: AttendanceBreakWithUser[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export type AdminEmployeeBreaksResponse = {
+  breaks: AttendanceBreak[];
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  statistics: {
+    totalBreaks: number;
+    totalDurationMinutes: number;
+    averageDurationMinutes: number;
+    breakTypeCounts: Record<BreakType, number>;
+  };
+};
+
+/**
+ * Get all breaks with admin filters and pagination
+ */
+export async function adminGetAllBreaks(
+  params?: AdminBreakListParams,
+): Promise<AdminBreakListResponse> {
+  const response = await apiClient.get<AdminBreakListResponse>(
+    "/attendance/breaks/admin/all",
+    { params },
+  );
+  return response.data;
+}
+
+/**
+ * Get a specific break by ID
+ */
+export async function adminGetBreakById(
+  breakId: string,
+): Promise<{ break: AttendanceBreakWithUser }> {
+  const response = await apiClient.get<{ break: AttendanceBreakWithUser }>(
+    `/attendance/breaks/admin/${breakId}`,
+  );
+  return response.data;
+}
+
+/**
+ * Create a new break manually (admin only)
+ */
+export async function adminCreateBreak(payload: {
+  userId: string;
+  attendanceId: string;
+  startTime: string; // ISO DateTime
+  endTime?: string; // ISO DateTime
+  breakType: BreakType;
+  location?: string;
+  reason?: string;
+}): Promise<{ break: AttendanceBreak }> {
+  const response = await apiClient.post<{ break: AttendanceBreak }>(
+    "/attendance/breaks/admin/create",
+    payload,
+  );
+  return response.data;
+}
+
+/**
+ * Update an existing break
+ */
+export async function adminUpdateBreak(
+  breakId: string,
+  payload: {
+    startTime?: string;
+    endTime?: string;
+    breakType?: BreakType;
+    location?: string;
+    reason?: string;
+  },
+): Promise<{ break: AttendanceBreak }> {
+  const response = await apiClient.patch<{ break: AttendanceBreak }>(
+    `/attendance/breaks/admin/${breakId}`,
+    payload,
+  );
+  return response.data;
+}
+
+/**
+ * Delete a break record
+ */
+export async function adminDeleteBreak(
+  breakId: string,
+): Promise<{ message: string }> {
+  const response = await apiClient.delete<{ message: string }>(
+    `/attendance/breaks/admin/${breakId}`,
+  );
+  return response.data;
+}
+
+/**
+ * Get breaks for a specific employee with statistics
+ */
+export async function adminGetEmployeeBreaks(params: {
+  userId: string;
+  page?: number;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
+  breakType?: BreakType;
+}): Promise<AdminEmployeeBreaksResponse> {
+  const response = await apiClient.get<AdminEmployeeBreaksResponse>(
+    `/attendance/breaks/admin/employee/${params.userId}`,
+    { params: { ...params, userId: undefined } },
+  );
+  return response.data;
+}
+
 /** GET /attendance/reconciliation response (backend uses pagination format) */
 export type AttendanceReconciliationListResponse = {
   data: AttendanceReconciliationRequestResponse[];
