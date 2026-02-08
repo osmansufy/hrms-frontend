@@ -604,7 +604,7 @@ export default function BreaksManagementPage() {
                                         {breakRecord.endTime ? (
                                             formatTime(breakRecord.endTime)
                                         ) : (
-                                            <Badge variant="outline" className="bg-green-50">
+                                            <Badge variant="destructive" className="bg-green-500">
                                                 Active
                                             </Badge>
                                         )}
@@ -626,7 +626,7 @@ export default function BreaksManagementPage() {
                                         {breakRecord.endTime ? (
                                             <Badge variant="secondary">Completed</Badge>
                                         ) : (
-                                            <Badge variant="default" className="bg-green-500">
+                                            <Badge variant="destructive" className="bg-green-500">
                                                 Active
                                             </Badge>
                                         )}

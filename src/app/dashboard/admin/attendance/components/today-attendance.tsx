@@ -314,7 +314,7 @@ export function TodayAttendanceCard() {
                                                     </Link>
                                                 </TableCell>
                                                 <TableCell className="text-sm">
-                                                    {record.user?.employee?.departmentId || "—"}
+                                                    {departments?.find(dept => dept.id === record.user?.employee?.departmentId)?.name || "—"}
                                                 </TableCell>
                                                 <TableCell className="font-medium">
                                                     {formatTime(record.signIn)}
