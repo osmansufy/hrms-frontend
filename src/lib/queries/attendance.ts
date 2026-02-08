@@ -480,7 +480,21 @@ export function useStartBreak(userId?: string) {
       toast.success("Break started successfully");
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || "Failed to start break";
+      const errorData = error.response?.data;
+      let message = "Failed to start break";
+
+      if (errorData?.message) {
+        // Handle nested message object from API
+        if (
+          typeof errorData.message === "object" &&
+          errorData.message.message
+        ) {
+          message = errorData.message.message;
+        } else if (typeof errorData.message === "string") {
+          message = errorData.message;
+        }
+      }
+
       toast.error(message);
     },
   });
@@ -512,7 +526,21 @@ export function useEndBreak(userId?: string) {
       toast.success("Break ended successfully");
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || "Failed to end break";
+      const errorData = error.response?.data;
+      let message = "Failed to end break";
+
+      if (errorData?.message) {
+        // Handle nested message object from API
+        if (
+          typeof errorData.message === "object" &&
+          errorData.message.message
+        ) {
+          message = errorData.message.message;
+        } else if (typeof errorData.message === "string") {
+          message = errorData.message;
+        }
+      }
+
       toast.error(message);
     },
   });

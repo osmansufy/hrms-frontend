@@ -43,7 +43,7 @@ export function BreakHistoryCard() {
         endDate: today,
     });
 
-    const breaks = response?.breaks || [];
+    const breaks = response?.data || [];
     const summary = useMemo(() => calculateBreakSummary(breaks), [breaks]);
 
     // Check if approaching or exceeding daily limit (180 minutes)

@@ -30,8 +30,8 @@ export type ExtendedAttendanceRecord = AttendanceRecord & {
     employee?: {
       id: string;
       employeeCode: string;
-      department?: { id: string; name: string };
-      designation?: { id: string; title: string };
+      departmentId?: string;
+      designationId?: string;
       profilePicture?: string | null;
     };
   };
@@ -52,6 +52,15 @@ export type ExtendedAttendanceRecord = AttendanceRecord & {
     startDate: string;
     endDate: string;
   } | null;
+  isOnBreak?: boolean;
+  activeBreak?: {
+    id: string;
+    startTime: string;
+    reason?: string | null;
+    durationMinutes: number;
+  } | null;
+  totalBreakMinutes?: number;
+  breakCount?: number;
 };
 export type Policy = {
   id: string;
@@ -105,6 +114,7 @@ export type AttendanceBreakListResponse = {
   success: boolean;
   breaks: AttendanceBreak[];
   total: number;
+  data?: AttendanceBreak[]; // For compatibility with list responses
 };
 
 export type AttendanceBreakResponse = {

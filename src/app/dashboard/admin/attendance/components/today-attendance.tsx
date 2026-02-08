@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Clock, Search, Filter, X, CalendarDays, MapPin } from "lucide-react";
+import { Loader2, Clock, Search, Filter, X, CalendarDays, MapPin, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAttendanceRecords } from "@/lib/queries/attendance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toStartOfDayISO, toEndOfDayISO, formatTimeInTimezone } from "@/lib/utils";
 import Link from "next/link";
+import { useDepartment, useDepartments } from "@/lib/queries/departments";
 
 function formatTime(value?: string | null) {
     return formatTimeInTimezone(value || "");
@@ -26,7 +28,7 @@ function getInitials(name: string) {
         .slice(0, 2);
 }
 
-type FilterStatus = "all" | "present" | "signedOut" | "late" | "absent" | "onleave";
+type FilterStatus = "all" | "present" | "signedOut" | "late" | "absent" | "onleave" | "onbreak";
 
 export function TodayAttendanceCard() {
     const today = new Date().toISOString().split("T")[0];
@@ -44,17 +46,7 @@ export function TodayAttendanceCard() {
 
     const records = data?.data || [];
 
-    // Extract unique departments
-    const departments = useMemo(() => {
-        const deptSet = new Set<string>();
-        records.forEach(record => {
-            const deptName = record.user?.employee?.department?.name;
-            if (deptName) {
-                deptSet.add(deptName);
-            }
-        });
-        return Array.from(deptSet).sort();
-    }, [records]);
+    const { data: departments } = useDepartments();
 
     // Filter and search logic
     const filteredRecords = useMemo(() => {
@@ -66,14 +58,14 @@ export function TodayAttendanceCard() {
             filtered = filtered.filter(record =>
                 record.user?.name?.toLowerCase().includes(query) ||
                 record.user?.employee?.employeeCode?.toLowerCase().includes(query) ||
-                record.user?.employee?.department?.name?.toLowerCase().includes(query)
+                record.user?.employee?.departmentId?.toLowerCase().includes(query)
             );
         }
 
         // Apply department filter
         if (selectedDepartment !== "all") {
             filtered = filtered.filter(record =>
-                record.user?.employee?.department?.name === selectedDepartment
+                record.user?.employee?.departmentId === selectedDepartment
             );
         }
 
@@ -91,6 +83,8 @@ export function TodayAttendanceCard() {
                         return !record.signIn && !record.isOnLeave;
                     case "onleave":
                         return record.isOnLeave === true;
+                    case "onbreak":
+                        return record.isOnBreak === true;
                     default:
                         return true;
                 }
@@ -104,6 +98,26 @@ export function TodayAttendanceCard() {
     const signedOut = records.filter(r => r.signIn && r.signOut);
     const late = records.filter(r => r.isLate);
     const onLeave = records.filter(r => r.isOnLeave === true);
+    const onBreak = records.filter(r => r.isOnBreak === true);
+    console.log({ filteredRecords });
+    // Check for departments with more than 3 employees on break
+    const departmentsWithManyOnBreak = useMemo(() => {
+        const deptBreakCount = new Map<string, { count: number; employees: string[] }>();
+
+        onBreak.forEach(record => {
+            const departmentId = record.user?.employee?.departmentId;
+            if (departmentId) {
+                const current = deptBreakCount.get(departmentId) || { count: 0, employees: [] };
+                current.count++;
+                current.employees.push(record.user?.name || 'Unknown');
+                deptBreakCount.set(departmentId, current);
+            }
+        });
+
+        return Array.from(deptBreakCount.entries())
+            .filter(([_, data]) => data.count > 3)
+            .map(([dept, data]) => ({ departmentId: dept, ...data }));
+    }, [onBreak]);
     return (
         <Card>
             <CardHeader>
@@ -130,6 +144,21 @@ export function TodayAttendanceCard() {
                     </div>
                 ) : (
                     <>
+                        {/* Warning for departments with many employees on break */}
+                        {departmentsWithManyOnBreak.length > 0 && (
+                            <Alert variant="destructive" className="mb-4 border-orange-200 bg-orange-50 text-orange-900">
+                                <AlertTriangle className="h-4 w-4 stroke-orange-600" />
+                                <AlertTitle className="text-orange-900">Multiple Employees on Break</AlertTitle>
+                                <AlertDescription className="text-orange-800">
+                                    {departmentsWithManyOnBreak.map((dept, index) => (
+                                        <div key={dept.departmentId} className={index > 0 ? "mt-2" : ""}>
+                                            <strong>{departments?.find(d => d.id === dept.departmentId)?.name}</strong> has {dept.count} employees currently on break
+                                        </div>
+                                    ))}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         {/* Search and Filter Controls */}
                         <div className="flex flex-col gap-4 mb-4">
                             <div className="flex flex-col sm:flex-row gap-4">
@@ -156,9 +185,9 @@ export function TodayAttendanceCard() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Departments</SelectItem>
-                                        {departments.map((dept) => (
-                                            <SelectItem key={dept} value={dept}>
-                                                {dept}
+                                        {departments?.map((dept) => (
+                                            <SelectItem key={dept.id} value={dept.id}>
+                                                {dept.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -203,11 +232,19 @@ export function TodayAttendanceCard() {
                                     <CalendarDays className="mr-1 h-3 w-3" />
                                     On Leave
                                 </Button>
+                                <Button
+                                    variant={filterStatus === "onbreak" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setFilterStatus("onbreak")}
+                                >
+                                    <Clock className="mr-1 h-3 w-3" />
+                                    On Break
+                                </Button>
                             </div>
                         </div>
 
                         <div className="flex items-center justify-between mb-4">
-                            <div className="flex gap-4 text-sm">
+                            <div className="flex gap-4 text-sm flex-wrap">
                                 <div className="flex items-center gap-2">
                                     <div className="h-2 w-2 rounded-full bg-green-500" />
                                     <span className="text-muted-foreground">Present: {present.length}</span>
@@ -223,6 +260,10 @@ export function TodayAttendanceCard() {
                                 <div className="flex items-center gap-2">
                                     <div className="h-2 w-2 rounded-full bg-blue-500" />
                                     <span className="text-muted-foreground">On Leave: {onLeave.length}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-orange-500" />
+                                    <span className="text-muted-foreground">On Break: {onBreak.length}</span>
                                 </div>
                             </div>
                             {(searchQuery || filterStatus !== "all" || selectedDepartment !== "all") && (
@@ -255,25 +296,25 @@ export function TodayAttendanceCard() {
                                         filteredRecords.map((record) => (
                                             <TableRow key={record.id}>
                                                 <TableCell>
-                                                <Link href={`/dashboard/admin/employees/${record.user?.employee?.id}`}>
+                                                    <Link href={`/dashboard/admin/employees/${record.user?.employee?.id}`}>
 
-                                                    <div className="flex items-center gap-3">
-                                                        <Avatar className="h-8 w-8">
-                                                            <AvatarFallback className="text-xs">
-                                                                {getInitials(record.user?.name || "?")}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div>
-                                                            <div className="font-medium">{record.user?.name}</div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {record.user?.employee?.employeeCode}
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="h-8 w-8">
+                                                                <AvatarFallback className="text-xs">
+                                                                    {getInitials(record.user?.name || "?")}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div>
+                                                                <div className="font-medium">{record.user?.name}</div>
+                                                                <div className="text-xs text-muted-foreground">
+                                                                    {record.user?.employee?.employeeCode}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
                                                     </Link>
                                                 </TableCell>
                                                 <TableCell className="text-sm">
-                                                    {record.user?.employee?.department?.name || "—"}
+                                                    {record.user?.employee?.departmentId || "—"}
                                                 </TableCell>
                                                 <TableCell className="font-medium">
                                                     {formatTime(record.signIn)}
@@ -323,6 +364,12 @@ export function TodayAttendanceCard() {
                                                         )}
                                                         {record.isLate && (
                                                             <Badge variant="destructive" className="ml-2">Late</Badge>
+                                                        )}
+                                                        {record.isOnBreak && record.activeBreak && (
+                                                            <Badge variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">
+                                                                <Clock className="mr-1 h-3 w-3" />
+                                                                On Break ({record.activeBreak.durationMinutes}m)
+                                                            </Badge>
                                                         )}
                                                         {record.isOnLeave && record.leave && (
                                                             <span className="text-xs text-muted-foreground">

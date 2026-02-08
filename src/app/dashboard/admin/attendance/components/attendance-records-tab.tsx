@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/sheet";
 import { MonthlySummaryCard } from "./monthly-summary-card";
 import { BreakMonitorCard } from "./break-monitor-card";
+import { de } from "zod/v4/locales";
 const LIMITS = [10, 30, 50, 100];
 const LIMITS_OPTIONS = LIMITS.map((limit) => ({
     label: limit.toString(),
@@ -312,7 +313,7 @@ export function AttendanceRecordsTab() {
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{record.user.employee?.department?.name || "—"}</TableCell>
+                                        <TableCell>{departments?.find(dept => dept.id === record.user.employee?.departmentId)?.name || "—"}</TableCell>
                                         <TableCell>{formatDateInTimezone(record.date, "long")}</TableCell>
                                         <TableCell>{formatTime(record.signIn)}</TableCell>
                                         <TableCell>{formatTime(record.signOut)}</TableCell>
