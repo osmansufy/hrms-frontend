@@ -72,8 +72,11 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Don't retry the refresh endpoint itself
-    if (originalRequest.url?.includes("/auth/refresh")) {
+    // Don't retry the refresh endpoint itself or try to refresh on login (no session yet)
+    if (
+      originalRequest.url?.includes("/auth/refresh") ||
+      originalRequest.url?.includes("/auth/login")
+    ) {
       return Promise.reject(error);
     }
 

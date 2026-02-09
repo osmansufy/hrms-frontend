@@ -101,9 +101,12 @@ export function SignInView({
       toast.success("Welcome back");
       router.push(redirectTo);
     } catch (error) {
-      // Display the actual error message from the backend
-      const message = error instanceof Error ? error.message : "Unable to sign in";
-      toast.error(message);
+      const rawMessage = error instanceof Error ? error.message : "Unable to sign in";
+      const displayMessage =
+        rawMessage === "No session found" || rawMessage === "No refresh token available"
+          ? "Invalid email or password. Please try again."
+          : rawMessage;
+      toast.error(displayMessage);
       console.error(error);
     } finally {
       setLoading(false);

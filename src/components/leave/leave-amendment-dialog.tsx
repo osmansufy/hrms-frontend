@@ -79,9 +79,10 @@ export function LeaveAmendmentDialog({
         originalLeaveId: leave.id,
         changeType: mode,
         reason: trimmedReason,
+        // Send date-only strings (YYYY-MM-DD) to match leave application form and avoid timezone shifts
         ...(isAmend && {
-          newStartDate: new Date(newStartDate).toISOString(),
-          newEndDate: new Date(newEndDate).toISOString(),
+          newStartDate: newStartDate,
+          newEndDate: newEndDate,
         }),
       });
       onOpenChange(false);
