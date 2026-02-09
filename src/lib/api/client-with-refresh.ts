@@ -166,9 +166,13 @@ apiClient.interceptors.response.use(
         document.cookie = "hrms.roles=; path=/; max-age=0";
         document.cookie = "hrms.perms=; path=/; max-age=0";
 
-        // Redirect to login page
+        // Redirect to login page (skip for public auth pages that don't need a session)
         const currentPath = window.location.pathname;
-        if (!currentPath.includes("/sign-in")) {
+        const isPublicAuthPage =
+          currentPath.includes("/sign-in") ||
+          currentPath.includes("/forgot-password") ||
+          currentPath.includes("/reset-password");
+        if (!isPublicAuthPage) {
           window.location.href = `/sign-in?callbackUrl=${encodeURIComponent(
             currentPath
           )}`;
