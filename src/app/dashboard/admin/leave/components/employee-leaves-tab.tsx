@@ -36,6 +36,9 @@ import { toast } from "sonner";
 import { useSession } from "@/components/auth/session-provider";
 
 import { formatDateInDhaka, formatInDhakaTimezone } from "@/lib/utils";
+import { useDepartments } from "@/lib/queries/departments";
+import { useDebounce } from "@/lib/hooks/use-debounce";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 
 function formatDate(dateString: string) {
     return formatDateInDhaka(dateString, "long");
@@ -55,10 +58,20 @@ function formatDateRange(startDate: string, endDate: string) {
 
 export function EmployeeLeavesTab() {
     const { session } = useSession();
-    const { data: leaves, isLoading } = useAllEmployeeLeaves();
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+    const [departmentFilter, setDepartmentFilter] = useState<string | "all">("all");
     const [searchTerm, setSearchTerm] = useState("");
+    const debouncedSearch = useDebounce(searchTerm.trim(), 300);
     const [statusFilter, setStatusFilter] = useState("all");
     const [leaveTypeFilter, setLeaveTypeFilter] = useState("all");
+
+    const { data, isLoading } = useAllEmployeeLeaves({
+        page,
+        pageSize,
+        departmentId: departmentFilter === "all" ? undefined : departmentFilter,
+        search: debouncedSearch || undefined,
+    });
     const [loadingDocument, setLoadingDocument] = useState<string | null>(null);
     const [amendmentLeave, setAmendmentLeave] = useState<LeaveRecord | null>(null);
     const [amendmentMode, setAmendmentMode] = useState<"AMEND" | "CANCEL">("AMEND");
@@ -77,7 +90,10 @@ export function EmployeeLeavesTab() {
         }
     };
 
-    // Get unique statuses and leave types for filters
+    const leaves = data?.data ?? [];
+    const pagination = data?.pagination;
+
+    // Get unique statuses and leave types for filters (from current page data)
     const uniqueStatuses = useMemo(() => {
         if (!leaves) return [];
         return [...new Set(leaves.map(l => l.status))];
@@ -88,25 +104,19 @@ export function EmployeeLeavesTab() {
         return [...new Set(leaves.map(l => l.leaveType?.name || l.leaveTypeId))];
     }, [leaves]);
 
-    // Filter and search leaves
+    // Filter leaves by status and leave type (text search is backend-driven)
     const filteredLeaves = useMemo(() => {
         if (!leaves) return [];
 
         return leaves.filter(leave => {
-            const matchesSearch =
-                !searchTerm ||
-                (leave.leaveType?.name?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
-                (leave.reason?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
-                (leave.id?.toLowerCase() ?? "").includes(searchTerm.toLowerCase());
-
             const matchesStatus = statusFilter === "all" || leave.status === statusFilter;
 
             const matchesLeaveType = leaveTypeFilter === "all" ||
                 (leave.leaveType?.name === leaveTypeFilter);
 
-            return matchesSearch && matchesStatus && matchesLeaveType;
+            return matchesStatus && matchesLeaveType;
         });
-    }, [leaves, searchTerm, statusFilter, leaveTypeFilter]);
+    }, [leaves, statusFilter, leaveTypeFilter]);
 
     // Sort by start date (most recent first)
     const sortedLeaves = useMemo(
@@ -116,6 +126,10 @@ export function EmployeeLeavesTab() {
         [filteredLeaves]
     );
 
+    const totalFiltered = pagination?.totalCount ?? sortedLeaves.length;
+    const totalPages = pagination?.totalPages ?? 1;
+    const currentPage = pagination?.page ?? page;
+const {data: departments, isLoading: departmentsLoading} = useDepartments();
     return (
         <div className="space-y-4">
             <Card>
@@ -127,13 +141,15 @@ export function EmployeeLeavesTab() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {/* Filters */}
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-4">
                         <div className="flex items-center gap-2">
                             <Search className="size-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search by leave type, reason, or ID..."
+                                placeholder="Search by employee, type, reason, or ID..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                }}
                                 className="flex-1"
                             />
                         </div>
@@ -163,23 +179,140 @@ export function EmployeeLeavesTab() {
                                 ))}
                             </SelectContent>
                         </Select>
+                        <Select
+                            disabled={departmentsLoading || !departments}
+                            value={departmentFilter}
+                            onValueChange={(value) => {
+                                setDepartmentFilter(value as typeof departmentFilter);
+                                setPage(1);
+                            }}
+                        >
+                            <SelectTrigger className="max-w-50 w-full">
+                                <SelectValue placeholder="Filter by department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Departments</SelectItem>
+                                {departments?.map((department) => (
+                                    <SelectItem key={department.id} value={department.id}>
+                                        {department.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
-                    {/* Results info */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                   
+    {/* Summary Stats */}
+    {pagination && pagination?.totalCount > 0 && (
+                <div className="grid gap-4 md:grid-cols-4">
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium">Total Leaves</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{pagination?.totalCount} </div>
+                            <p className="text-xs text-muted-foreground">all records</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600">
+                                {leaves.filter(l => l.status === "APPROVED").length}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {((leaves.filter(l => l.status === "APPROVED").length / leaves.length) * 100).toFixed(1)}%
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-yellow-600">
+                                {leaves.filter(l => l.status === "PENDING").length}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {((leaves.filter(l => l.status === "PENDING").length / leaves.length) * 100).toFixed(1)}%
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-red-600">
+                                {leaves.filter(l => l.status === "REJECTED").length}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {((leaves.filter(l => l.status === "REJECTED").length / leaves.length) * 100).toFixed(1)}%
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+             {/* Results info */}
+             <div className="flex items-center justify-between text-sm text-muted-foreground">
                         <span>
-                            Showing {sortedLeaves.length} of {leaves?.length ?? 0} leave records
+                            Showing {sortedLeaves.length} of {totalFiltered} filtered record
+                            {totalFiltered === 1 ? "" : "s"}
                         </span>
-                    </div>
-
-                    {/* Table */}
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <div className="flex flex-col items-center gap-2">
-                                <Loader2 className="size-8 animate-spin text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">Loading leave records...</p>
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1">
+                                <span>Rows per page:</span>
+                                <Select
+                                    value={String(pageSize)}
+                                    onValueChange={(value) => {
+                                        const newSize = Number(value);
+                                        setPageSize(newSize);
+                                        setPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger className="h-7 w-[72px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="20">20</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2"
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage <= 1}
+                                >
+                                    Prev
+                                </Button>
+                                <span>
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2"
+                                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage >= totalPages}
+                                >
+                                    Next
+                                </Button>
                             </div>
                         </div>
+                    </div>
+                    {/* Table */}
+                    {isLoading ? (
+                        <TableSkeleton columns={8} rows={5} />
                     ) : sortedLeaves.length === 0 ? (
                         <div className="flex items-center justify-center py-12 text-muted-foreground">
                             <p>No leave records found</p>
@@ -201,7 +334,7 @@ export function EmployeeLeavesTab() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {sortedLeaves.map((leave) => {
+                                    {sortedLeaves.map((leave: LeaveRecord) => {
                                         const leaveDays = Math.ceil(
                                             (new Date(leave.endDate).getTime() - new Date(leave.startDate).getTime()) /
                                             (1000 * 60 * 60 * 24)
@@ -323,62 +456,7 @@ export function EmployeeLeavesTab() {
                 />
             )}
 
-            {/* Summary Stats */}
-            {leaves && leaves.length > 0 && (
-                <div className="grid gap-4 md:grid-cols-4">
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium">Total Leaves</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{leaves.length}</div>
-                            <p className="text-xs text-muted-foreground">all records</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-green-600">
-                                {leaves.filter(l => l.status === "APPROVED").length}
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                {((leaves.filter(l => l.status === "APPROVED").length / leaves.length) * 100).toFixed(1)}%
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-yellow-600">
-                                {leaves.filter(l => l.status === "PENDING").length}
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                {((leaves.filter(l => l.status === "PENDING").length / leaves.length) * 100).toFixed(1)}%
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-red-600">
-                                {leaves.filter(l => l.status === "REJECTED").length}
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                {((leaves.filter(l => l.status === "REJECTED").length / leaves.length) * 100).toFixed(1)}%
-                            </p>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+        
         </div>
     );
 }

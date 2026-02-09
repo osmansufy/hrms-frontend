@@ -334,10 +334,15 @@ export function usePendingHRApprovals(role: string) {
   });
 }
 
-export function useAllEmployeeLeaves() {
+export function useAllEmployeeLeaves(params?: {
+  page?: number;
+  pageSize?: number;
+  departmentId?: string;
+  search?: string;
+}) {
   return useQuery({
-    queryKey: [...adminLeaveKeys.all, "all-leaves"],
-    queryFn: () => getAllEmployeeLeaves(),
+    queryKey: [...adminLeaveKeys.all, "all-leaves", params],
+    queryFn: () => getAllEmployeeLeaves(params),
     staleTime: 5 * 60_000,
   });
 }

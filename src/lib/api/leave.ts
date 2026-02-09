@@ -32,6 +32,10 @@ export type LeaveRecord = {
       firstName: string;
       lastName: string;
       employeeCode: string;
+      department?: {
+        id: string;
+        name: string;
+      } | null;
     };
   };
 };
@@ -521,9 +525,25 @@ export async function getPendingHRApprovals() {
   return response.data;
 }
 
-// Admin: Get all employee leaves
-export async function getAllEmployeeLeaves() {
-  const response = await apiClient.get<LeaveRecord[]>("/leave");
+export type PaginatedLeaveResponse = {
+  data: LeaveRecord[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+  };
+};
+
+// Admin: Get all employee leaves (paginated, optional department filter)
+export async function getAllEmployeeLeaves(params?: {
+  page?: number;
+  pageSize?: number;
+  departmentId?: string;
+}) {
+  const response = await apiClient.get<PaginatedLeaveResponse>("/leave", {
+    params,
+  });
   return response.data;
 }
 

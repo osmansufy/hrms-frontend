@@ -132,19 +132,22 @@ export default function LeaveDetailPage({ params }: PageProps) {
                     <LeaveDetailCard leave={leave} />
                 </div>
 
-                {/* Approval Timeline */}
-                <div>
+                {/* Approval Timeline + Amendments */}
+                <div className="space-y-4">
                     <ApprovalTimeline
                         steps={leave.approvalSteps}
                         currentStatus={leave.status}
                     />
+
+                    {/* Related amendment requests for this leave */}
+                    {leave.relatedAmendments &&
+                        leave.relatedAmendments.length > 0 && (
+                            <RelatedAmendmentsTimeline
+                                amendments={leave.relatedAmendments}
+                            />
+                        )}
                 </div>
             </div>
-
-            {/* Related amendment requests for this leave */}
-            {leave.relatedAmendments && leave.relatedAmendments.length > 0 && (
-                <RelatedAmendmentsTimeline amendments={leave.relatedAmendments} />
-            )}
 
             <LeaveAmendmentDialog
                 leave={leave}

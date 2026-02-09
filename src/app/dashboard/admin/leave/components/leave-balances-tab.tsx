@@ -65,6 +65,7 @@ import {
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { useTimezone } from "@/contexts/timezone-context";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 // Format numbers to whole numbers (no decimals)
 const formatDays = (value: number) =>
     new Intl.NumberFormat(undefined, {
@@ -133,10 +134,12 @@ export function LeaveBalancesTab() {
         currentBalance: number;
     } | null>(null);
 
+    const debouncedSearch = useDebounce(search.trim(), 300);
+
     const { data, isLoading, error } = useAdminLeaveBalances({
         page,
         pageSize,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         status: status || undefined,
         departmentId: departmentId || undefined,
         leaveTypeId: leaveTypeId || undefined,
@@ -273,10 +276,7 @@ export function LeaveBalancesTab() {
         return acc;
     }, []) || [];
 
-    if (isLoading) {
-        return <BalancesSkeleton />;
-    }
-
+  
     if (error) {
         return (
             <Card>
