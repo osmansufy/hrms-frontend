@@ -38,6 +38,7 @@ export const leaveKeys = {
   all: ["leave"] as const,
   types: ["leave", "types"] as const,
   mine: (userId: string | undefined) => ["leave", "mine", userId] as const,
+  myAmendments: ["leave", "my-amendments"] as const,
   managerPending: ["leave", "manager", "pending"] as const,
   managerApproved: ["leave", "manager", "approved"] as const,
   subordinatesLeaves: ["leave", "subordinates"] as const,
@@ -157,6 +158,7 @@ import {
   approveAmendment,
   approveLeave,
   createAccrualRule,
+  createAmendment,
   createLeavePolicy,
   getAccrualRule,
   getAmendment,
@@ -175,6 +177,7 @@ import {
   deleteNoticeRule,
   type CreateAccrualRulePayload,
   type CreateLeavePolicyPayload,
+  type CreateAmendmentPayload,
 } from "@/lib/api/leave";
 
 export const adminLeaveKeys = {
@@ -422,6 +425,35 @@ export function useRejectAmendment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminLeaveKeys.amendments });
       queryClient.invalidateQueries({ queryKey: leaveKeys.all });
+    },
+  });
+}
+
+/** Employee: list my amendment requests (backend filters by current user) */
+export function useMyAmendments(enabled = true) {
+  return useQuery({
+    queryKey: leaveKeys.myAmendments,
+    queryFn: () => listAmendments(),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/** Employee: create amendment (amend dates or cancel) for an approved leave */
+export function useCreateAmendment(userId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateAmendmentPayload) => createAmendment(payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["leave-details", variables.originalLeaveId],
+      });
+      queryClient.invalidateQueries({ queryKey: leaveKeys.all });
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: leaveKeys.mine(userId) });
+      }
+      queryClient.invalidateQueries({ queryKey: adminLeaveKeys.amendments });
+      queryClient.invalidateQueries({ queryKey: leaveKeys.myAmendments });
     },
   });
 }

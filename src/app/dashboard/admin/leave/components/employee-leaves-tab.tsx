@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,13 +27,15 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { useAllEmployeeLeaves } from "@/lib/queries/leave";
-import { Loader2, Search, Filter, FileText, ExternalLink } from "lucide-react";
+import { useAllEmployeeLeaves, useCreateAmendment } from "@/lib/queries/leave";
+import { Loader2, Search, FileText, ExternalLink, Pencil, XCircle } from "lucide-react";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
+import { LeaveAmendmentDialog } from "@/components/leave/leave-amendment-dialog";
 import { getLeaveDocumentUrl } from "@/lib/api/leave";
 import { toast } from "sonner";
+import { useSession } from "@/components/auth/session-provider";
 
-import { formatDateInDhaka, formatInDhakaTimezone, formatTimeInTimezone } from "@/lib/utils";
+import { formatDateInDhaka, formatInDhakaTimezone } from "@/lib/utils";
 
 function formatDate(dateString: string) {
     return formatDateInDhaka(dateString, "long");
@@ -51,11 +54,14 @@ function formatDateRange(startDate: string, endDate: string) {
 }
 
 export function EmployeeLeavesTab() {
+    const { session } = useSession();
     const { data: leaves, isLoading } = useAllEmployeeLeaves();
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [leaveTypeFilter, setLeaveTypeFilter] = useState("all");
     const [loadingDocument, setLoadingDocument] = useState<string | null>(null);
+    const [amendmentLeave, setAmendmentLeave] = useState<(typeof leaves)[number] | null>(null);
+    const [amendmentMode, setAmendmentMode] = useState<"AMEND" | "CANCEL">("AMEND");
 
     const handleViewDocument = async (leaveId: string) => {
         setLoadingDocument(leaveId);
@@ -190,6 +196,7 @@ export function EmployeeLeavesTab() {
                                         <TableHead>Reason</TableHead>
                                         <TableHead>Document</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead className="w-24">Actions</TableHead>
                                         <TableHead>Applied On</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -249,6 +256,41 @@ export function EmployeeLeavesTab() {
                                                 <TableCell>
                                                     <LeaveStatusBadge status={leave.status} />
                                                 </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-1">
+                                                        {leave.status === "APPROVED" && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 text-blue-600 hover:text-blue-700"
+                                                                    onClick={() => {
+                                                                        setAmendmentLeave(leave);
+                                                                        setAmendmentMode("AMEND");
+                                                                    }}
+                                                                >
+                                                                    <span title="Amend"><Pencil className="size-4" /></span>
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 text-red-600 hover:text-red-700"
+                                                                    onClick={() => {
+                                                                        setAmendmentLeave(leave);
+                                                                        setAmendmentMode("CANCEL");
+                                                                    }}
+                                                                >
+                                                                    <span title="Cancel leave"><XCircle className="size-4" /></span>
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                        <Link href={`/dashboard/employee/leave/${leave.id}`}>
+                                                            <Button variant="ghost" size="sm" className="h-8">
+                                                                <ExternalLink className="size-4" />
+                                                            </Button>
+                                                        </Link>
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell className="text-sm text-muted-foreground">
                                                     {formatDate(leave.createdAt)}
                                                 </TableCell>
@@ -261,6 +303,25 @@ export function EmployeeLeavesTab() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Amendment dialog (admin create) */}
+            {amendmentLeave && (
+                <LeaveAmendmentDialog
+                    leave={amendmentLeave}
+                    mode={amendmentMode}
+                    open={!!amendmentLeave}
+                    onOpenChange={(open) => !open && setAmendmentLeave(null)}
+                    onSuccess={() => {
+                        setAmendmentLeave(null);
+                        toast.success(
+                            amendmentMode === "AMEND"
+                                ? "Amendment request created"
+                                : "Cancellation request created",
+                            { description: "Manager and HR will process the request." }
+                        );
+                    }}
+                />
+            )}
 
             {/* Summary Stats */}
             {leaves && leaves.length > 0 && (

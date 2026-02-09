@@ -55,6 +55,26 @@ export type LeaveApprovalStep = {
   createdAt: string;
 };
 
+/** Related amendment (for a specific leave) as returned by getLeaveDetails */
+export type RelatedLeaveAmendment = {
+  id: string;
+  originalLeaveId: string;
+  newStartDate: string | null;
+  newEndDate: string | null;
+  changeType: "AMEND" | "CANCEL";
+  reason: string;
+  status: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: {
+    id: string;
+    email: string;
+    name: string | null;
+    employee: { firstName: string; lastName: string } | null;
+  } | null;
+};
+
 export type LeaveDetails = {
   id: string;
   leaveTypeId: string;
@@ -81,6 +101,7 @@ export type LeaveDetails = {
   totalDays: number;
   supportingDocumentUrl?: string | null;
   approvalSteps: LeaveApprovalStep[];
+  relatedAmendments?: RelatedLeaveAmendment[];
   balanceImpact?: {
     balanceBefore: number;
     balanceAfter: number;

@@ -17,13 +17,21 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useAmendments, useApproveAmendment, useRejectAmendment } from "@/lib/queries/leave";
 import { AlertCircle, Check, Loader2, X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { formatDateInDhaka } from "@/lib/utils";
 import { useSession } from "@/components/auth/session-provider";
+import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 
 // Helper function to format dates
 function formatDate(dateString: string | null | undefined) {
@@ -31,12 +39,29 @@ function formatDate(dateString: string | null | undefined) {
     return formatDateInDhaka(dateString, "long");
 }
 
+const AMENDMENT_STATUS_FILTER_OPTIONS = [
+    { value: "all", label: "All" },
+    { value: "pending", label: "Pending" },
+    { value: "APPROVED", label: "Approved" },
+    { value: "REJECTED", label: "Rejected" },
+] as const;
+
 export function AmendmentApprovalsTab() {
     const { session } = useSession();
     const { data: amendments, isLoading } = useAmendments(session?.user.roles[0] || "");
     const approveMutation = useApproveAmendment();
     const rejectMutation = useRejectAmendment();
     const [selectedAmendment, setSelectedAmendment] = useState<{ id: string; action: "approve" | "reject" } | null>(null);
+    const [statusFilter, setStatusFilter] = useState<string>("pending");
+
+    const filteredAmendments = useMemo(() => {
+        if (!amendments) return [];
+        if (statusFilter === "all") return amendments;
+        if (statusFilter === "pending") {
+            return amendments.filter((a) => a.status === "PENDING" || a.status === "PROCESSING");
+        }
+        return amendments.filter((a) => a.status === statusFilter);
+    }, [amendments, statusFilter]);
 
     const handleApprove = async (id: string) => {
         try {
@@ -96,24 +121,44 @@ export function AmendmentApprovalsTab() {
         );
     }
 
-    const pendingAmendments = amendments?.filter((amendment) => amendment.status === "PENDING" || amendment.status === "PROCESSING") || [];
-
     return (
         <>
             <Card>
                 <CardHeader>
-                    <CardTitle>Amendment Approvals</CardTitle>
+                    <CardTitle>Amendment requests</CardTitle>
                     <CardDescription>
-                        Approve or reject leave amendment requests (changes or cancellations to approved leaves)
+                        View all amendment requests. Approve or reject pending ones (changes or cancellations to approved leaves).
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {pendingAmendments.length === 0 ? (
+                    <div className="mb-4 flex items-center gap-2">
+                        <span className="text-sm font-medium">Status:</span>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {AMENDMENT_STATUS_FILTER_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <span className="text-sm text-muted-foreground">
+                            {filteredAmendments.length} of {amendments?.length ?? 0} request(s)
+                        </span>
+                    </div>
+                    {filteredAmendments.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
                             <AlertCircle className="mb-4 size-12 text-muted-foreground" />
-                            <h3 className="mb-2 text-lg font-semibold">No pending amendments</h3>
+                            <h3 className="mb-2 text-lg font-semibold">
+                                {statusFilter === "pending" ? "No pending amendments" : "No amendments"}
+                            </h3>
                             <p className="text-sm text-muted-foreground">
-                                Amendment requests will appear here when employees request changes to approved leaves
+                                {statusFilter === "pending"
+                                    ? "Amendment requests will appear here when employees or admins request changes to approved leaves."
+                                    : "Try a different status filter."}
                             </p>
                         </div>
                     ) : (
@@ -132,10 +177,12 @@ export function AmendmentApprovalsTab() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {pendingAmendments.map((amendment) => {
+                                        {filteredAmendments.map((amendment) => {
                                             const employeeName = amendment.createdBy?.employee
                                                 ? `${amendment.createdBy.employee.firstName} ${amendment.createdBy.employee.lastName}`
                                                 : amendment.createdBy?.email || "Unknown";
+                                            const canApproveReject =
+                                                amendment.status === "PENDING" || amendment.status === "PROCESSING";
 
                                             return (
                                                 <TableRow key={amendment.id}>
@@ -171,31 +218,35 @@ export function AmendmentApprovalsTab() {
                                                     </TableCell>
                                                     <TableCell className="max-w-xs truncate">{amendment.reason}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary">{amendment.status}</Badge>
+                                                        <LeaveStatusBadge status={amendment.status} />
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="border-green-600 text-green-600 hover:bg-green-50"
-                                                                onClick={() => setSelectedAmendment({ id: amendment.id, action: "approve" })}
-                                                                disabled={approveMutation.isPending || rejectMutation.isPending}
-                                                            >
-                                                                <Check className="mr-1 size-4" />
-                                                                Approve
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="border-red-600 text-red-600 hover:bg-red-50"
-                                                                onClick={() => setSelectedAmendment({ id: amendment.id, action: "reject" })}
-                                                                disabled={approveMutation.isPending || rejectMutation.isPending}
-                                                            >
-                                                                <X className="mr-1 size-4" />
-                                                                Reject
-                                                            </Button>
-                                                        </div>
+                                                        {canApproveReject ? (
+                                                            <div className="flex justify-end gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="border-green-600 text-green-600 hover:bg-green-50"
+                                                                    onClick={() => setSelectedAmendment({ id: amendment.id, action: "approve" })}
+                                                                    disabled={approveMutation.isPending || rejectMutation.isPending}
+                                                                >
+                                                                    <Check className="mr-1 size-4" />
+                                                                    Approve
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="border-red-600 text-red-600 hover:bg-red-50"
+                                                                    onClick={() => setSelectedAmendment({ id: amendment.id, action: "reject" })}
+                                                                    disabled={approveMutation.isPending || rejectMutation.isPending}
+                                                                >
+                                                                    <X className="mr-1 size-4" />
+                                                                    Reject
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-muted-foreground">—</span>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             );

@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, CalendarDays, ExternalLink, FileText, Info, Loader2, NotebookPen, Send, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, ExternalLink, FileText, FileEdit, Info, Loader2, NotebookPen, Pencil, Receipt, Send, X, XCircle } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -27,10 +28,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadLeaveDocument } from "@/lib/api/leave";
-import { useApplyLeave, useLeavePolicy, useLeaveTypes, useMyLeaves, useUserBalances } from "@/lib/queries/leave";
+import { uploadLeaveDocument, type LeaveRecord } from "@/lib/api/leave";
+import { useApplyLeave, useLeavePolicy, useLeaveTypes, useMyAmendments, useMyLeaves, useUserBalances } from "@/lib/queries/leave";
 import { formatInDhakaTimezone } from "@/lib/utils";
 import { handleLeaveError } from "@/lib/utils/error-handler";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LeaveAmendmentDialog } from "@/components/leave/leave-amendment-dialog";
 import { LeaveDeductionRecords } from "../components/leave-deduction-records";
 
 const schema = z.object({
@@ -55,14 +58,31 @@ function formatRange(start: string, end: string) {
   return `${startLabel} – ${endLabel}`;
 }
 
+const LEAVE_TAB_APPLY = "apply";
+const LEAVE_TAB_REQUESTS = "requests";
+const LEAVE_TAB_AMENDMENTS = "amendments";
+const LEAVE_TAB_DEDUCTIONS = "deductions";
+
 export default function LeavePage() {
   const { session } = useSession();
   const userId = session?.user.id;
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams?.get("tab") || LEAVE_TAB_APPLY;
+
   const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState("");
   const [today, setToday] = useState("");
   const [maxDate, setMaxDate] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [amendmentLeave, setAmendmentLeave] = useState<LeaveRecord | null>(null);
+  const [amendmentMode, setAmendmentMode] = useState<"AMEND" | "CANCEL">("AMEND");
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("tab", value);
+    router.push(`/dashboard/employee/leave?${params.toString()}`);
+  };
 
   // Calculate dates on client side only to prevent hydration mismatch
   useEffect(() => {
@@ -74,6 +94,7 @@ export default function LeavePage() {
 
   const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes();
   const { data: leaves, isLoading: leavesLoading } = useMyLeaves(userId);
+  const { data: myAmendments, isLoading: amendmentsLoading } = useMyAmendments(!!userId);
 
   // Pie chart data for monthly leaves
   const currentMonth = new Date().getUTCMonth();
@@ -424,8 +445,28 @@ export default function LeavePage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+        <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 h-auto">
+          <TabsTrigger value={LEAVE_TAB_APPLY} className="flex items-center gap-2">
+            <Send className="size-4" />
+            Apply
+          </TabsTrigger>
+          <TabsTrigger value={LEAVE_TAB_REQUESTS} className="flex items-center gap-2">
+            <NotebookPen className="size-4" />
+            My requests
+          </TabsTrigger>
+          <TabsTrigger value={LEAVE_TAB_AMENDMENTS} className="flex items-center gap-2">
+            <FileEdit className="size-4" />
+            Amendments
+          </TabsTrigger>
+          <TabsTrigger value={LEAVE_TAB_DEDUCTIONS} className="flex items-center gap-2">
+            <Receipt className="size-4" />
+            Deductions
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={LEAVE_TAB_APPLY} className="mt-4">
+          <Card>
           <CardHeader>
             <CardTitle>Apply for leave</CardTitle>
             <CardDescription>Select a type and choose your dates.</CardDescription>
@@ -729,10 +770,12 @@ export default function LeavePage() {
             }
           </CardContent>
         </Card>
+        </TabsContent>
 
-        <Card>
+        <TabsContent value={LEAVE_TAB_REQUESTS} className="mt-4">
+          <Card>
           <CardHeader>
-            <CardTitle>Recent requests</CardTitle>
+            <CardTitle>My leave requests</CardTitle>
             <CardDescription>Track approvals and dates.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -774,25 +817,172 @@ export default function LeavePage() {
                       <TableCell>
                         <LeaveStatusBadge status={leave.status} />
                       </TableCell>
-                      <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
-                      <TableCell>
-                        <Link href={`/dashboard/employee/leave/${leave.id}`}>
-                          <Button variant="ghost" size="sm">
-                            <ExternalLink className="size-4" />
-                          </Button>
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                                                <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
+                                                      <TableCell>
+                                                        <div className="flex items-center gap-1">
+                                                          {leave.status === "APPROVED" && (
+                                                            <>
+                                                              <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-blue-600 hover:text-blue-700"
+                                                                onClick={(e) => {
+                                                                  e.preventDefault();
+                                                                  setAmendmentLeave(leave);
+                                                                  setAmendmentMode("AMEND");
+                                                                }}
+                                                              >
+                                                                <span title="Amend"><Pencil className="size-4" /></span>
+                                                              </Button>
+                                                              <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-red-600 hover:text-red-700"
+                                                                onClick={(e) => {
+                                                                  e.preventDefault();
+                                                                  setAmendmentLeave(leave);
+                                                                  setAmendmentMode("CANCEL");
+                                                                }}
+                                                              >
+                                                                <span title="Cancel leave"><XCircle className="size-4" /></span>
+                                                              </Button>
+                                                            </>
+                                                          )}
+                                                          <Link href={`/dashboard/employee/leave/${leave.id}`}>
+                                                            <Button variant="ghost" size="sm">
+                                                              <ExternalLink className="size-4" />
+                                                            </Button>
+                                                          </Link>
+                                                        </div>
+                                                      </TableCell>
+                                                    </TableRow>
+                                                  ))}
+                                                </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
+        </TabsContent>
 
-        {/* Leave Deduction Records */}
-        <LeaveDeductionRecords />
-      </div>
+        <TabsContent value={LEAVE_TAB_AMENDMENTS} className="mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>My amendment requests</CardTitle>
+            <CardDescription>
+              Amend or cancel requests for approved leaves. Track status here until manager and HR review.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {amendmentsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+                <Loader2 className="size-4 animate-spin" />
+                Loading amendment requests...
+              </div>
+            ) : !myAmendments?.length ? (
+              <div className="flex items-center gap-2 rounded-md border px-3 py-3 text-sm text-muted-foreground">
+                <NotebookPen className="size-4" />
+                No amendment requests yet. Use &quot;Amend leave&quot; or &quot;Cancel leave&quot; on an approved leave above.
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Type</TableHead>
+                      <TableHead>Original leave</TableHead>
+                      <TableHead>New dates</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Requested</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {myAmendments.map((amendment) => {
+                      const original = amendment.originalLeave;
+                      const originalDates =
+                        original?.startDate && original?.endDate
+                          ? formatRange(original.startDate, original.endDate)
+                          : "—";
+                      const newDates =
+                        amendment.changeType === "AMEND" &&
+                        amendment.newStartDate &&
+                        amendment.newEndDate
+                          ? formatRange(amendment.newStartDate, amendment.newEndDate)
+                          : amendment.changeType === "CANCEL"
+                            ? "—"
+                            : "—";
+                      const requestedDate = amendment.createdAt
+                        ? formatInDhakaTimezone(amendment.createdAt, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "—";
+                      return (
+                        <TableRow key={amendment.id}>
+                          <TableCell>
+                            <Badge variant={amendment.changeType === "CANCEL" ? "destructive" : "secondary"}>
+                              {amendment.changeType === "CANCEL" ? "Cancel" : "Amend dates"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {original ? (
+                              <Link
+                                href={`/dashboard/employee/leave/${original.id}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {original.leaveType?.name || original.leaveTypeId} ({originalDates})
+                              </Link>
+                            ) : (
+                              originalDates
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {newDates}
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate text-sm">
+                            {amendment.reason || "—"}
+                          </TableCell>
+                          <TableCell>
+                            <LeaveStatusBadge status={amendment.status} />
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {requestedDate}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        </TabsContent>
+
+        <TabsContent value={LEAVE_TAB_DEDUCTIONS} className="mt-4">
+          <LeaveDeductionRecords />
+        </TabsContent>
+      </Tabs>
+
+        {/* Amendment dialog (for approved leaves from list) */}
+        {amendmentLeave && (
+          <LeaveAmendmentDialog
+            leave={amendmentLeave}
+            mode={amendmentMode}
+            open={!!amendmentLeave}
+            onOpenChange={(open) => !open && setAmendmentLeave(null)}
+            onSuccess={() => {
+              setAmendmentLeave(null);
+              toast.success(
+                amendmentMode === "AMEND"
+                  ? "Amendment request submitted"
+                  : "Cancellation request submitted",
+                { description: "Your manager and HR will review the request." }
+              );
+            }}
+          />
+        )}
     </div>
   );
 }
