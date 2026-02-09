@@ -31,7 +31,7 @@ import { useAllEmployeeLeaves, useCreateAmendment } from "@/lib/queries/leave";
 import { Loader2, Search, FileText, ExternalLink, Pencil, XCircle } from "lucide-react";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 import { LeaveAmendmentDialog } from "@/components/leave/leave-amendment-dialog";
-import { getLeaveDocumentUrl } from "@/lib/api/leave";
+import { getLeaveDocumentUrl, LeaveRecord } from "@/lib/api/leave";
 import { toast } from "sonner";
 import { useSession } from "@/components/auth/session-provider";
 
@@ -60,7 +60,7 @@ export function EmployeeLeavesTab() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [leaveTypeFilter, setLeaveTypeFilter] = useState("all");
     const [loadingDocument, setLoadingDocument] = useState<string | null>(null);
-    const [amendmentLeave, setAmendmentLeave] = useState<(typeof leaves)[number] | null>(null);
+    const [amendmentLeave, setAmendmentLeave] = useState<LeaveRecord | null>(null);
     const [amendmentMode, setAmendmentMode] = useState<"AMEND" | "CANCEL">("AMEND");
 
     const handleViewDocument = async (leaveId: string) => {
