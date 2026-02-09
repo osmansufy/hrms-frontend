@@ -94,7 +94,8 @@ export function SignInView({
       });
       if (wantsAdmin && !isAdminRole) {
         toast.error("You are not authorized to access the Admin Portal.");
-
+        // Prevent unauthorized users from continuing the sign-in flow
+        return;
       }
 
       const redirectTo = callbackUrl || pickRoleHome(roles, role);

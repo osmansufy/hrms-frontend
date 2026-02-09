@@ -491,6 +491,8 @@ describe("SignInView", () => {
         expect(toast.error).toHaveBeenCalledWith(
           "You are not authorized to access the Admin Portal."
         );
+        // Should not redirect when authorization fails
+        expect(mockPush).not.toHaveBeenCalled();
       });
     });
 
@@ -520,6 +522,8 @@ describe("SignInView", () => {
         expect(toast.error).toHaveBeenCalledWith(
           "You are not authorized to access the Admin Portal."
         );
+        // Should not redirect when authorization fails
+        expect(mockPush).not.toHaveBeenCalled();
       });
     });
 
