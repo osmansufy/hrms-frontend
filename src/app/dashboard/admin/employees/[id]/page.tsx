@@ -85,6 +85,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDepartments } from "@/lib/queries/departments";
 import { useDesignationsList } from "@/lib/queries/designations";
 import { useDeleteEmployee, useEmployeeDetail, useManagerSubordinates, useUpdateEmployee } from "@/lib/queries/employees";
+import { useUserMeta } from "@/lib/queries/user-meta";
 import { extractErrorMessage } from "@/lib/utils/error-handler";
 import { MonthlySummaryCard } from "../../attendance/components/monthly-summary-card";
 import { cn } from "@/lib/utils";
@@ -152,6 +153,7 @@ export default function AdminEmployeeDetailPage() {
   const { data: subordinates = [] } = useManagerSubordinates(id);
   const { data: departments = [] } = useDepartments();
   const { data: designations = [] } = useDesignationsList();
+  const { data: meta, isLoading: metaLoading } = useUserMeta(data?.userId ?? undefined);
 
   const existingCode = data?.employeeCode || "";
   const codeMatch = existingCode.match(/^([A-Za-z]+)(\d+)$/);
@@ -498,6 +500,57 @@ export default function AdminEmployeeDetailPage() {
                 <InfoRow label="Employment Type" value={formatEmploymentType(data.employmentType)} />
                 <InfoRow label="Joining Date" value={data.joiningDate?.slice(0, 10)} icon={<Calendar className="size-4" />} />
                 <InfoRow label="Status" value={status} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="size-5" />
+                    Access settings
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowUserMetaDialog(true)}
+                    disabled={metaLoading}
+                  >
+                    <Edit2 className="mr-2 size-4" />
+                    Edit
+                  </Button>
+                </div>
+                <CardDescription>
+                  Per-user access overrides for attendance and sign-in.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {metaLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                ) : meta ? (
+                  <>
+                    <InfoRow
+                      label="Allow mobile sign-in"
+                      value={meta.allowMobileSignIn ? "Yes" : "No"}
+                      icon={<Smartphone className="size-4" />}
+                    />
+                    <InfoRow
+                      label="Allow web sign-in"
+                      value={meta.allowWebSignIn ? "Yes" : "No"}
+                    />
+                    <InfoRow
+                      label="Require geo-fence"
+                      value={meta.requireGeoFence ? "Yes" : "No"}
+                      icon={<MapPin className="size-4" />}
+                    />
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Unable to load access settings.</p>
+                )}
               </CardContent>
             </Card>
           </div>

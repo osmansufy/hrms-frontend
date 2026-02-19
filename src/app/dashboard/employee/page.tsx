@@ -124,9 +124,13 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     const device = detectDevice();
     setDeviceInfo(device);
-    console.log(allowMobileAttendance, userMeta?.allowMobileSignIn);
-    // Mobile allowed only when system allows or user meta allows (no row = allow)
+    console.log(device);
+    if (device.type === "mobile") {
+      // Mobile allowed only when system allows or user meta allows (no row = allow)
     setIsDeviceAllowed(allowMobileAttendance || userMeta?.allowMobileSignIn !== false);
+    } else {
+      setIsDeviceAllowed(true);
+    }
   }, [allowMobileAttendance, userMeta?.allowMobileSignIn]);
 
   // Attendance queries
