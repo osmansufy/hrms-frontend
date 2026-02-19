@@ -9,12 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, Shield, Mail, Lock, User, Building, Briefcase, Code, Loader2, RefreshCw, Filter, X, Database, Download, AlertCircle, Trash2, FileDown } from "lucide-react";
+import { Users, UserPlus, Shield, Mail, Lock, User, Building, Briefcase, Code, Loader2, RefreshCw, Filter, X, Database, Download, AlertCircle, Trash2, FileDown, Smartphone } from "lucide-react";
+import { UserMetaDialog } from "@/components/user-meta-dialog";
 import { useUsers, useCreateUser, useToggleUserStatus, useDeleteUser, useUpdateUserRole } from "@/lib/queries/users";
 import { useDepartments } from "@/lib/queries/departments";
 import { useDesignations } from "@/lib/queries/employees";
 import { useBackupStatus, useTriggerBackup, useListBackups, useDeleteBackup, useDownloadBackup, useRestoreBackup } from "@/lib/queries/backup";
-import { toast } from "sonner";
 
 export default function SuperAdminDashboard() {
   const { data: users, isLoading } = useUsers();
@@ -39,6 +39,7 @@ export default function SuperAdminDashboard() {
     userId: "",
     currentRole: "",
   });
+  const [metaDialogUser, setMetaDialogUser] = useState<{ id: string; name: string } | null>(null);
   const [newRole, setNewRole] = useState<"ADMIN" | "HR_MANAGER" | "EMPLOYEE">("ADMIN");
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [form, setForm] = useState({
@@ -504,6 +505,20 @@ export default function SuperAdminDashboard() {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                onClick={() =>
+                                  setMetaDialogUser({
+                                    id: user.id,
+                                    name: [user.employee?.firstName, user.employee?.lastName].filter(Boolean).join(" ") || user.email,
+                                  })
+                                }
+                                title="Access settings (e.g. allow mobile sign-in)"
+                              >
+                                <Smartphone className="h-4 w-4 mr-1" />
+                                Access
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => {
                                   setRoleChangeDialog({
                                     isOpen: true,
@@ -717,6 +732,16 @@ export default function SuperAdminDashboard() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* User meta (access settings) dialog */}
+      {metaDialogUser && (
+        <UserMetaDialog
+          userId={metaDialogUser.id}
+          userName={metaDialogUser.name}
+          open={true}
+          onOpenChange={(open) => !open && setMetaDialogUser(null)}
+        />
+      )}
 
       {/* Change Role Dialog */}
       <Dialog open={roleChangeDialog.isOpen} onOpenChange={(open) => setRoleChangeDialog({ ...roleChangeDialog, isOpen: open })}>

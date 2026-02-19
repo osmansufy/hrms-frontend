@@ -12,6 +12,7 @@ import {
 } from "@/lib/queries/attendance";
 import { useMyLeaves } from "@/lib/queries/leave";
 import { useSystemSettings } from "@/lib/queries/system-settings";
+import { useMyUserMeta } from "@/lib/queries/user-meta";
 import { cn, formatDateInDhaka, toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 import {
   detectDevice,
@@ -43,6 +44,7 @@ export default function EmployeeDashboard() {
 
   // System settings (late threshold, mobile attendance, location capture)
   const { data: systemSettings } = useSystemSettings();
+  const { data: userMeta } = useMyUserMeta();
   const leaveDeductionDay = systemSettings?.leaveDeductionDay ?? 4;
   const allowMobileAttendance = systemSettings?.allowMobileAttendance ?? false;
   const captureEmployeeLocation =
@@ -122,13 +124,10 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     const device = detectDevice();
     setDeviceInfo(device);
-    // If mobile attendance is allowed via system settings, we don't block on device
-    if (allowMobileAttendance) {
-      setIsDeviceAllowed(true);
-    } else {
-      setIsDeviceAllowed(isDeviceAllowedForAttendance());
-    }
-  }, [allowMobileAttendance]);
+    console.log(allowMobileAttendance, userMeta?.allowMobileSignIn);
+    // Mobile allowed only when system allows or user meta allows (no row = allow)
+    setIsDeviceAllowed(allowMobileAttendance || userMeta?.allowMobileSignIn !== false);
+  }, [allowMobileAttendance, userMeta?.allowMobileSignIn]);
 
   // Attendance queries
   const { data: todayAttendance, isLoading: attendanceLoading, isFetching: attendanceFetching } = useTodayAttendance(userId);
@@ -137,10 +136,15 @@ export default function EmployeeDashboard() {
 
   // Attendance handlers - using utility functions
   const performSignIn = useCallback(async () => {
-    // Device check
-    if (!isDeviceAllowedForAttendance()) {
+    if (!isDeviceAllowed) {
       const device = detectDevice();
-      toast.error(device.type === "mobile" ? "Attendance is only allowed from desktop or laptop computers." : "Device not allowed");
+      const message =
+        allowMobileAttendance && userMeta?.allowMobileSignIn === false
+          ? "Your account is not allowed to mark attendance from mobile devices."
+          : device.type === "mobile"
+            ? "Attendance is only allowed from desktop or laptop computers."
+            : "Device not allowed";
+      toast.error(message);
       return;
     }
 
@@ -190,6 +194,9 @@ export default function EmployeeDashboard() {
       }
     }
   }, [
+    isDeviceAllowed,
+    allowMobileAttendance,
+    userMeta?.allowMobileSignIn,
     signInMutation,
     location,
     captureEmployeeLocation,
@@ -347,10 +354,15 @@ export default function EmployeeDashboard() {
   }, [performSignIn]);
 
   const handleSignOut = useCallback(async () => {
-    // Device check
-    if (!isDeviceAllowedForAttendance()) {
+    if (!isDeviceAllowed) {
       const device = detectDevice();
-      toast.error(device.type === "mobile" ? "Attendance is only allowed from desktop or laptop computers." : "Device not allowed");
+      const message =
+        allowMobileAttendance && userMeta?.allowMobileSignIn === false
+          ? "Your account is not allowed to mark attendance from mobile devices."
+          : device.type === "mobile"
+            ? "Attendance is only allowed from desktop or laptop computers."
+            : "Device not allowed";
+      toast.error(message);
       return;
     }
 
@@ -396,6 +408,9 @@ export default function EmployeeDashboard() {
       }
     }
   }, [
+    isDeviceAllowed,
+    allowMobileAttendance,
+    userMeta?.allowMobileSignIn,
     signOutMutation,
     location,
     captureEmployeeLocation,

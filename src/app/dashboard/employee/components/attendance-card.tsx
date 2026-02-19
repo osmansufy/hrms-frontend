@@ -63,7 +63,6 @@ export function AttendanceCard({
   locationPermissionStatus,
   isGettingLocation,
   isLocationReady,
-  isLocationBlocked,
   activeBreak,
   onRequestLocationAccess,
   onSignIn,
@@ -91,6 +90,11 @@ export function AttendanceCard({
     return null;
   };
   const blockReason = getBlockReason();
+
+  // When blocked by location: permission can be granted but coords not yet available
+  const isLocationPermissionGranted = locationPermissionStatus === "granted";
+  const isWaitingForCoordinates =
+    blockReason === "location" && isLocationPermissionGranted;
 
   const attendanceStatus = attendanceLoading
     ? "Checking status…"
@@ -204,7 +208,11 @@ export function AttendanceCard({
               ) : blockReason === "device" ? (
                 <Monitor className="size-7 text-muted-foreground" />
               ) : blockReason === "location" ? (
-                <MapPin className="size-7 text-muted-foreground" />
+                isWaitingForCoordinates && isGettingLocation ? (
+                  <Loader2 className="size-7 animate-spin text-muted-foreground" />
+                ) : (
+                  <MapPin className="size-7 text-muted-foreground" />
+                )
               ) : blockReason === "break" ? (
                 <Coffee className="size-7 text-orange-500" />
               ) : !todayAttendance?.signIn ? (
@@ -230,9 +238,13 @@ export function AttendanceCard({
                       : "text-muted-foreground"
             )}>
               {blockReason === "device"
-                ? "PC Required"
+                ? "Desktop Required"
                 : blockReason === "location"
-                  ? "Location Required"
+                  ? isWaitingForCoordinates
+                    ? isGettingLocation
+                      ? "Getting location…"
+                      : "Waiting for GPS…"
+                    : "Location Required"
                   : blockReason === "break"
                     ? "End Break First"
                     : !todayAttendance?.signIn

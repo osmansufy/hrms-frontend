@@ -10,6 +10,7 @@ import {
   Mail, 
   MoreVertical, 
   Phone, 
+  Smartphone,
   Trash2, 
   UserCog,
   User,
@@ -30,6 +31,7 @@ import { useEffect, useState } from "react";
 import { AssignManagerDialog } from "@/components/assign-manager-dialog";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import { ChangeWorkScheduleDialog } from "@/components/change-work-schedule-dialog";
+import { UserMetaDialog } from "@/components/user-meta-dialog";
 import { EmployeeLeaveBalanceCard } from "@/components/employee-leave-balance-card";
 import { ProfilePictureUpload } from "@/components/profile-picture-upload";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -141,6 +143,7 @@ export default function AdminEmployeeDetailPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [showUserMetaDialog, setShowUserMetaDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   
   const { data, isLoading, isError } = useEmployeeDetail(id || "");
@@ -404,6 +407,10 @@ export default function AdminEmployeeDetailPage() {
                   </DropdownMenuItem>
                 }
               />
+              <DropdownMenuItem onClick={() => setShowUserMetaDialog(true)}>
+                <Smartphone className="mr-2 size-4" />
+                Access settings (mobile sign-in)
+              </DropdownMenuItem>
               <AssignManagerDialog
                 employeeId={id || ""}
                 employeeName={fullName}
@@ -928,6 +935,14 @@ export default function AdminEmployeeDetailPage() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* User meta (access settings) dialog */}
+      <UserMetaDialog
+        userId={data.userId}
+        userName={fullName}
+        open={showUserMetaDialog}
+        onOpenChange={setShowUserMetaDialog}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

@@ -69,10 +69,10 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
       geolocation.latitude !== undefined &&
       geolocation.longitude !== undefined,
     staleTime: LOCATION_CACHE_DURATION,
-    queryFn: async () => {
+    queryFn: async (): Promise<string | null> => {
       const { latitude, longitude } = geolocationRef.current;
       if (latitude === undefined || longitude === undefined) {
-        return undefined;
+        return null;
       }
 
       try {
@@ -93,7 +93,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         console.warn("Failed to reverse geocode:", error);
       }
 
-      return undefined;
+      return null;
     },
   });
 
