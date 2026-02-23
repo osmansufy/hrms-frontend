@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,20 +31,32 @@ export function UserMetaDialog({
   const updateMutation = useUpdateUserMeta(userId);
   const [allowMobileSignIn, setAllowMobileSignIn] = useState(true);
   const [allowAssetRequest, setAllowAssetRequest] = useState(true);
+  const isDirtyRef = useRef(false);
+  const prevOpenRef = useRef(false);
 
   useEffect(() => {
-    if (meta) {
-      setAllowMobileSignIn(meta.allowMobileSignIn);
-      setAllowAssetRequest(meta.allowAssetRequest);
+    if (!open) {
+      prevOpenRef.current = false;
+      return;
     }
-  }, [meta]);
-
-  useEffect(() => {
-    if (open) {
+    if (!prevOpenRef.current) {
+      isDirtyRef.current = false;
+    }
+    if (open && !isDirtyRef.current) {
       setAllowMobileSignIn(meta?.allowMobileSignIn ?? true);
       setAllowAssetRequest(meta?.allowAssetRequest ?? true);
     }
-  }, [open, meta]); // Sync initial values when dialog opens; meta useEffect overwrites when loaded
+    prevOpenRef.current = open;
+  }, [open, meta]);
+
+  const handleAllowMobileSignInChange = (value: boolean) => {
+    isDirtyRef.current = true;
+    setAllowMobileSignIn(value);
+  };
+  const handleAllowAssetRequestChange = (value: boolean) => {
+    isDirtyRef.current = true;
+    setAllowAssetRequest(value);
+  };
 
   const handleSave = async () => {
     await updateMutation.mutateAsync({ allowMobileSignIn, allowAssetRequest });
@@ -83,7 +95,7 @@ export function UserMetaDialog({
               <Switch
                 id="allow-mobile"
                 checked={allowMobileSignIn}
-                onCheckedChange={setAllowMobileSignIn}
+                onCheckedChange={handleAllowMobileSignInChange}
               />
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
@@ -98,7 +110,7 @@ export function UserMetaDialog({
               <Switch
                 id="allow-asset-request"
                 checked={allowAssetRequest}
-                onCheckedChange={setAllowAssetRequest}
+                onCheckedChange={handleAllowAssetRequestChange}
               />
             </div>
           </div>

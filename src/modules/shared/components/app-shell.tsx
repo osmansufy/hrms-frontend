@@ -48,7 +48,7 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
   const hasSubordinates = useMemo(() => {
     return subordinatesData && subordinatesData.length > 0;
   }, [subordinatesData]);
-  const allowAssetRequest = userMeta?.allowAssetRequest !== false;
+  const allowAssetRequest = userMeta != null && userMeta.allowAssetRequest !== false;
 
   const navItems = useMemo(() => {
     const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
@@ -212,7 +212,7 @@ function MobileNav() {
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useUIStore();
   const primaryRole = useMemo(() => getPrimaryRole(roles), [roles]);
   const { data: userMeta } = useMyUserMeta();
-  const allowAssetRequest = userMeta?.allowAssetRequest !== false;
+  const allowAssetRequest = userMeta != null && userMeta.allowAssetRequest !== false;
 
   const navItems = useMemo(() => {
     const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);

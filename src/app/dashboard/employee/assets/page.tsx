@@ -11,7 +11,7 @@ import { formatDateInDhaka } from "@/lib/utils";
 export default function EmployeeAssetsPage() {
   const { data, isLoading } = useMyAssets();
   const { data: userMeta } = useMyUserMeta();
-  const allowAssetRequest = userMeta?.allowAssetRequest !== false;
+  const allowAssetRequest = userMeta != null && userMeta.allowAssetRequest !== false;
   const assignments = data?.data ?? [];
 
   return (
