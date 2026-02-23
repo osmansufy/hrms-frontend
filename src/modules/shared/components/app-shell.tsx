@@ -32,6 +32,7 @@ import { usePermissions } from "@/modules/shared/hooks/use-permissions";
 import { useUIStore } from "@/modules/shared/stores/ui-store";
 import { useSubordinatesLeaves, usePendingHRApprovals, useAmendments } from "@/lib/queries/leave";
 import { useAttendanceReconciliationRequests } from "@/lib/queries/attendance";
+import { useMyUserMeta } from "@/lib/queries/user-meta";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -43,20 +44,40 @@ export function AppShell({ children, title = "Dashboard" }: AppShellProps) {
   const { permissions, roles } = usePermissions();
   const primaryRole = useMemo(() => getPrimaryRole(roles), [roles]);
   const { data: subordinatesData } = useSubordinatesLeaves();
+  const { data: userMeta } = useMyUserMeta();
   const hasSubordinates = useMemo(() => {
     return subordinatesData && subordinatesData.length > 0;
   }, [subordinatesData]);
+  const allowAssetRequest = userMeta?.allowAssetRequest !== false;
 
   const navItems = useMemo(() => {
     const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
     // Hide Team Leave if user has no subordinates
-    return filtered.filter(item => {
-      if (item.href === "/dashboard/employee/team-manage") {
-        return hasSubordinates;
-      }
-      return true;
-    });
-  }, [permissions, roles, primaryRole, hasSubordinates]);
+    return filtered
+      .filter(item => {
+        if (item.href === "/dashboard/employee/team-manage") {
+          return hasSubordinates;
+        }
+        return true;
+      })
+      .map(item => {
+        // When asset requests not allowed, show only "My Assets", hide "My Requests"
+        if (item.label === "Assets" && item.children && !allowAssetRequest) {
+          return {
+            ...item,
+            children: item.children.filter(
+              child => child.href !== "/dashboard/employee/assets/requests"
+            ),
+          };
+        }
+        return item;
+      })
+      .filter(item => {
+        // Hide Assets section if no children left (e.g. only My Requests was there and it was removed)
+        if (item.label === "Assets" && item.children?.length === 0) return false;
+        return true;
+      });
+  }, [permissions, roles, primaryRole, hasSubordinates, allowAssetRequest]);
   // If you're using any dynamic data, ensure it's initialized consistently
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
@@ -190,32 +211,41 @@ function MobileNav() {
   const { permissions, roles } = usePermissions();
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useUIStore();
   const primaryRole = useMemo(() => getPrimaryRole(roles), [roles]);
-
+  const { data: userMeta } = useMyUserMeta();
+  const allowAssetRequest = userMeta?.allowAssetRequest !== false;
 
   const navItems = useMemo(() => {
     const filtered = filterNav(NAV_BY_ROLE[primaryRole], roles, permissions);
+    // Apply same Assets child filter as desktop (hide My Requests when not allowed)
+    const withAssetFilter = filtered.map(item => {
+      if (item.label === "Assets" && item.children && !allowAssetRequest) {
+        return {
+          ...item,
+          children: item.children.filter(
+            child => child.href !== "/dashboard/employee/assets/requests"
+          ),
+        };
+      }
+      return item;
+    });
     // Flatten navigation for mobile: include items with href and children of parent items
     const flatItems: typeof filtered = [];
 
-    filtered.forEach(item => {
+    withAssetFilter.forEach(item => {
       if (item.href) {
-        // Direct items with href
         if (item.href === "/dashboard/employee/team-manage") {
-          return; // Skip team management if no subordinates
+          return;
         }
         flatItems.push(item);
       } else if (item.children && item.children.length > 0) {
-        // Items with children - add parent linking to first child's href
         const firstChild = item.children[0];
         if (firstChild?.href) {
-          // Add parent item pointing to first child's destination
           flatItems.push({
             ...item,
             href: firstChild.href,
-            label: item.label, // Keep parent label (e.g., "Attendance")
+            label: item.label,
           });
         }
-        // Add remaining children (skip first since parent links there)
         item.children.slice(1).forEach(child => {
           if (child.href) {
             flatItems.push(child);
@@ -225,7 +255,7 @@ function MobileNav() {
     });
 
     return flatItems;
-  }, [permissions, roles, primaryRole]);
+  }, [permissions, roles, primaryRole, allowAssetRequest]);
   return (
     <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <SheetTrigger asChild className="lg:hidden">

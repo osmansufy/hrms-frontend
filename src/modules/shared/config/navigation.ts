@@ -8,6 +8,8 @@ import {
   Users,
   CalendarCheck,
   Mail,
+  Package,
+  Laptop,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -72,6 +74,25 @@ const EMPLOYEE_NAV: NavItem[] = [
     icon: Users,
     roles: ["employee", "admin", "super-admin"],
     permissions: ["leave.request"], // Show to all employees; page will check if they have subordinates
+  },
+  {
+    label: "Assets",
+    icon: Package,
+    roles: ["employee", "admin", "super-admin"],
+    children: [
+      {
+        href: "/dashboard/employee/assets",
+        label: "My Assets",
+        icon: Laptop,
+        roles: ["employee", "admin", "super-admin"],
+      },
+      {
+        href: "/dashboard/employee/assets/requests",
+        label: "My Requests",
+        icon: Package,
+        roles: ["employee", "admin", "super-admin"],
+      },
+    ],
   },
 ];
 
@@ -147,6 +168,37 @@ const ADMIN_NAV: NavItem[] = [
     icon: CalendarCheck,
     roles: ["admin", "super-admin"],
     permissions: ["leave.approve"],
+  },
+  {
+    label: "Asset Management",
+    icon: Package,
+    roles: ["admin", "super-admin"],
+    children: [
+      {
+        href: "/dashboard/admin/assets",
+        label: "Assets",
+        icon: Laptop,
+        roles: ["admin", "super-admin"],
+      },
+      {
+        href: "/dashboard/admin/assets/types",
+        label: "Asset Types",
+        icon: Package,
+        roles: ["admin", "super-admin"],
+      },
+      {
+        href: "/dashboard/admin/assets/requests",
+        label: "Requests",
+        icon: Package,
+        roles: ["admin", "super-admin"],
+      },
+      {
+        href: "/dashboard/admin/assets/offboarding",
+        label: "Offboarding",
+        icon: Package,
+        roles: ["admin", "super-admin"],
+      },
+    ],
   },
   {
     href: "/dashboard/admin/communications",

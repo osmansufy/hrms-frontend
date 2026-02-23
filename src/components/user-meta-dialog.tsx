@@ -30,15 +30,24 @@ export function UserMetaDialog({
   const { data: meta, isLoading } = useUserMeta(open ? userId : undefined);
   const updateMutation = useUpdateUserMeta(userId);
   const [allowMobileSignIn, setAllowMobileSignIn] = useState(true);
+  const [allowAssetRequest, setAllowAssetRequest] = useState(true);
 
   useEffect(() => {
     if (meta) {
       setAllowMobileSignIn(meta.allowMobileSignIn);
+      setAllowAssetRequest(meta.allowAssetRequest);
     }
   }, [meta]);
 
+  useEffect(() => {
+    if (open) {
+      setAllowMobileSignIn(meta?.allowMobileSignIn ?? true);
+      setAllowAssetRequest(meta?.allowAssetRequest ?? true);
+    }
+  }, [open, meta]); // Sync initial values when dialog opens; meta useEffect overwrites when loaded
+
   const handleSave = async () => {
-    await updateMutation.mutateAsync({ allowMobileSignIn });
+    await updateMutation.mutateAsync({ allowMobileSignIn, allowAssetRequest });
     onOpenChange(false);
   };
 
@@ -75,6 +84,21 @@ export function UserMetaDialog({
                 id="allow-mobile"
                 checked={allowMobileSignIn}
                 onCheckedChange={setAllowMobileSignIn}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="allow-asset-request" className="text-base">
+                  Allow asset request
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Allow this user to submit asset requests (e.g. request a laptop or monitor).
+                </p>
+              </div>
+              <Switch
+                id="allow-asset-request"
+                checked={allowAssetRequest}
+                onCheckedChange={setAllowAssetRequest}
               />
             </div>
           </div>

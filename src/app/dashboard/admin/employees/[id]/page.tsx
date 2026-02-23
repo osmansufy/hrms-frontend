@@ -19,7 +19,8 @@ import {
   Edit2,
   Save,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Box
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -537,6 +538,11 @@ export default function AdminEmployeeDetailPage() {
                       label="Allow mobile sign-in"
                       value={meta.allowMobileSignIn ? "Yes" : "No"}
                       icon={<Smartphone className="size-4" />}
+                    />
+                    <InfoRow
+                      label="Allow asset request"
+                      value={meta.allowAssetRequest ? "Yes" : "No"}
+                      icon={<Box className="size-4" />}
                     />
                     <InfoRow
                       label="Allow web sign-in"
