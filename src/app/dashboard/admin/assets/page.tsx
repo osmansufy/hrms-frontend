@@ -28,7 +28,6 @@ import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { toast } from "sonner";
 import { CreateAssetDialog } from "./components/create-asset-dialog";
 import Link from "next/link";
-import { AssetDetailDialog } from "./components/asset-detail-dialog";
 import { ReturnAssetDialog } from "./components/return-asset-dialog";
 import { AssignAssetDialog } from "./components/assign-asset-dialog";
 
@@ -51,7 +50,6 @@ export default function AdminAssetsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [assetToAssign, setAssetToAssign] = useState<Asset | null>(null);
   const [assetToReturn, setAssetToReturn] = useState<Asset | null>(null);
-  const [detailAsset, setDetailAsset] = useState<Asset | null>(null);
 
   const { data, isLoading } = useAssets({
     page,
@@ -184,13 +182,12 @@ export default function AdminAssetsPage() {
                         return (
                           <TableRow key={asset.id}>
                             <TableCell>
-                              <button
-                                type="button"
+                              <Link
+                                href={`/dashboard/admin/assets/${asset.id}`}
                                 className="font-medium text-primary hover:underline"
-                                onClick={() => setDetailAsset(asset)}
                               >
                                 {asset.assetTag}
-                              </button>
+                              </Link>
                             </TableCell>
                             <TableCell>
                               {asset.assetType?.name ?? "—"}
@@ -280,13 +277,6 @@ export default function AdminAssetsPage() {
           asset={assetToReturn}
           open={!!assetToReturn}
           onOpenChange={(open: boolean) => !open && setAssetToReturn(null)}
-        />
-      )}
-      {detailAsset && (
-        <AssetDetailDialog
-          assetId={detailAsset.id}
-          open={!!detailAsset}
-          onOpenChange={(open: boolean) => !open && setDetailAsset(null)}
         />
       )}
     </div>
