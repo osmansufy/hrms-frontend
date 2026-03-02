@@ -54,7 +54,7 @@ export function LeaveLedgerTab() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const debouncedSearch = useDebounce(search.trim(), 300);
+  const debouncedSearch = useDebounce(search.trim(), 500);
 
   const { data: departments } = useDepartments();
   const { data: leaveTypes } = useLeaveTypesAdmin({ isActive: true });
