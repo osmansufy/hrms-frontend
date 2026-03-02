@@ -449,7 +449,7 @@ export function useCreateAmendment(userId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateAmendmentPayload) => createAmendment(payload),
-    onSuccess: (_, variables) => {
+    onSuccess: (_data: unknown, variables: CreateAmendmentPayload) => {
       queryClient.invalidateQueries({
         queryKey: ["leave-details", variables.originalLeaveId],
       });

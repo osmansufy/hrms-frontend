@@ -29,6 +29,11 @@ import { BreakTracker } from "./attendance/components/break-tracker";
 import { BreakHistoryCard } from "./attendance/components/break-history-card";
 import { useActiveBreak } from "@/lib/queries/attendance";
 import { getBreakTypeLabel, getBreakTypeIcon } from "@/lib/api/attendance";
+import type {
+  ExtendedAttendanceRecord,
+  AttendanceBreak,
+} from "@/lib/api/attendance";
+import type { LeaveRecord } from "@/lib/api/leave";
 import { LateAttendanceConfirmationModal } from "./components/late-attendance-confirmation-modal";
 import { LateAttendanceWarningModal } from "./components/late-attendance-warning-modal";
 import { useGeolocation } from "./hooks/use-geolocation";
@@ -81,12 +86,15 @@ export default function EmployeeDashboard() {
     endDate: end.toISOString().split("T")[0],
     limit: "7",
   };
-  const { data: attendanceChartData } = useMyAttendanceRecords(userId, chartQueryParams);
+  const { data: attendanceChartData } = useMyAttendanceRecords(
+    userId,
+    chartQueryParams,
+  );
   const attendanceBarData = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(start);
     d.setUTCDate(start.getUTCDate() + i);
     const dateStr = formatDateInDhaka(d, "short");
-    const rec = attendanceChartData?.data?.find(r => {
+    const rec = attendanceChartData?.data?.find((r: ExtendedAttendanceRecord) => {
       const recDate = new Date(r.date);
       return recDate.getUTCFullYear() === d.getUTCFullYear() && recDate.getUTCMonth() === d.getUTCMonth() && recDate.getUTCDate() === d.getUTCDate();
     });
@@ -235,7 +243,7 @@ export default function EmployeeDashboard() {
 
       // Add completed breaks
       if (todayBreaksData?.breaks) {
-        todayBreaksData.breaks.forEach((breakRecord) => {
+        todayBreaksData.breaks.forEach((breakRecord: AttendanceBreak) => {
           if (breakRecord.endTime) {
             const start = new Date(breakRecord.startTime).getTime();
             const end = new Date(breakRecord.endTime).getTime();
@@ -289,7 +297,7 @@ export default function EmployeeDashboard() {
   const { data: leaves } = useMyLeaves(userId);
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  const monthlyLeaves = (leaves || []).filter(l => {
+  const monthlyLeaves = (leaves || []).filter((l: LeaveRecord) => {
     const start = new Date(l.startDate);
     return start.getMonth() === currentMonth && start.getFullYear() === currentYear;
   });

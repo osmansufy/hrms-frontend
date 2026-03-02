@@ -25,6 +25,9 @@ import { useAdminLedgerHistory, useLeaveTypesAdmin } from "@/lib/queries/leave";
 import { useDepartments } from "@/lib/queries/departments";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { formatDateInDhaka, formatTimeInTimezone } from "@/lib/utils";
+import type { LedgerEntry } from "@/lib/api/leave";
+import type { Department } from "@/lib/api/departments";
+import type { LeaveTypeWithStats } from "@/lib/api/leave";
 import {
   Search,
   ChevronLeft,
@@ -93,7 +96,7 @@ export function LeaveLedgerTab() {
     );
   }
 
-  const entries = data?.data ?? [];
+  const entries: LedgerEntry[] = data?.data ?? [];
   const pagination = data?.pagination;
 
   if (!entries.length) {
@@ -144,7 +147,7 @@ export function LeaveLedgerTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                {departments?.map((dept) => (
+                {departments?.map((dept: Department) => (
                   <SelectItem key={dept.id} value={dept.id}>
                     {dept.name}
                   </SelectItem>
@@ -164,7 +167,7 @@ export function LeaveLedgerTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Leave Types</SelectItem>
-                {leaveTypes?.map((lt) => (
+                {leaveTypes?.map((lt: LeaveTypeWithStats) => (
                   <SelectItem key={lt.id} value={lt.id}>
                     {lt.name}
                   </SelectItem>
@@ -304,7 +307,7 @@ export function LeaveLedgerTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.map((entry) => {
+                {entries.map((entry: LedgerEntry) => {
                   const isDebit = entry.days < 0;
                   return (
                     <TableRow key={entry.id}>

@@ -39,6 +39,7 @@ import { formatDateInDhaka, formatInDhakaTimezone } from "@/lib/utils";
 import { useDepartments } from "@/lib/queries/departments";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
+import type { Department } from "@/lib/api/departments";
 
 function formatDate(dateString: string) {
     return formatDateInDhaka(dateString, "long");
@@ -90,25 +91,29 @@ export function EmployeeLeavesTab() {
         }
     };
 
-    const leaves = data?.data ?? [];
+    const leaves: LeaveRecord[] = data?.data ?? [];
     const pagination = data?.pagination;
 
     // Get unique statuses and leave types for filters (from current page data)
-    const uniqueStatuses = useMemo(() => {
+    const uniqueStatuses = useMemo<string[]>(() => {
         if (!leaves) return [];
-        return [...new Set(leaves.map(l => l.status))];
+        return Array.from(new Set(leaves.map((l) => l.status)));
     }, [leaves]);
 
-    const uniqueLeaveTypes = useMemo(() => {
+    const uniqueLeaveTypes = useMemo<string[]>(() => {
         if (!leaves) return [];
-        return [...new Set(leaves.map(l => l.leaveType?.name || l.leaveTypeId))];
+        return Array.from(
+            new Set(
+                leaves.map((l) => l.leaveType?.name ?? l.leaveTypeId),
+            ),
+        );
     }, [leaves]);
 
     // Filter leaves by status and leave type (text search is backend-driven)
-    const filteredLeaves = useMemo(() => {
+    const filteredLeaves = useMemo<LeaveRecord[]>(() => {
         if (!leaves) return [];
 
-        return leaves.filter(leave => {
+        return leaves.filter((leave) => {
             const matchesStatus = statusFilter === "all" || leave.status === statusFilter;
 
             const matchesLeaveType = leaveTypeFilter === "all" ||
@@ -159,7 +164,7 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Statuses</SelectItem>
-                                {uniqueStatuses.map(status => (
+                                {uniqueStatuses.map((status) => (
                                     <SelectItem key={status} value={status}>
                                         {status}
                                     </SelectItem>
@@ -172,7 +177,7 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Leave Types</SelectItem>
-                                {uniqueLeaveTypes.map(type => (
+                                {uniqueLeaveTypes.map((type) => (
                                     <SelectItem key={type} value={type}>
                                         {type}
                                     </SelectItem>
@@ -192,7 +197,7 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Departments</SelectItem>
-                                {departments?.map((department) => (
+                                {departments?.map((department: Department) => (
                                     <SelectItem key={department.id} value={department.id}>
                                         {department.name}
                                     </SelectItem>
@@ -221,10 +226,14 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-green-600">
-                                {leaves.filter(l => l.status === "APPROVED").length}
+                                {leaves.filter((l) => l.status === "APPROVED").length}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                {((leaves.filter(l => l.status === "APPROVED").length / leaves.length) * 100).toFixed(1)}%
+                                {(
+                                    (leaves.filter((l) => l.status === "APPROVED").length /
+                                        leaves.length) *
+                                    100
+                                ).toFixed(1)}
                             </p>
                         </CardContent>
                     </Card>
@@ -235,10 +244,14 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-yellow-600">
-                                {leaves.filter(l => l.status === "PENDING").length}
+                                {leaves.filter((l) => l.status === "PENDING").length}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                {((leaves.filter(l => l.status === "PENDING").length / leaves.length) * 100).toFixed(1)}%
+                                {(
+                                    (leaves.filter((l) => l.status === "PENDING").length /
+                                        leaves.length) *
+                                    100
+                                ).toFixed(1)}
                             </p>
                         </CardContent>
                     </Card>
@@ -249,10 +262,14 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-red-600">
-                                {leaves.filter(l => l.status === "REJECTED").length}
+                                {leaves.filter((l) => l.status === "REJECTED").length}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                {((leaves.filter(l => l.status === "REJECTED").length / leaves.length) * 100).toFixed(1)}%
+                                {(
+                                    (leaves.filter((l) => l.status === "REJECTED").length /
+                                        leaves.length) *
+                                    100
+                                ).toFixed(1)}
                             </p>
                         </CardContent>
                     </Card>
