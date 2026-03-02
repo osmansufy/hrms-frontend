@@ -663,6 +663,15 @@ export type LedgerEntry = {
     id: string;
     name: string;
     email: string;
+    employee?: {
+      firstName: string;
+      lastName: string;
+      employeeCode: string;
+      department?: {
+        id: string;
+        name: string;
+      } | null;
+    };
   };
   leaveTypeId: string;
   leaveType: {
@@ -1084,6 +1093,19 @@ export type AdminBalanceExportParams = {
   endDate?: string;
 };
 
+export type AdminLedgerParams = {
+  page?: number;
+  pageSize?: number;
+  leaveYear?: number;
+  userId?: string;
+  leaveTypeId?: string;
+  departmentId?: string;
+  transactionType?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+};
+
 /**
  * Get paginated list of all employee leave balances with advanced filtering
  * @param params - Query parameters for filtering and pagination
@@ -1151,6 +1173,21 @@ export async function getAdminAdjustmentHistory(
 ) {
   const response = await apiClient.get<AdminAdjustmentHistoryResponse>(
     "/admin/leave-balances/adjustments",
+    { params },
+  );
+  return response.data;
+}
+
+/**
+ * Get organization-wide leave ledger history for admin dashboards
+ * @param params - Query parameters for filtering and pagination
+ * @returns Paginated ledger entries with user, leave type, and creator details
+ */
+export async function getAdminLedgerHistory(
+  params?: AdminLedgerParams,
+): Promise<PaginatedLedgerResponse> {
+  const response = await apiClient.get<PaginatedLedgerResponse>(
+    "/admin/leave-balances/ledger-history",
     { params },
   );
   return response.data;

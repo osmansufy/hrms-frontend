@@ -27,6 +27,7 @@ import {
     NoticeRulesTab,
     WorkScheduleTab,
     EmployeeLeavesTab,
+    LeaveLedgerTab,
 } from "./components";
 import { Separator } from "@/components/ui/separator";
 
@@ -103,11 +104,7 @@ export default function AdminLeavePage() {
                             <TabsTrigger value="accruals" className="flex items-center gap-2">
                                 <CalendarDays className="size-4" />
                                 Accrual Rules
-                            </TabsTrigger>
-                            <TabsTrigger value="schedule" className="flex items-center gap-2">
-                                <Clock className="size-4" />
-                                Work Schedule
-                            </TabsTrigger>
+                            </TabsTrigger>                       
                         </TabsList>
                     </div>
 
@@ -119,7 +116,7 @@ export default function AdminLeavePage() {
                             <BarChart3 className="size-4 text-muted-foreground" />
                             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Analytics</h3>
                         </div>
-                        <TabsList className="grid w-full grid-cols-2 h-auto">
+                        <TabsList className="grid w-full grid-cols-3 h-auto">
                             <TabsTrigger value="balances" className="flex items-center gap-2">
                                 <Wallet className="size-4" />
                                 Balances
@@ -127,6 +124,10 @@ export default function AdminLeavePage() {
                             <TabsTrigger value="audit" className="flex items-center gap-2">
                                 <FileText className="size-4" />
                                 Audit Trail
+                            </TabsTrigger>
+                            <TabsTrigger value="ledger" className="flex items-center gap-2">
+                                <Clock className="size-4" />
+                                Ledger
                             </TabsTrigger>
                         </TabsList>
                     </div>
@@ -148,6 +149,10 @@ export default function AdminLeavePage() {
                     <AuditTrailTab />
                 </TabsContent>
 
+                <TabsContent value="ledger" className="space-y-4">
+                    <LeaveLedgerTab />
+                </TabsContent>
+
                 <TabsContent value="approvals" className="space-y-4">
                     <LeaveApprovalsTab />
                 </TabsContent>
@@ -165,10 +170,6 @@ export default function AdminLeavePage() {
                 </TabsContent>
                 <TabsContent value="notice" className="space-y-4">
                     <NoticeRulesTab />
-                </TabsContent>
-
-                <TabsContent value="schedule" className="space-y-4">
-                    <WorkScheduleTab />
                 </TabsContent>
             </Tabs>
         </div >

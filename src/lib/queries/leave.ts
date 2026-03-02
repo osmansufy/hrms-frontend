@@ -554,7 +554,9 @@ export function useInitializeBalance() {
 // Leave Ledger History Hooks
 import {
   getSubordinateLedgerHistory,
+  getAdminLedgerHistory,
   type SubordinateLedgerParams,
+  type AdminLedgerParams,
 } from "@/lib/api/leave";
 
 export const ledgerKeys = {
@@ -573,6 +575,8 @@ export const ledgerKeys = {
       leaveTypeId,
       params,
     ] as const,
+  adminHistory: (params?: AdminLedgerParams) =>
+    ["leave-ledger", "admin", "history", params ?? {}] as const,
 };
 
 export function useMyLedgerHistory(leaveTypeId: string) {
@@ -606,6 +610,14 @@ export function useSubordinateLedgerHistory(
       );
     },
     enabled: Boolean(subordinateUserId) && Boolean(leaveTypeId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useAdminLedgerHistory(params?: AdminLedgerParams) {
+  return useQuery({
+    queryKey: ledgerKeys.adminHistory(params),
+    queryFn: () => getAdminLedgerHistory(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

@@ -6,6 +6,7 @@ export { AccrualRulesTab } from "./accrual-rules-tab";
 export { LeaveDashboardTab } from "./leave-dashboard-tab";
 export { LeaveBalancesTab } from "./leave-balances-tab";
 export { AuditTrailTab } from "./audit-trail-tab";
+export { LeaveLedgerTab } from "./leave-ledger-tab";
 export { LeaveTypesTab } from "./leave-types-tab";
 export { WorkScheduleTab } from "./work-schedule-tab";
 export { EmployeeLeavesTab } from "./employee-leaves-tab";

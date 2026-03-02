@@ -13,7 +13,7 @@ import {
 import { useMyLeaves } from "@/lib/queries/leave";
 import { useSystemSettings } from "@/lib/queries/system-settings";
 import { useMyUserMeta } from "@/lib/queries/user-meta";
-import { cn, formatDateInDhaka, toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
+import { cn, formatDateInDhaka, toStartOfDayISO, toEndOfDayISO, formatDateInTimezone } from "@/lib/utils";
 import {
   detectDevice,
   isDeviceAllowedForAttendance
@@ -225,7 +225,7 @@ export default function EmployeeDashboard() {
 
   // Live worked hours clock
   const [workedSeconds, setWorkedSeconds] = useState(0);
-  const todayDate = formatDateInDhaka(new Date(), "long");
+  const todayDate = formatDateInTimezone(new Date(), "long");
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
 
@@ -304,15 +304,7 @@ export default function EmployeeDashboard() {
     }
     leaveTypeMap[type].value += 1;
   }
-  const pieData = Object.values(leaveTypeMap);
 
-  // Lost hours report for last 7 days
-  const start7 = new Date();
-  start7.setDate(start7.getDate() - 7);
-  const { data: lostHoursData } = useMyLostHoursReport(userId, {
-    startDate: start7.toISOString().slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10)
-  });
 
   // Calculate break elapsed time
   useEffect(() => {
