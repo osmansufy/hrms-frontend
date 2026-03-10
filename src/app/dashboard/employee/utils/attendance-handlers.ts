@@ -108,10 +108,8 @@ export async function getGeolocationForAttendance(
     }
 
     // No location available
-    console.warn("Unable to obtain geolocation after all attempts");
     return null;
   } catch (error) {
-    console.error("Error getting geolocation:", error);
 
     // Last resort: check ref for cached data
     const cachedGeo = geolocationRef.current;

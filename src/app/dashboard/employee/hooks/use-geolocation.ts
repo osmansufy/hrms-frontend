@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const LOCATION_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache duration
@@ -57,52 +56,13 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     (locationPermissionStatus === "denied" ||
       locationPermissionStatus === "unavailable");
 
-  // Reverse geocoding via React Query
-  const { data: reverseGeocodeAddress } = useQuery({
-    queryKey: [
-      "reverseGeocode",
-      captureEmployeeLocation ? geolocation.latitude : null,
-      captureEmployeeLocation ? geolocation.longitude : null,
-    ],
-    enabled:
-      captureEmployeeLocation &&
-      geolocation.latitude !== undefined &&
-      geolocation.longitude !== undefined,
-    staleTime: LOCATION_CACHE_DURATION,
-    queryFn: async (): Promise<string | null> => {
-      const { latitude, longitude } = geolocationRef.current;
-      if (latitude === undefined || longitude === undefined) {
-        return null;
-      }
-
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18`,
-          {
-            headers: { "User-Agent": "HRMS Attendance System" },
-          },
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.display_name) {
-            return data.display_name as string;
-          }
-        }
-      } catch (error) {
-        console.warn("Failed to reverse geocode:", error);
-      }
-
-      return null;
-    },
-  });
-
-  // Sync reverse geocoded address into local geolocation state
-  useEffect(() => {
-    if (reverseGeocodeAddress) {
-      setGeolocation((prev) => ({ ...prev, address: reverseGeocodeAddress }));
-    }
-  }, [reverseGeocodeAddress]);
+  /**
+   * Address reverse-geocoding intentionally disabled.
+   *
+   * Reason: It depends on an external API and can add noticeable latency and/or
+   * fail due to rate limits, impacting sign-in/sign-out UX. Attendance only
+   * requires coordinates (lat/lng); `address` remains optional.
+   */
 
   // Check geolocation permission status on mount and start watching if granted
   useEffect(() => {
@@ -145,10 +105,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
             }
           };
         } catch (error) {
-          console.warn(
-            "Permissions API not fully supported, falling back to geolocation check:",
-            error,
-          );
           checkLocationPermissionFallback();
         }
       } else {
@@ -193,7 +149,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           setGeolocationError(null);
         },
         (error) => {
-          console.warn("Watch position error:", error);
           if (error.code === error.PERMISSION_DENIED) {
             setGeolocationStatus("denied");
             setLocationPermissionStatus("denied");
@@ -235,7 +190,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
 
     // Small delay to ensure UI is rendered before showing browser prompt
     const timeoutId = setTimeout(() => {
-      console.log("Auto-prompting for location access...");
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -244,7 +198,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           setLocationPermissionStatus("granted");
         },
         (error) => {
-          console.warn("Auto-prompt location error:", error);
           if (error.code === error.PERMISSION_DENIED) {
             setGeolocationStatus("denied");
             setLocationPermissionStatus("denied");
@@ -275,7 +228,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     } | null> => {
       // If permission is denied, return null immediately
       if (locationPermissionStatus === "denied") {
-        console.warn("Location permission denied, cannot get location");
         return null;
       }
 
@@ -291,10 +243,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
 
         // For non-forced requests, use cache if within duration
         if (age < LOCATION_CACHE_DURATION) {
-          console.log(
-            `Using cached geolocation (age: ${Math.round(age / 1000)}s):`,
-            currentGeo,
-          );
           return {
             latitude: currentGeo.latitude,
             longitude: currentGeo.longitude,
@@ -306,7 +254,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
       // For force refresh or stale cache, get fresh location
       // Prevent concurrent calls
       if (isGettingLocation) {
-        console.log("Geolocation request already in progress, waiting...");
         // Wait for up to 3 seconds for the ongoing request
         for (let i = 0; i < 30; i++) {
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -324,7 +271,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
 
       return new Promise((resolve) => {
         if (!navigator.geolocation) {
-          console.warn("Geolocation is not supported by your browser");
           setGeolocationStatus("unavailable");
           setGeolocationError("Geolocation is not supported by your browser");
           resolve(null);
@@ -332,13 +278,11 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         }
 
         setIsGettingLocation(true);
-        console.log("Requesting fresh geolocation...");
         setGeolocationStatus("checking");
 
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             const { latitude, longitude } = position.coords;
-            console.log("Geolocation success:", { latitude, longitude });
 
             // Update state immediately with coordinates
             const geoData: GeolocationData = {
@@ -356,7 +300,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
             resolve({ latitude, longitude, address: currentGeo.address });
           },
           (error) => {
-            console.warn("Geolocation error:", error.code, error.message);
 
             let errorMessage = "Failed to get location";
 
@@ -377,7 +320,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
                 // On timeout, try to use cached location if available
                 const cachedGeo = geolocationRef.current;
                 if (cachedGeo.latitude && cachedGeo.longitude) {
-                  console.log("Using cached location after timeout");
                   setIsGettingLocation(false);
                   resolve({
                     latitude: cachedGeo.latitude,
@@ -433,7 +375,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         }
       }
     } catch (error) {
-      console.error("Error requesting location access:", error);
       setLocationPermissionStatus("denied");
     } finally {
       setIsGettingLocation(false);
@@ -454,12 +395,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
       const currentAddress = currentGeo?.address;
 
       if (currentLat && currentLng) {
-        console.log("Geolocation obtained after waiting:", {
-          latitude: currentLat,
-          longitude: currentLng,
-          address: currentAddress,
-          iteration: i + 1,
-        });
         return {
           latitude: currentLat,
           longitude: currentLng,
