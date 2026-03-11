@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar, CalendarDays, MapPin } from "lucide-react";
+import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar, CalendarDays, MapPin, Loader2 } from "lucide-react";
 import { useAttendanceRecords, useUpdateAttendanceRecord, useDeleteAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
@@ -539,13 +539,11 @@ function RecordsLocationCell({ record }: { record: ExtendedAttendanceRecord }) {
     const lat = record.signInLatitude ?? record.signOutLatitude;
     const lng = record.signInLongitude ?? record.signOutLongitude;
 
-    const { data: geocodedAddress, isLoading } = useReverseGeocode(
+    // On-demand: don't auto-fetch, only when admin clicks
+    const { data: geocodedAddress, isFetching, refetch } = useReverseGeocode(
         lat,
         lng,
-        !record.signInAddress &&
-        !record.signOutAddress &&
-        !record.signInLocation &&
-        !record.signOutLocation,
+        false,
     );
 
     const effectiveAddress =
@@ -555,6 +553,8 @@ function RecordsLocationCell({ record }: { record: ExtendedAttendanceRecord }) {
         record.signOutLocation ||
         geocodedAddress ||
         null;
+
+    const hasLatLng = lat != null && lng != null;
 
     return (
         <TableCell className="max-w-xs">
@@ -568,10 +568,25 @@ function RecordsLocationCell({ record }: { record: ExtendedAttendanceRecord }) {
                         {effectiveAddress}
                     </span>
                 </div>
-            ) : isLoading && lat != null && lng != null ? (
-                <span className="text-xs text-muted-foreground">
-                    Resolving...
-                </span>
+            ) : hasLatLng ? (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    disabled={isFetching}
+                    onClick={() => {
+                        if (!isFetching) {
+                            void refetch();
+                        }
+                    }}
+                >
+                    {isFetching ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                        <MapPin className="mr-1 h-3 w-3" />
+                    )}
+                    Fetch address
+                </Button>
             ) : (
                 <span className="text-xs text-muted-foreground">—</span>
             )}
