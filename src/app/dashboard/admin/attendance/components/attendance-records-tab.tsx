@@ -64,7 +64,7 @@ import {
 } from "@/components/ui/sheet";
 import { MonthlySummaryCard } from "./monthly-summary-card";
 import { BreakMonitorCard } from "./break-monitor-card";
-import { de } from "zod/v4/locales";
+import { useReverseGeocode } from "@/hooks/use-reverse-geocode";
 const LIMITS = [10, 30, 50, 100];
 const LIMITS_OPTIONS = LIMITS.map((limit) => ({
     label: limit.toString(),
@@ -269,10 +269,10 @@ export function AttendanceRecordsTab() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Employee</TableHead>
-                                <TableHead>Department</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Sign In</TableHead>
                                 <TableHead>Sign Out</TableHead>
+                                <TableHead>Location</TableHead>
                                 <TableHead>Lost Time</TableHead>
                                 <TableHead>Overtime</TableHead>
                                 <TableHead>Status</TableHead>
@@ -309,15 +309,19 @@ export function AttendanceRecordsTab() {
                                                     >
                                                         {record.user.name}
                                                     </Link>
-                                                    <span className="text-xs text-muted-foreground">{record.user.employee?.employeeCode}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {record.user.employee?.employeeCode}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {departments?.find(dept => dept.id === record.user.employee?.departmentId)?.name || "—"}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{departments?.find(dept => dept.id === record.user.employee?.departmentId)?.name || "—"}</TableCell>
                                         <TableCell>{formatDateInTimezone(record.date, "long")}</TableCell>
                                         <TableCell>{formatTime(record.signIn)}</TableCell>
                                         <TableCell>{formatTime(record.signOut)}</TableCell>
-
+                                        <RecordsLocationCell record={record} />
                                         <TableCell>
                                             {record.lostMinutes != null ? `${record.lostMinutes} mins` : "—"}
                                         </TableCell>
@@ -528,6 +532,50 @@ export function AttendanceRecordsTab() {
                 </SheetContent>
             </Sheet>
         </>
+    );
+}
+
+function RecordsLocationCell({ record }: { record: ExtendedAttendanceRecord }) {
+    const lat = record.signInLatitude ?? record.signOutLatitude;
+    const lng = record.signInLongitude ?? record.signOutLongitude;
+
+    const { data: geocodedAddress, isLoading } = useReverseGeocode(
+        lat,
+        lng,
+        !record.signInAddress &&
+        !record.signOutAddress &&
+        !record.signInLocation &&
+        !record.signOutLocation,
+    );
+
+    const effectiveAddress =
+        record.signInAddress ||
+        record.signOutAddress ||
+        record.signInLocation ||
+        record.signOutLocation ||
+        geocodedAddress ||
+        null;
+
+    return (
+        <TableCell className="max-w-xs">
+            {effectiveAddress ? (
+                <div className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span
+                        className="text-xs text-muted-foreground truncate"
+                        title={effectiveAddress}
+                    >
+                        {effectiveAddress}
+                    </span>
+                </div>
+            ) : isLoading && lat != null && lng != null ? (
+                <span className="text-xs text-muted-foreground">
+                    Resolving...
+                </span>
+            ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+            )}
+        </TableCell>
     );
 }
 

@@ -35,6 +35,8 @@ export function TodayAttendanceCard() {
     const [searchQuery, setSearchQuery] = useState("");
     const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
     const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+    const [resolvingLocationId, setResolvingLocationId] = useState<string | null>(null);
+    const [resolvedAddresses, setResolvedAddresses] = useState<Record<string, string>>({});
 
     const queryParams = useMemo(() => ({
         startDate: toStartOfDayISO(today),
@@ -99,7 +101,47 @@ export function TodayAttendanceCard() {
     const late = records.filter(r => r.isLate);
     const onLeave = records.filter(r => r.isOnLeave === true);
     const onBreak = records.filter(r => r.isOnBreak === true);
-    console.log({ filteredRecords });
+
+    async function reverseGeocode(
+        latitude?: number | null,
+        longitude?: number | null
+    ): Promise<string | null> {
+        if (latitude == null || longitude == null) return null;
+
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18`,
+                {
+                    headers: { "User-Agent": "HRMS Admin Attendance Dashboard" },
+                }
+            );
+
+            if (!response.ok) return null;
+            const data = await response.json();
+            return typeof data.display_name === "string" ? data.display_name : null;
+        } catch (error) {
+            console.warn("Failed to reverse geocode admin attendance location:", error);
+            return null;
+        }
+    }
+
+    async function handleFetchLocation(record: any) {
+        if (resolvingLocationId === record.id) return;
+
+        const latitude = record.signInLatitude ?? record.signOutLatitude;
+        const longitude = record.signInLongitude ?? record.signOutLongitude;
+        if (latitude == null || longitude == null) return;
+
+        setResolvingLocationId(record.id);
+        try {
+            const address = await reverseGeocode(latitude, longitude);
+            if (address) {
+                setResolvedAddresses((prev) => ({ ...prev, [record.id]: address }));
+            }
+        } finally {
+            setResolvingLocationId(null);
+        }
+    }
     // Check for departments with more than 3 employees on break
     const departmentsWithManyOnBreak = useMemo(() => {
         const deptBreakCount = new Map<string, { count: number; employees: string[] }>();
@@ -278,7 +320,6 @@ export function TodayAttendanceCard() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Employee</TableHead>
-                                        <TableHead>Department</TableHead>
                                         <TableHead>Sign In</TableHead>
                                         <TableHead>Sign Out</TableHead>
                                         <TableHead>Location</TableHead>
@@ -288,13 +329,13 @@ export function TodayAttendanceCard() {
                                 <TableBody>
                                     {filteredRecords.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                                            <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
                                                 No records found matching your search or filter criteria.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         filteredRecords.map((record) => (
-                                            <TableRow key={record.id}>
+                                                <TableRow key={record.id}>
                                                 <TableCell>
                                                     <Link href={`/dashboard/admin/employees/${record.user?.employee?.id}`}>
 
@@ -304,17 +345,17 @@ export function TodayAttendanceCard() {
                                                                     {getInitials(record.user?.name || "?")}
                                                                 </AvatarFallback>
                                                             </Avatar>
-                                                            <div>
+                                                            <div className="flex flex-col">
                                                                 <div className="font-medium">{record.user?.name}</div>
                                                                 <div className="text-xs text-muted-foreground">
                                                                     {record.user?.employee?.employeeCode}
                                                                 </div>
+                                                                <div className="text-xs text-muted-foreground">
+                                                                    {departments?.find(dept => dept.id === record.user?.employee?.departmentId)?.name || "—"}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </Link>
-                                                </TableCell>
-                                                <TableCell className="text-sm">
-                                                    {departments?.find(dept => dept.id === record.user?.employee?.departmentId)?.name || "—"}
                                                 </TableCell>
                                                 <TableCell className="font-medium">
                                                     {formatTime(record.signIn)}
@@ -323,18 +364,55 @@ export function TodayAttendanceCard() {
                                                     {formatTime(record.signOut)}
                                                 </TableCell>
                                                 <TableCell className="max-w-xs">
-                                                    {(record.signInAddress || record.signInLocation || record.signOutAddress || record.signOutLocation) ? (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                                            <span className="text-xs text-muted-foreground truncate" title={
-                                                                [record.signInAddress, record.signOutAddress].filter(Boolean).join(" | ")
-                                                            }>
-                                                                {record.signInAddress || record.signInLocation || "Location"}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground">—</span>
-                                                    )}
+                                                    {(() => {
+                                                        const resolved = resolvedAddresses[record.id];
+                                                        const effectiveAddress =
+                                                            record.signInAddress ||
+                                                            record.signOutAddress ||
+                                                            resolved;
+                                                        const hasLatLng =
+                                                            (record.signInLatitude != null &&
+                                                                record.signInLongitude != null) ||
+                                                            (record.signOutLatitude != null &&
+                                                                record.signOutLongitude != null);
+
+                                                        if (effectiveAddress) {
+                                                            return (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                                                    <span
+                                                                        className="text-xs text-muted-foreground truncate"
+                                                                        title={effectiveAddress}
+                                                                    >
+                                                                        {effectiveAddress}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        if (hasLatLng) {
+                                                            return (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-7 px-2 text-xs"
+                                                                    onClick={() => handleFetchLocation(record)}
+                                                                    disabled={resolvingLocationId === record.id}
+                                                                >
+                                                                    {resolvingLocationId === record.id ? (
+                                                                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                                    ) : (
+                                                                        <MapPin className="mr-1 h-3 w-3" />
+                                                                    )}
+                                                                    Fetch address
+                                                                </Button>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <span className="text-xs text-muted-foreground">—</span>
+                                                        );
+                                                    })()}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
