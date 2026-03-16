@@ -48,6 +48,7 @@ const statusVariant: Record<
   "default" | "secondary" | "destructive" | "outline"
 > = {
   PENDING: "outline",
+  PROCESSING: "default",
   APPROVED: "default",
   REJECTED: "destructive",
   FULFILLED: "secondary",
@@ -196,7 +197,7 @@ export default function AdminAssetRequestsPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              {req.status === "PENDING" && (
+                              {req.status === "PROCESSING" && (
                                 <>
                                   <Button
                                     variant="outline"
@@ -225,6 +226,11 @@ export default function AdminAssetRequestsPage() {
                                 >
                                   Fulfill
                                 </Button>
+                              )}
+                              {req.status === "PENDING" && (
+                                <span className="text-sm text-muted-foreground">
+                                  Awaiting line manager
+                                </span>
                               )}
                             </TableCell>
                           </TableRow>

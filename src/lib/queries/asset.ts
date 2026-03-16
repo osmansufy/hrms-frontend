@@ -31,6 +31,8 @@ import {
   approveAssetRequest,
   rejectAssetRequest,
   fulfillAssetRequest,
+  getManagerPendingAssetRequests,
+  getHRProcessingAssetRequests,
 } from "@/lib/api/asset";
 
 // --- Query keys ---
@@ -75,6 +77,8 @@ export const assetRequestKeys = {
     employeeId?: string;
   }) => ["asset-requests", "list", params ?? {}] as const,
   detail: (id: string) => ["asset-requests", id] as const,
+  managerPending: ["asset-requests", "manager", "pending"] as const,
+  hrProcessing: ["asset-requests", "hr", "processing"] as const,
 };
 
 // --- Asset hooks ---
@@ -300,5 +304,23 @@ export function useFulfillAssetRequest(requestId: string) {
       qc.invalidateQueries({ queryKey: assetKeys.all });
       qc.invalidateQueries({ queryKey: assetKeys.assignments() });
     },
+  });
+}
+
+// --- Manager Asset Request hooks ---
+export function useManagerPendingAssetRequests() {
+  return useQuery({
+    queryKey: assetRequestKeys.managerPending,
+    queryFn: () => getManagerPendingAssetRequests(),
+    staleTime: 60_000,
+  });
+}
+
+// --- HR Asset Request hooks ---
+export function useHRProcessingAssetRequests() {
+  return useQuery({
+    queryKey: assetRequestKeys.hrProcessing,
+    queryFn: () => getHRProcessingAssetRequests(),
+    staleTime: 60_000,
   });
 }

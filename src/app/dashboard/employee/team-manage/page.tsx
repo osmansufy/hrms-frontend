@@ -1,12 +1,13 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, ClipboardCheck, Clock, AlertCircle } from "lucide-react";
+import { Users, ClipboardCheck, Clock, AlertCircle, Package } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
     PendingApprovalsTab,
+    PendingAssetApprovalsTab,
     TeamCalendarTab,
     TeamMembersTab
 } from "./components";
@@ -70,13 +71,15 @@ export default function TeamManagePage() {
             </div>
 
             <Tabs defaultValue="pending" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="pending" className="flex items-center gap-2">
                         <ClipboardCheck className="size-4" />
-                        Pending Approvals
+                        Leave Approvals
                     </TabsTrigger>
-                    {/* if manager has subordinates, show attendance tab */}
-
+                    <TabsTrigger value="asset-approvals" className="flex items-center gap-2">
+                        <Package className="size-4" />
+                        Asset Approvals
+                    </TabsTrigger>
                     <TabsTrigger value="subordinates" className="flex items-center gap-2">
                         <Users className="size-4" />
                         Team Members
@@ -85,12 +88,14 @@ export default function TeamManagePage() {
                         <Users className="size-4" />
                         Leave Calendar
                     </TabsTrigger>
-                    {/* Divider */}
-
                 </TabsList>
 
                 <TabsContent value="pending" className="space-y-4">
                     <PendingApprovalsTab />
+                </TabsContent>
+
+                <TabsContent value="asset-approvals" className="space-y-4">
+                    <PendingAssetApprovalsTab />
                 </TabsContent>
 
                 <TabsContent value="calendar" className="space-y-4">

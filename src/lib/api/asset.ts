@@ -20,6 +20,7 @@ export type AssetCondition = (typeof ASSET_CONDITION)[number];
 
 export const ASSET_REQUEST_STATUS = [
   "PENDING",
+  "PROCESSING",
   "APPROVED",
   "REJECTED",
   "FULFILLED",
@@ -97,13 +98,23 @@ export type AssetRequest = {
   assetTypeId: string;
   reason?: string | null;
   status: AssetRequestStatus;
+  requestedAt?: string;
+  
+  // Line Manager Approval (Step 1)
+  lineManagerApprovedById?: string | null;
+  lineManagerApprovedAt?: string | null;
+  lineManagerRejectionReason?: string | null;
+  
+  // HR/Admin Approval (Step 2)
   approvedById?: string | null;
   approvedAt?: string | null;
   rejectionReason?: string | null;
+  
+  // Fulfillment
   fulfilledById?: string | null;
   fulfilledAt?: string | null;
   assignmentId?: string | null;
-  requestedAt?: string;
+  
   assetType?: { id: string; code: string; name: string } | null;
   employee?: {
     id: string;
@@ -111,6 +122,11 @@ export type AssetRequest = {
     firstName: string;
     lastName: string;
   };
+  lineManagerApprovedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
   assignment?: {
     id: string;
     asset?: { id: string; assetTag: string };
@@ -343,6 +359,22 @@ export async function fulfillAssetRequest(
   const response = await apiClient.post<AssetRequest>(
     `/asset-requests/${id}/fulfill`,
     payload
+  );
+  return response.data;
+}
+
+// --- Manager Asset Request Endpoints ---
+export async function getManagerPendingAssetRequests() {
+  const response = await apiClient.get<AssetRequest[]>(
+    "/asset-requests/manager/pending"
+  );
+  return response.data;
+}
+
+// --- HR Asset Request Endpoints ---
+export async function getHRProcessingAssetRequests() {
+  const response = await apiClient.get<AssetRequest[]>(
+    "/asset-requests/hr/processing"
   );
   return response.data;
 }
