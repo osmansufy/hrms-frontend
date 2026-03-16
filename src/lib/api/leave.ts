@@ -104,6 +104,7 @@ export type LeaveDetails = {
   endDate: string;
   totalDays: number;
   supportingDocumentUrl?: string | null;
+  overrideReason?: string | null;
   approvalSteps: LeaveApprovalStep[];
   relatedAmendments?: RelatedLeaveAmendment[];
   balanceImpact?: {

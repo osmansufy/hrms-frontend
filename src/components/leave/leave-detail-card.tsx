@@ -129,6 +129,22 @@ export function LeaveDetailCard({ leave }: LeaveDetailCardProps) {
                     </div>
                 </div>
 
+                {/* Override Reason - shown if leave was overridden */}
+                {leave.overrideReason && (
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <FileText className="size-4" />
+                            <span className="font-medium">Override Reason</span>
+                            <Badge variant="outline" className="ml-auto text-xs border-amber-600 text-amber-700 bg-amber-50">
+                                Modified
+                            </Badge>
+                        </div>
+                        <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+                            <p className="text-sm text-amber-900">{leave.overrideReason}</p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Balance Impact */}
                 {leave.balanceImpact && (
                     <>
