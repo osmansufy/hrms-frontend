@@ -17,13 +17,23 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useManagerPendingLeaves, useManagerApproveLeave, useManagerRejectLeave, useAllUsersBalances } from "@/lib/queries/leave";
-import { AlertCircle, Check, Loader2, X, User, CheckSquare, History } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useManagerPendingLeaves, useManagerApproveLeave, useManagerRejectLeave } from "@/lib/queries/leave";
+import { AlertCircle, Check, Loader2, X, User, CheckSquare, History, Edit } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { bulkApproveLeaves, bulkRejectLeaves } from "@/lib/api/leave";
+import { bulkApproveLeaves, bulkRejectLeaves, overrideLeaveAsManager } from "@/lib/api/leave";
 import { EmployeeLeaveHistoryDialog } from "@/components/employee-leave-history-dialog";
 
 import { formatDateInDhaka } from "@/lib/utils";
@@ -42,6 +52,13 @@ export function PendingApprovalsTab() {
     const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
     const [showBulkConfirm, setShowBulkConfirm] = useState<{ action: "approve" | "reject" } | null>(null);
     const [viewHistoryFor, setViewHistoryFor] = useState<{ userId: string; employeeName: string } | null>(null);
+    const [editingLeave, setEditingLeave] = useState<any | null>(null);
+    const [editFormData, setEditFormData] = useState({
+        startDate: "",
+        endDate: "",
+        reason: "",
+        overrideReason: "",
+    });
 
     const bulkApproveMutation = useMutation({
         mutationFn: (leaveIds: string[]) => bulkApproveLeaves(leaveIds),
@@ -51,7 +68,7 @@ export function PendingApprovalsTab() {
             });
             setSelectedLeaveIds([]);
             setShowBulkConfirm(null);
-            queryClient.invalidateQueries({ queryKey: ["manager-pending-leaves"] });
+            queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
         },
         onError: (error: any) => {
             const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve leaves";
@@ -66,11 +83,35 @@ export function PendingApprovalsTab() {
             toast.success(`${variables.leaveIds.length} leave requests rejected`);
             setSelectedLeaveIds([]);
             setShowBulkConfirm(null);
-            queryClient.invalidateQueries({ queryKey: ["manager-pending-leaves"] });
+            queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
         },
         onError: (error: any) => {
             const errorMessage = error?.response?.data?.message || error?.message || "Failed to reject leaves";
             toast.error("Bulk Rejection Failed", { description: errorMessage });
+        }
+    });
+
+    const overrideMutation = useMutation({
+        mutationFn: (payload: {
+            id: string;
+            data: {
+                startDate?: string;
+                endDate?: string;
+                reason?: string;
+                overrideReason: string;
+            };
+        }) => overrideLeaveAsManager(payload.id, payload.data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
+            toast.success("Leave updated successfully", {
+                description: "The leave details have been overridden with the new information.",
+            });
+            setEditingLeave(null);
+            setEditFormData({ startDate: "", endDate: "", reason: "", overrideReason: "" });
+        },
+        onError: (error: any) => {
+            const errorMessage = error?.response?.data?.message || error?.message || "Failed to override leave";
+            toast.error("Override Failed", { description: errorMessage });
         }
     });
 
@@ -152,6 +193,33 @@ export function PendingApprovalsTab() {
             const errorString = typeof errorMessage === 'string' ? errorMessage : String(errorMessage);
             toast.error(errorString);
         }
+    };
+
+    const handleOpenEdit = (leave: any) => {
+        setEditingLeave(leave);
+        setEditFormData({
+            startDate: leave.startDate.split("T")[0],
+            endDate: leave.endDate.split("T")[0],
+            reason: leave.reason,
+            overrideReason: leave.overrideReason || "",
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingLeave || !editFormData.overrideReason.trim()) {
+            toast.error("Override reason is required");
+            return;
+        }
+
+        overrideMutation.mutate({
+            id: editingLeave.id,
+            data: {
+                startDate: editFormData.startDate,
+                endDate: editFormData.endDate,
+                reason: editFormData.reason,
+                overrideReason: editFormData.overrideReason,
+            },
+        });
     };
 
     if (isLoading) {
@@ -339,6 +407,22 @@ export function PendingApprovalsTab() {
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
+                                                                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                                                                onClick={() => handleOpenEdit(leave)}
+                                                                disabled={
+                                                                    approveMutation.isPending ||
+                                                                    rejectMutation.isPending ||
+                                                                    overrideMutation.isPending ||
+                                                                    bulkApproveMutation.isPending ||
+                                                                    bulkRejectMutation.isPending
+                                                                }
+                                                            >
+                                                                <Edit className="mr-1 size-4" />
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
                                                                 className="border-green-600 text-green-600 hover:bg-green-50"
                                                                 onClick={() => setSelectedLeave({ id: leave.id, action: "approve", employeeName })}
                                                                 disabled={approveMutation.isPending || rejectMutation.isPending}
@@ -368,6 +452,74 @@ export function PendingApprovalsTab() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Edit Dialog */}
+            {editingLeave && (
+                <Dialog open={!!editingLeave} onOpenChange={(open) => !open && setEditingLeave(null)}>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit Leave Details</DialogTitle>
+                            <DialogDescription>
+                                Modify the leave dates and reason. Override reason is mandatory.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Start Date</label>
+                                    <Input
+                                        type="date"
+                                        value={editFormData.startDate}
+                                        onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">End Date</label>
+                                    <Input
+                                        type="date"
+                                        value={editFormData.endDate}
+                                        onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Reason</label>
+                                <Textarea
+                                    value={editFormData.reason}
+                                    onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
+                                    placeholder="Leave reason"
+                                    rows={3}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-red-600">Override Reason *</label>
+                                <Textarea
+                                    value={editFormData.overrideReason}
+                                    onChange={(e) => setEditFormData({ ...editFormData, overrideReason: e.target.value })}
+                                    placeholder="Why are you making these changes? (Required)"
+                                    rows={3}
+                                    className="border-red-200"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setEditingLeave(null)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSaveEdit}
+                                disabled={overrideMutation.isPending}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                {overrideMutation.isPending ? (
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                ) : null}
+                                Save Changes
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
 
             {/* Bulk Confirmation Dialog */}
             {showBulkConfirm && (
