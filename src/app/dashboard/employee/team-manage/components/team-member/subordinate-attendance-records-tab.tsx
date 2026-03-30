@@ -187,12 +187,17 @@ export function SubordinateAttendanceRecordsTab({
       leaveDays: 0,
       totalWorkedHours: 0,
       averageWorkedHours: 0,
+      totalLostHours: 0,
       attendanceRate: 0,
       onTimeDays: 0,
     };
 
     records.forEach((record) => {
       stats.totalDays++;
+
+      if (typeof record.lostMinutes === "number") {
+        stats.totalLostHours += record.lostMinutes / 60;
+      }
 
       if (record.isWeekend) {
         stats.weekendDays++;
@@ -229,6 +234,13 @@ export function SubordinateAttendanceRecordsTab({
     if (!workedMinutes) return "—";
     const hours = Math.floor(workedMinutes / 60);
     const minutes = workedMinutes % 60;
+    return `${hours}h ${minutes}m`;
+  };
+
+  const formatLostHours = (lostMinutes?: number) => {
+    if (typeof lostMinutes !== "number") return "—";
+    const hours = Math.floor(lostMinutes / 60);
+    const minutes = lostMinutes % 60;
     return `${hours}h ${minutes}m`;
   };
 
@@ -487,24 +499,24 @@ export function SubordinateAttendanceRecordsTab({
                     </CardContent>
                   </Card>
 
-                  {/* Average Hours */}
+                  {/* Lost Hours */}
                   <Card className="border-2">
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="p-2 rounded-lg bg-blue-500/10">
-                          <Clock className="h-5 w-5 text-blue-600" />
+                        <div className="p-2 rounded-lg bg-orange-500/10">
+                          <TrendingDown className="h-5 w-5 text-orange-600" />
                         </div>
-                        <Badge variant="outline" className="text-blue-600 border-blue-200">
-                          Avg
+                        <Badge variant="outline" className="text-orange-600 border-orange-200">
+                          Lost
                         </Badge>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground">Avg Work Hours</p>
-                        <p className="text-3xl font-bold text-blue-600">
-                          {monthlyStats.averageWorkedHours.toFixed(1)}h
+                        <p className="text-sm font-medium text-muted-foreground">Lost Hours</p>
+                        <p className="text-3xl font-bold text-orange-600">
+                          {formatLostHours(Math.round(monthlyStats.totalLostHours * 60))}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {monthlyStats.totalWorkedHours.toFixed(0)}h total
+                          {monthlyStats.totalLostHours.toFixed(1)}h total
                         </p>
                       </div>
                     </CardContent>
