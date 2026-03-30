@@ -42,6 +42,7 @@ const statusVariant: Record<
   PENDING: "outline",
   APPROVED: "default",
   REJECTED: "destructive",
+  PROCESSING: "secondary",
   FULFILLED: "secondary",
 };
 
