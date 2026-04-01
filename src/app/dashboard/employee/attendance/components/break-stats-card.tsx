@@ -24,14 +24,20 @@ import { calculateBreakSummary, formatBreakDuration } from "@/lib/api/attendance
  * - Responsive grid layout
  */
 export function BreakStatsCard() {
-    // Get current month date range
+    // Get current month date range using local timezone (not UTC)
     const dateRange = useMemo(() => {
         const now = new Date();
+        const toLocalDateStr = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
         const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         return {
-            startDate: start.toISOString().split('T')[0],
-            endDate: end.toISOString().split('T')[0],
+            startDate: toLocalDateStr(start),
+            endDate: toLocalDateStr(end),
             currentMonth: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
             workingDays: Math.floor((now.getDate() * 5) / 7), // Rough estimate
         };
