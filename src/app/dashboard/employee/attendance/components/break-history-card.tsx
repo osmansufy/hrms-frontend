@@ -26,7 +26,7 @@ import {
  * Features:
  * - Real-time updates
  * - Active break highlighting
- * - Daily limit warnings (180 min)
+ * - Break history display
  * - Empty state handling
  * - Responsive layout
  */
@@ -45,11 +45,6 @@ export function BreakHistoryCard() {
 
     const breaks = response?.data || [];
     const summary = useMemo(() => calculateBreakSummary(breaks), [breaks]);
-
-    // Check if approaching or exceeding daily limit (180 minutes)
-    const dailyLimit = 180;
-    const isApproachingLimit = summary.totalMinutes >= dailyLimit * 0.8; // 80% of limit
-    const isOverLimit = summary.totalMinutes > dailyLimit;
 
     // Loading state
     if (isLoading) {
@@ -106,27 +101,13 @@ export function BreakHistoryCard() {
                             {summary.totalBreaks} break{summary.totalBreaks !== 1 ? "s" : ""} • {formatBreakDuration(summary.totalMinutes)} total
                         </CardDescription>
                     </div>
-                    <Badge
-                        variant={isOverLimit ? "destructive" : isApproachingLimit ? "default" : "secondary"}
-                    >
+                    <Badge variant="secondary">
                         <TrendingDown className="mr-1 h-3 w-3" />
-                        {summary.totalMinutes}/{dailyLimit}m
+                        {summary.totalMinutes}m
                     </Badge>
                 </div>
             </CardHeader>
             <CardContent className="space-y-3">
-                {/* Daily limit warning */}
-                {isOverLimit && (
-                    <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                        ⚠️ You've exceeded the daily break limit of 180 minutes. Please minimize further breaks.
-                    </div>
-                )}
-                {isApproachingLimit && !isOverLimit && (
-                    <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
-                        ⏰ You're approaching the daily break limit. You have {dailyLimit - summary.totalMinutes} minutes remaining.
-                    </div>
-                )}
-
                 {/* Break list */}
                 <div className="space-y-2">
                     {breaks.map((breakRecord) => (
@@ -223,9 +204,6 @@ function BreakListItem({ breakRecord }: { breakRecord: AttendanceBreak }) {
                 </div>
                 <div className="text-right shrink-0">
                     <div className="font-bold text-sm">{formatBreakDuration(duration)}</div>
-                    {duration > 120 && (
-                        <div className="text-xs text-destructive">Over limit</div>
-                    )}
                 </div>
             </div>
         </div>

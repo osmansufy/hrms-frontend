@@ -1,16 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { Coffee, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Coffee } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useAttendanceBreaks } from "@/lib/queries/attendance";
 import {
     calculateBreakSummary,
@@ -63,9 +57,6 @@ export function BreakMonitorCard({
     const breaks = response?.breaks || [];
     const summary = useMemo(() => calculateBreakSummary(breaks), [breaks]);
 
-    // Check policy compliance
-    const dailyLimit = 180; // 180 minutes
-    const isCompliant = summary.totalMinutes <= dailyLimit;
     const hasActiveBreak = summary.activeBreak !== null;
 
     // Loading state
@@ -121,24 +112,6 @@ export function BreakMonitorCard({
                             {summary.totalBreaks} break{summary.totalBreaks !== 1 ? "s" : ""} • {formatBreakDuration(summary.totalMinutes)} total
                         </CardDescription>
                     </div>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger>
-                                {isCompliant ? (
-                                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                                ) : (
-                                    <AlertCircle className="h-5 w-5 text-destructive" />
-                                )}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="text-xs">
-                                    {isCompliant
-                                        ? "Within daily limit (180 min)"
-                                        : `Exceeded daily limit by ${summary.totalMinutes - dailyLimit} minutes`}
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
                 </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -159,14 +132,6 @@ export function BreakMonitorCard({
                         </div>
                     </div>
                 </div>
-
-                {/* Policy compliance indicator */}
-                {!isCompliant && (
-                    <div className="rounded-md bg-destructive/10 p-2 text-xs text-destructive flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>Exceeded daily limit by {summary.totalMinutes - dailyLimit} minutes</span>
-                    </div>
-                )}
 
                 {/* Break timeline */}
                 <div className="space-y-2">

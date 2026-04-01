@@ -29,7 +29,7 @@ import {
  * - Start new breaks with type selection
  * - Real-time active break timer
  * - End active breaks
- * - Business rule validation (5-120 min, 180 min daily max)
+ * - Break management
  * 
  * Features:
  * - Auto-refresh every 30 seconds
@@ -126,7 +126,6 @@ export function BreakTracker() {
 
     // Active break UI
     if (activeBreak) {
-        const isOverLimit = elapsedMinutes > 120; // 2 hours max per break
         const isWarning = elapsedMinutes > 60; // Warning after 1 hour
 
         return (
@@ -137,7 +136,7 @@ export function BreakTracker() {
                             <Coffee className="h-5 w-5 text-orange-600" />
                             <CardTitle className="text-orange-900">Break Active</CardTitle>
                         </div>
-                        <Badge variant={isOverLimit ? "destructive" : isWarning ? "default" : "secondary"}>
+                        <Badge variant={isWarning ? "default" : "secondary"}>
                             <Clock className="mr-1 h-3 w-3" />
                             {formatBreakDuration(elapsedMinutes)}
                         </Badge>
@@ -163,12 +162,7 @@ export function BreakTracker() {
                     </div>
 
                     {/* Warning messages */}
-                    {isOverLimit && (
-                        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                            ⚠️ Break exceeds maximum duration (120 minutes). Please end your break.
-                        </div>
-                    )}
-                    {isWarning && !isOverLimit && (
+                    {isWarning && (
                         <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
                             ⏰ You've been on break for over an hour. Consider ending your break soon.
                         </div>
@@ -207,7 +201,7 @@ export function BreakTracker() {
                     Take a Break
                 </CardTitle>
                 <CardDescription>
-                    Start tracking your break time. Remember: 5-120 minutes per break, 180 minutes daily maximum.
+                    Start tracking your break time.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -248,16 +242,6 @@ export function BreakTracker() {
                     <div className="text-xs text-muted-foreground text-right">
                         {notes.length}/500 characters
                     </div>
-                </div>
-
-                {/* Business rules reminder */}
-                <div className="rounded-md bg-muted p-3 text-sm space-y-1">
-                    <div className="font-medium">Break Guidelines:</div>
-                    <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
-                        <li>Minimum: 5 minutes per break</li>
-                        <li>Maximum: 120 minutes per break</li>
-                        <li>Daily limit: 180 minutes total</li>
-                    </ul>
                 </div>
 
                 {/* Start break button */}
