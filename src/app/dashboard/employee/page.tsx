@@ -13,7 +13,8 @@ import {
 import { useMyLeaves } from "@/lib/queries/leave";
 import { useSystemSettings } from "@/lib/queries/system-settings";
 import { useMyUserMeta } from "@/lib/queries/user-meta";
-import { cn, formatDateInDhaka, toStartOfDayISO, toEndOfDayISO, formatDateInTimezone } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useTimezoneFormatters } from "@/lib/hooks/use-timezone-formatters";
 import {
   detectDevice,
   isDeviceAllowedForAttendance
@@ -41,11 +42,19 @@ import { buildAttendancePayload, getGeolocationForAttendance } from "./utils/att
 
 
 
+function formatWorkedTime(seconds: number) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function EmployeeDashboard() {
 
   // Session and userId
   const { session } = useSession();
   const userId = session?.user.id;
+  const { formatDate } = useTimezoneFormatters();
 
   // System settings (late threshold, mobile attendance, location capture)
   const { data: systemSettings } = useSystemSettings();
@@ -77,34 +86,40 @@ export default function EmployeeDashboard() {
     return localStorage.getItem(key) === "true";
   }, [getWarningModalKey]);
 
-  // Attendance chart data for last 7 days
-  const end = new Date();
-  const start = new Date();
-  start.setUTCDate(end.getUTCDate() - 6);
-  const chartQueryParams = {
-    startDate: start.toISOString().split("T")[0],
-    endDate: end.toISOString().split("T")[0],
-    limit: "7",
-  };
+  // Attendance chart data for last 7 days — stable references, computed once on mount
+  const { start, chartQueryParams } = useMemo(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setUTCDate(end.getUTCDate() - 6);
+    return {
+      start,
+      chartQueryParams: {
+        startDate: start.toISOString().split("T")[0],
+        endDate: end.toISOString().split("T")[0],
+        limit: "7",
+      },
+    };
+  }, []);
   const { data: attendanceChartData } = useMyAttendanceRecords(
     userId,
     chartQueryParams,
   );
-  const attendanceBarData = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date(start);
-    d.setUTCDate(start.getUTCDate() + i);
-    const dateStr = formatDateInDhaka(d, "short");
-    const rec = attendanceChartData?.data?.find((r: ExtendedAttendanceRecord) => {
-      const recDate = new Date(r.date);
-      return recDate.getUTCFullYear() === d.getUTCFullYear() && recDate.getUTCMonth() === d.getUTCMonth() && recDate.getUTCDate() === d.getUTCDate();
-    });
-    return {
-      date: dateStr,
-      present: rec?.signIn ? 1 : 0,
-      late: rec?.isLate ? 1 : 0,
-      absent: rec?.signIn ? 0 : 1,
-    };
-  });
+  const attendanceBarData = useMemo(() =>
+    Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(start);
+      d.setUTCDate(start.getUTCDate() + i);
+      const dateStr = formatDate(d, "short");
+      const rec = attendanceChartData?.data?.find((r: ExtendedAttendanceRecord) => {
+        const recDate = new Date(r.date);
+        return recDate.getUTCFullYear() === d.getUTCFullYear() && recDate.getUTCMonth() === d.getUTCMonth() && recDate.getUTCDate() === d.getUTCDate();
+      });
+      return {
+        date: dateStr,
+        present: rec?.signIn ? 1 : 0,
+        late: rec?.isLate ? 1 : 0,
+        absent: rec?.signIn ? 0 : 1,
+      };
+    }), [start, attendanceChartData?.data, formatDate]);
 
   // Location state
   const [location, setLocation] = useState("");
@@ -134,7 +149,7 @@ export default function EmployeeDashboard() {
     setDeviceInfo(device);
     if (device.type === "mobile") {
       // Mobile allowed only when system allows or user meta allows (no row = allow)
-    setIsDeviceAllowed(allowMobileAttendance || userMeta?.allowMobileSignIn !== false);
+      setIsDeviceAllowed(allowMobileAttendance || userMeta?.allowMobileSignIn !== false);
     } else {
       setIsDeviceAllowed(true);
     }
@@ -224,25 +239,30 @@ export default function EmployeeDashboard() {
   const [breakElapsedMinutes, setBreakElapsedMinutes] = useState(0);
 
   // Fetch today's breaks for work time calculation
-  const today = new Date().toISOString().split("T")[0];
+  const today = useMemo(() => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
   const { data: todayBreaksData } = useMyBreaks({
-    startDate: toStartOfDayISO(today),
-    endDate: toEndOfDayISO(today),
+    startDate: today,
+    endDate: today,
   });
 
   // Live worked hours clock
   const [workedSeconds, setWorkedSeconds] = useState(0);
-  const todayDate = formatDateInTimezone(new Date(), "long");
+  const todayDate = useMemo(() => formatDate(new Date(), "long"), [formatDate]);
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
 
     // Calculate total break time in seconds
     const calculateBreakSeconds = () => {
       let totalBreakSeconds = 0;
-
       // Add completed breaks
-      if (todayBreaksData?.breaks) {
-        todayBreaksData.breaks.forEach((breakRecord: AttendanceBreak) => {
+      if (todayBreaksData?.data) {
+        todayBreaksData.data.forEach((breakRecord: AttendanceBreak) => {
           if (breakRecord.endTime) {
             const start = new Date(breakRecord.startTime).getTime();
             const end = new Date(breakRecord.endTime).getTime();
@@ -250,7 +270,6 @@ export default function EmployeeDashboard() {
           }
         });
       }
-
       // Add active break time
       if (activeBreak?.startTime) {
         const start = new Date(activeBreak.startTime).getTime();
@@ -282,24 +301,18 @@ export default function EmployeeDashboard() {
       setWorkedSeconds(0);
     }
     return () => interval && clearInterval(interval);
-  }, [todayAttendance?.signIn, todayAttendance?.signOut, todayBreaksData?.breaks, activeBreak?.startTime]);
-
-  function formatWorkedTime(seconds: number) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-
+  }, [todayAttendance?.signIn, todayAttendance?.signOut, todayBreaksData?.data, activeBreak?.startTime]);
 
   // Pie chart data for monthly leaves
   const { data: leaves } = useMyLeaves(userId);
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthlyLeaves = (leaves || []).filter((l: LeaveRecord) => {
+  const { currentMonth, currentYear } = useMemo(() => {
+    const now = new Date();
+    return { currentMonth: now.getMonth(), currentYear: now.getFullYear() };
+  }, []);
+  const monthlyLeaves = useMemo(() => (leaves || []).filter((l: LeaveRecord) => {
     const start = new Date(l.startDate);
     return start.getMonth() === currentMonth && start.getFullYear() === currentYear;
-  });
+  }), [leaves, currentMonth, currentYear]);
   const leaveTypeMap: Record<string, { name: string; value: number; color: string }> = {};
   const colors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#8dd1e1", "#a4de6c", "#d0ed57", "#fa8072"];
   let colorIdx = 0;
@@ -328,7 +341,7 @@ export default function EmployeeDashboard() {
     };
 
     updateElapsed();
-    const interval = setInterval(updateElapsed, 1000);
+    const interval = setInterval(updateElapsed, 60_000);
     return () => clearInterval(interval);
   }, [activeBreak?.startTime]);
 
@@ -348,7 +361,7 @@ export default function EmployeeDashboard() {
 
     // Proceed with sign-in
     await performSignIn();
-  }, [monthlyLateCount, leaveDeductionDay, performSignIn]);
+  }, [monthlyLateCount, leaveDeductionDay, hasWarningBeenShown, getWarningModalKey, performSignIn]);
 
   // Handle warning modal confirmation - proceed with sign-in
   const handleWarningModalConfirm = useCallback(() => {
@@ -466,7 +479,7 @@ export default function EmployeeDashboard() {
                 size="sm"
                 disabled={isTopAttendanceButtonDisabled}
                 onClick={() => (!todayAttendance?.signIn ? handleSignIn() : handleSignOut())}
-                className="rounded-full px-4 py-1.5 text-sm font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
+                className="rounded-full px-4 py-1.5 text-sm font-semibold  from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
               >
                 {!todayAttendance?.signIn
                   ? "Sign In"

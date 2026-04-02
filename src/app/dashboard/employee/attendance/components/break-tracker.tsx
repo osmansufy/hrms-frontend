@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useCallback, memo } from "react";
 import { Play, Square, Coffee, Clock } from "lucide-react";
 import { useSession } from "@/components/auth/session-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,93 +21,149 @@ import {
     getBreakTypeIcon,
     formatBreakDuration,
 } from "@/lib/api/attendance";
+import { useEffect } from "react";
+import { useState as useTimerState } from "react";
 
-/**
- * BreakTracker Component
- * 
- * Comprehensive break management interface for employees
- * - Start new breaks with type selection
- * - Real-time active break timer
- * - End active breaks
- * - Break management
- * 
- * Features:
- * - Auto-refresh every 30 seconds
- * - Optimistic UI updates
- * - Error handling with toast notifications
- * - Accessibility compliant
- * - Responsive design
- */
+// Static — computed once at module load, no useMemo overhead
+const BREAK_TYPE_OPTIONS = Object.values(BreakType).map((type) => ({
+    value: type,
+    label: getBreakTypeLabel(type),
+    icon: getBreakTypeIcon(type),
+}));
+
+// ---------------------------------------------------------------------------
+// ActiveBreakDisplay — memoised so timer ticks never re-render the parent
+// ---------------------------------------------------------------------------
+
+interface ActiveBreak {
+    id: string;
+    startTime: string;
+    breakType: BreakType;
+    notes?: string | null;
+}
+
+interface ActiveBreakDisplayProps {
+    activeBreak: ActiveBreak;
+    onEndBreak: () => void;
+    isEnding: boolean;
+}
+
+const ActiveBreakDisplay = memo(function ActiveBreakDisplay({
+    activeBreak,
+    onEndBreak,
+    isEnding,
+}: ActiveBreakDisplayProps) {
+    const [elapsedSeconds, setElapsedSeconds] = useTimerState(0);
+
+    useEffect(() => {
+        const start = new Date(activeBreak.startTime).getTime();
+
+        const tick = () => setElapsedSeconds(Math.floor((Date.now() - start) / 1000));
+        tick(); // immediate first paint
+
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [activeBreak.startTime]);
+
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+    const isWarning = elapsedSeconds > 3600; // > 1 hour
+
+    return (
+        <Card className="border-orange-200 bg-orange-50/50">
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Coffee className="h-5 w-5 text-orange-600" />
+                        <CardTitle className="text-orange-900">Break Active</CardTitle>
+                    </div>
+                    <Badge variant={isWarning ? "default" : "secondary"}>
+                        <Clock className="mr-1 h-3 w-3" />
+                        {formatBreakDuration(Math.floor(elapsedSeconds / 60))}
+                    </Badge>
+                </div>
+                <CardDescription>
+                    {getBreakTypeIcon(activeBreak.breakType)} {getBreakTypeLabel(activeBreak.breakType)}
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {/* Real-time timer — HH:MM:SS */}
+                <div className="rounded-lg bg-white p-6 text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Elapsed Time</div>
+                    <div className="text-4xl font-bold tabular-nums text-orange-600">
+                        {hours.toString().padStart(2, "0")}:
+                        {minutes.toString().padStart(2, "0")}:
+                        {seconds.toString().padStart(2, "0")}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-2">
+                        Started at{" "}
+                        {new Date(activeBreak.startTime).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                        })}
+                    </div>
+                </div>
+
+                {isWarning && (
+                    <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
+                        ⏰ You&apos;ve been on break for over an hour. Consider ending your break soon.
+                    </div>
+                )}
+
+                {activeBreak.notes && (
+                    <div className="rounded-md bg-muted p-3">
+                        <div className="text-xs text-muted-foreground mb-1">Notes</div>
+                        <div className="text-sm">{activeBreak.notes}</div>
+                    </div>
+                )}
+
+                <Button
+                    onClick={onEndBreak}
+                    disabled={isEnding}
+                    size="lg"
+                    variant="destructive"
+                    className="w-full"
+                >
+                    <Square className="mr-2 h-4 w-4" />
+                    {isEnding ? "Ending Break..." : "End Break"}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+});
+
+// ---------------------------------------------------------------------------
+// BreakTracker — parent; only re-renders on query/mutation state changes
+// ---------------------------------------------------------------------------
+
 export function BreakTracker() {
     const { session } = useSession();
     const userId = session?.user.id;
 
-    // State management
     const [selectedBreakType, setSelectedBreakType] = useState<BreakType>(BreakType.TEA);
     const [notes, setNotes] = useState("");
-    const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
-    // API hooks
     const { data: activeBreakResponse, isLoading } = useActiveBreak();
-    console.log({ activeBreakResponse, isLoading });
     const startBreakMutation = useStartBreak(userId);
     const endBreakMutation = useEndBreak(userId);
 
     const activeBreak = activeBreakResponse?.activeBreak;
-    console.log({ activeBreak });
 
-    // Calculate elapsed time for active break
-    useEffect(() => {
-        if (!activeBreak?.startTime) {
-            setElapsedMinutes(0);
-            return;
-        }
-
-        const calculateElapsed = () => {
-            const start = new Date(activeBreak.startTime);
-            const now = new Date();
-            const diffMs = now.getTime() - start.getTime();
-            const minutes = Math.floor(diffMs / 60000);
-            setElapsedMinutes(minutes);
-        };
-
-        // Initial calculation
-        calculateElapsed();
-
-        // Update every second for real-time display
-        const interval = setInterval(calculateElapsed, 1000);
-
-        return () => clearInterval(interval);
-    }, [activeBreak?.startTime]);
-
-    // Break type options with icons and labels
-    const breakTypeOptions = useMemo(() => {
-        return Object.values(BreakType).map((type) => ({
-            value: type,
-            label: getBreakTypeLabel(type),
-            icon: getBreakTypeIcon(type),
-        }));
-    }, []);
-
-    // Handlers
-    const handleStartBreak = () => {
+    const handleStartBreak = useCallback(() => {
         if (!selectedBreakType) return;
-
         startBreakMutation.mutate({
             breakType: selectedBreakType,
             notes: notes.trim() || undefined,
         });
-
-        // Reset form
         setNotes("");
-    };
+    }, [selectedBreakType, notes, startBreakMutation]);
 
-    const handleEndBreak = () => {
+    const handleEndBreak = useCallback(() => {
         if (!activeBreak) return;
         endBreakMutation.mutate(activeBreak.id);
-    };
+    }, [activeBreak, endBreakMutation]);
 
-    // Loading state
     if (isLoading) {
         return (
             <Card>
@@ -124,75 +180,16 @@ export function BreakTracker() {
         );
     }
 
-    // Active break UI
     if (activeBreak) {
-        const isWarning = elapsedMinutes > 60; // Warning after 1 hour
-
         return (
-            <Card className="border-orange-200 bg-orange-50/50">
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Coffee className="h-5 w-5 text-orange-600" />
-                            <CardTitle className="text-orange-900">Break Active</CardTitle>
-                        </div>
-                        <Badge variant={isWarning ? "default" : "secondary"}>
-                            <Clock className="mr-1 h-3 w-3" />
-                            {formatBreakDuration(elapsedMinutes)}
-                        </Badge>
-                    </div>
-                    <CardDescription>
-                        {getBreakTypeIcon(activeBreak.breakType)} {getBreakTypeLabel(activeBreak.breakType)}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {/* Real-time timer display */}
-                    <div className="rounded-lg bg-white p-6 text-center">
-                        <div className="text-sm text-muted-foreground mb-2">Elapsed Time</div>
-                        <div className="text-4xl font-bold tabular-nums text-orange-600">
-                            {Math.floor(elapsedMinutes / 60)
-                                .toString()
-                                .padStart(2, "0")}
-                            :
-                            {(elapsedMinutes % 60).toString().padStart(2, "0")}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-2">
-                            Started at {new Date(activeBreak.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                    </div>
-
-                    {/* Warning messages */}
-                    {isWarning && (
-                        <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
-                            ⏰ You've been on break for over an hour. Consider ending your break soon.
-                        </div>
-                    )}
-
-                    {/* Notes display */}
-                    {activeBreak.notes && (
-                        <div className="rounded-md bg-muted p-3">
-                            <div className="text-xs text-muted-foreground mb-1">Notes</div>
-                            <div className="text-sm">{activeBreak.notes}</div>
-                        </div>
-                    )}
-
-                    {/* End break button */}
-                    <Button
-                        onClick={handleEndBreak}
-                        disabled={endBreakMutation.isPending}
-                        size="lg"
-                        variant="destructive"
-                        className="w-full"
-                    >
-                        <Square className="mr-2 h-4 w-4" />
-                        {endBreakMutation.isPending ? "Ending Break..." : "End Break"}
-                    </Button>
-                </CardContent>
-            </Card>
+            <ActiveBreakDisplay
+                activeBreak={activeBreak}
+                onEndBreak={handleEndBreak}
+                isEnding={endBreakMutation.isPending}
+            />
         );
     }
 
-    // Start break UI
     return (
         <Card>
             <CardHeader>
@@ -200,12 +197,9 @@ export function BreakTracker() {
                     <Coffee className="h-5 w-5" />
                     Take a Break
                 </CardTitle>
-                <CardDescription>
-                    Start tracking your break time.
-                </CardDescription>
+                <CardDescription>Start tracking your break time.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Break type selection */}
                 <div className="space-y-2">
                     <Label htmlFor="break-type">Break Type</Label>
                     <Select
@@ -216,7 +210,7 @@ export function BreakTracker() {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {breakTypeOptions.map((option) => (
+                            {BREAK_TYPE_OPTIONS.map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
                                     <span className="flex items-center gap-2">
                                         <span>{option.icon}</span>
@@ -228,7 +222,6 @@ export function BreakTracker() {
                     </Select>
                 </div>
 
-                {/* Optional notes */}
                 <div className="space-y-2">
                     <Label htmlFor="break-notes">Notes (Optional)</Label>
                     <Textarea
@@ -244,7 +237,6 @@ export function BreakTracker() {
                     </div>
                 </div>
 
-                {/* Start break button */}
                 <Button
                     onClick={handleStartBreak}
                     disabled={startBreakMutation.isPending || !selectedBreakType}
