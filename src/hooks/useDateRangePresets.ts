@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { toLocalDateStr } from "@/lib/utils";
 
 export type DateRangePreset =
   | "today"
@@ -55,92 +56,77 @@ export function getDateRangeForPreset(preset: DateRangePreset): DateRange {
 
   switch (preset) {
     case "today": {
-      const today = formatDate(now);
+      const today = toLocalDateStr(now);
       return { startDate: today, endDate: today };
     }
 
     case "yesterday": {
       const yesterday = new Date(now);
-      // Use UTC for consistent date arithmetic
-      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-      const date = formatDate(yesterday);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const date = toLocalDateStr(yesterday);
       return { startDate: date, endDate: date };
     }
 
     case "this-week": {
       const startOfWeek = new Date(now);
-      const day = startOfWeek.getUTCDay();
-      const diff = startOfWeek.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday
-      startOfWeek.setUTCDate(diff);
-
+      const day = startOfWeek.getDay(); // local day of week (0=Sun)
+      const diff = day === 0 ? -6 : 1 - day; // back to Monday
+      startOfWeek.setDate(startOfWeek.getDate() + diff);
       return {
-        startDate: formatDate(startOfWeek),
-        endDate: formatDate(now),
+        startDate: toLocalDateStr(startOfWeek),
+        endDate: toLocalDateStr(now),
       };
     }
 
     case "last-week": {
       const lastWeekEnd = new Date(now);
-      const day = lastWeekEnd.getUTCDay();
-      const diff = lastWeekEnd.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday of this week
-      lastWeekEnd.setUTCDate(diff - 1); // Sunday of last week
+      const day = lastWeekEnd.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      lastWeekEnd.setDate(lastWeekEnd.getDate() + diffToMonday - 1); // Sunday of last week
 
       const lastWeekStart = new Date(lastWeekEnd);
-      lastWeekStart.setUTCDate(lastWeekEnd.getUTCDate() - 6); // Monday of last week
+      lastWeekStart.setDate(lastWeekEnd.getDate() - 6); // Monday of last week
 
       return {
-        startDate: formatDate(lastWeekStart),
-        endDate: formatDate(lastWeekEnd),
+        startDate: toLocalDateStr(lastWeekStart),
+        endDate: toLocalDateStr(lastWeekEnd),
       };
     }
 
     case "this-month": {
-      const startOfMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
-      );
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       return {
-        startDate: formatDate(startOfMonth),
-        endDate: formatDate(now),
+        startDate: toLocalDateStr(startOfMonth),
+        endDate: toLocalDateStr(now),
       };
     }
 
     case "last-month": {
-      const lastMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)
-      );
-      const lastMonthEnd = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0)
-      );
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
       return {
-        startDate: formatDate(lastMonth),
-        endDate: formatDate(lastMonthEnd),
+        startDate: toLocalDateStr(lastMonth),
+        endDate: toLocalDateStr(lastMonthEnd),
       };
     }
 
     case "this-year": {
-      const startOfYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
       return {
-        startDate: formatDate(startOfYear),
-        endDate: formatDate(now),
+        startDate: toLocalDateStr(startOfYear),
+        endDate: toLocalDateStr(now),
       };
     }
 
     case "custom":
     default: {
-      // Default to this month
-      const startOfMonth = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
-      );
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       return {
-        startDate: formatDate(startOfMonth),
-        endDate: formatDate(now),
+        startDate: toLocalDateStr(startOfMonth),
+        endDate: toLocalDateStr(now),
       };
     }
   }
-}
-
-function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
 }
 
 export const DATE_RANGE_PRESETS: Array<{

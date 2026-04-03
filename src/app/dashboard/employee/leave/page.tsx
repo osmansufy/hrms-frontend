@@ -30,7 +30,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { uploadLeaveDocument, type LeaveRecord } from "@/lib/api/leave";
 import { useApplyLeave, useLeavePolicy, useLeaveTypes, useMyAmendments, useMyLeaves, useUserBalances } from "@/lib/queries/leave";
-import { formatInDhakaTimezone } from "@/lib/utils";
+import { formatInDhakaTimezone, toLocalDateStr } from "@/lib/utils";
 import { handleLeaveError } from "@/lib/utils/error-handler";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LeaveAmendmentDialog } from "@/components/leave/leave-amendment-dialog";
@@ -86,8 +86,8 @@ export default function LeavePage() {
 
   // Calculate dates on client side only to prevent hydration mismatch
   useEffect(() => {
-    const todayDate = new Date().toISOString().split('T')[0];
-    const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const todayDate = toLocalDateStr();
+    const futureDate = toLocalDateStr(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
     setToday(todayDate);
     setMaxDate(futureDate);
   }, []);
@@ -566,7 +566,7 @@ export default function LeavePage() {
                           // For other leave: can select from today onwards
                           const twoWeeksAgo = 14 * 24 * 60 * 60 * 1000;
                           const minDate = isSickLeave
-                            ? new Date(Date.now() - twoWeeksAgo).toISOString().split('T')[0]  // Sick leave: allow past 2 weeks
+                            ? toLocalDateStr(new Date(Date.now() - twoWeeksAgo))  // Sick leave: allow past 2 weeks
                             : today;
                           const maxDateValue = isSickLeave
                             ? today // Sick leave: max today

@@ -11,7 +11,7 @@ import { Loader2, Clock, Search, Filter, X, CalendarDays, MapPin, AlertTriangle 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAttendanceRecords } from "@/lib/queries/attendance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { toStartOfDayISO, toEndOfDayISO, formatTimeInTimezone } from "@/lib/utils";
+import { toStartOfDayISO, toEndOfDayISO, formatTimeInTimezone, toLocalDateStr } from "@/lib/utils";
 import Link from "next/link";
 import { useDepartment, useDepartments } from "@/lib/queries/departments";
 
@@ -31,7 +31,7 @@ function getInitials(name: string) {
 type FilterStatus = "all" | "present" | "signedOut" | "late" | "absent" | "onleave" | "onbreak";
 
 export function TodayAttendanceCard() {
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalDateStr();
     const [searchQuery, setSearchQuery] = useState("");
     const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
     const [selectedDepartment, setSelectedDepartment] = useState<string>("all");

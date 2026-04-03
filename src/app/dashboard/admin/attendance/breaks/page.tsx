@@ -66,6 +66,7 @@ import {
 import { listDepartments } from "@/lib/api/departments";
 import { listEmployees } from "@/lib/api/employees";
 import { BreakDialog } from "./components/break-dialog";
+import { toLocalDateStr } from "@/lib/utils";
 
 // Date range presets
 const DATE_RANGE_PRESETS = [
@@ -101,8 +102,8 @@ export default function BreaksManagementPage() {
     // Date range
     const [preset, setPreset] = useState("today");
     const [customRange, setCustomRange] = useState({
-        startDate: new Date().toISOString().split("T")[0],
-        endDate: new Date().toISOString().split("T")[0],
+        startDate: toLocalDateStr(),
+        endDate: toLocalDateStr(),
     });
 
     // Dialog states
@@ -112,31 +113,30 @@ export default function BreaksManagementPage() {
     const [selectedBreak, setSelectedBreak] =
         useState<AttendanceBreakWithUser | null>(null);
 
-    // Calculate date range based on preset
+    // Calculate date range based on preset using local timezone
     const dateRange = useMemo(() => {
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
 
         switch (preset) {
             case "today":
                 return {
-                    startDate: today.toISOString().split("T")[0],
-                    endDate: today.toISOString().split("T")[0],
+                    startDate: toLocalDateStr(today),
+                    endDate: toLocalDateStr(today),
                 };
             case "yesterday": {
                 const yesterday = new Date(today);
                 yesterday.setDate(yesterday.getDate() - 1);
                 return {
-                    startDate: yesterday.toISOString().split("T")[0],
-                    endDate: yesterday.toISOString().split("T")[0],
+                    startDate: toLocalDateStr(yesterday),
+                    endDate: toLocalDateStr(yesterday),
                 };
             }
             case "this-week": {
                 const firstDay = new Date(today);
                 firstDay.setDate(today.getDate() - today.getDay());
                 return {
-                    startDate: firstDay.toISOString().split("T")[0],
-                    endDate: today.toISOString().split("T")[0],
+                    startDate: toLocalDateStr(firstDay),
+                    endDate: toLocalDateStr(today),
                 };
             }
             case "last-week": {
@@ -145,39 +145,39 @@ export default function BreaksManagementPage() {
                 const lastDay = new Date(firstDay);
                 lastDay.setDate(firstDay.getDate() + 6);
                 return {
-                    startDate: firstDay.toISOString().split("T")[0],
-                    endDate: lastDay.toISOString().split("T")[0],
+                    startDate: toLocalDateStr(firstDay),
+                    endDate: toLocalDateStr(lastDay),
                 };
             }
             case "this-month": {
                 const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
                 return {
-                    startDate: firstDay.toISOString().split("T")[0],
-                    endDate: today.toISOString().split("T")[0],
+                    startDate: toLocalDateStr(firstDay),
+                    endDate: toLocalDateStr(today),
                 };
             }
             case "last-month": {
                 const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
                 const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
                 return {
-                    startDate: firstDay.toISOString().split("T")[0],
-                    endDate: lastDay.toISOString().split("T")[0],
+                    startDate: toLocalDateStr(firstDay),
+                    endDate: toLocalDateStr(lastDay),
                 };
             }
             case "last-7-days": {
                 const firstDay = new Date(today);
                 firstDay.setDate(today.getDate() - 6);
                 return {
-                    startDate: firstDay.toISOString().split("T")[0],
-                    endDate: today.toISOString().split("T")[0],
+                    startDate: toLocalDateStr(firstDay),
+                    endDate: toLocalDateStr(today),
                 };
             }
             case "custom":
                 return customRange;
             default:
                 return {
-                    startDate: today.toISOString().split("T")[0],
-                    endDate: today.toISOString().split("T")[0],
+                    startDate: toLocalDateStr(today),
+                    endDate: toLocalDateStr(today),
                 };
         }
     }, [preset, customRange]);
@@ -409,7 +409,7 @@ export default function BreaksManagementPage() {
                                 <Input
                                     type="date"
                                     value={customRange.startDate}
-                                    max={new Date().toISOString().split("T")[0]}
+                                    max={toLocalDateStr()}
                                     onChange={(e) =>
                                         setCustomRange((prev) => ({
                                             ...prev,
@@ -422,7 +422,7 @@ export default function BreaksManagementPage() {
                                 <Input
                                     type="date"
                                     value={customRange.endDate}
-                                    max={new Date().toISOString().split("T")[0]}
+                                    max={toLocalDateStr()}
                                     onChange={(e) =>
                                         setCustomRange((prev) => ({
                                             ...prev,

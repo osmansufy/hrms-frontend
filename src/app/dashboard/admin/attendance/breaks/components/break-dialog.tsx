@@ -43,6 +43,7 @@ import {
 } from "@/lib/api/attendance";
 import { listEmployees } from "@/lib/api/employees";
 import { getAttendanceRecords } from "@/lib/api/attendance";
+import { toLocalDateStr } from "@/lib/utils";
 
 interface BreakDialogProps {
     open: boolean;
@@ -122,7 +123,7 @@ export function BreakDialog({
     const queryClient = useQueryClient();
     const [selectedUserId, setSelectedUserId] = useState<string>("");
     const [selectedDate, setSelectedDate] = useState<string>(
-        new Date().toISOString().split("T")[0]
+        toLocalDateStr()
     );
 
     const form = useForm<BreakFormData>({
@@ -170,7 +171,7 @@ export function BreakDialog({
                 reason: "",
             });
             setSelectedUserId("");
-            setSelectedDate(new Date().toISOString().split("T")[0]);
+            setSelectedDate(toLocalDateStr());
         } else if (open && mode === "edit" && breakData) {
             const startDate = new Date(breakData.startTime);
             const endDate = breakData.endTime ? new Date(breakData.endTime) : null;
@@ -317,7 +318,7 @@ export function BreakDialog({
                                     <Input
                                         type="date"
                                         value={selectedDate}
-                                        max={new Date().toISOString().split("T")[0]}
+                                        max={toLocalDateStr()}
                                         onChange={(e) => handleDateChange(e.target.value)}
                                     />
                                 </div>

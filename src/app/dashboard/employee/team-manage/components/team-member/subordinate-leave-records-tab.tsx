@@ -23,7 +23,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSubordinateLeaves } from "@/lib/queries/leave";
 import { Calendar, Loader2, Eye, CalendarDays, CalendarRange, Filter, X } from "lucide-react";
-import { formatDateInDhaka } from "@/lib/utils";
+import { formatDateInDhaka, toLocalDateStr } from "@/lib/utils";
 import Link from "next/link";
 
 interface SubordinateLeaveRecordsTabProps {
@@ -152,8 +152,8 @@ export function SubordinateLeaveRecordsTab({
       const dayOfWeek = now.getDay();
       const monday = new Date(now);
       monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-      newStartDate = monday.toISOString().split("T")[0];
-      newEndDate = now.toISOString().split("T")[0];
+      newStartDate = toLocalDateStr(monday);
+      newEndDate = toLocalDateStr(now);
     } else {
       // Last week (Monday to Sunday)
       const dayOfWeek = now.getDay();
@@ -161,8 +161,8 @@ export function SubordinateLeaveRecordsTab({
       lastMonday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) - 7);
       const lastSunday = new Date(lastMonday);
       lastSunday.setDate(lastMonday.getDate() + 6);
-      newStartDate = lastMonday.toISOString().split("T")[0];
-      newEndDate = lastSunday.toISOString().split("T")[0];
+      newStartDate = toLocalDateStr(lastMonday);
+      newEndDate = toLocalDateStr(lastSunday);
     }
 
     dispatch({
@@ -177,8 +177,8 @@ export function SubordinateLeaveRecordsTab({
     dispatch({
       type: "SET_DATE_RANGE",
       payload: {
-        startDate: monthStart.toISOString().split("T")[0],
-        endDate: monthEnd.toISOString().split("T")[0],
+        startDate: toLocalDateStr(monthStart),
+        endDate: toLocalDateStr(monthEnd),
         preset: "monthly",
       },
     });
@@ -190,8 +190,8 @@ export function SubordinateLeaveRecordsTab({
     dispatch({
       type: "SET_DATE_RANGE",
       payload: {
-        startDate: yearStart.toISOString().split("T")[0],
-        endDate: yearEnd.toISOString().split("T")[0],
+        startDate: toLocalDateStr(yearStart),
+        endDate: toLocalDateStr(yearEnd),
         preset: "yearly",
       },
     });

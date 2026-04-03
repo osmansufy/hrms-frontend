@@ -93,6 +93,22 @@ export function formatMinutesToHours(minutes: number): string {
 export const APP_TIMEZONE = "Asia/Dhaka";
 
 /**
+ * Returns a date as a YYYY-MM-DD string using the browser's LOCAL timezone.
+ * Always use this instead of `date.toISOString().split('T')[0]` when building
+ * API query params or date-input values — toISOString() is always UTC and will
+ * produce the wrong calendar day for Dhaka users between 00:00–05:59 local time.
+ *
+ * @param date - Date to format (defaults to now)
+ * @returns "YYYY-MM-DD" in the user's local timezone
+ */
+export function toLocalDateStr(date: Date = new Date()): string {
+  const y   = date.getFullYear();
+  const m   = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
  * Formats a date/time string to a specific timezone
  * @param dateString - ISO date string or Date object
  * @param options - Intl.DateTimeFormatOptions

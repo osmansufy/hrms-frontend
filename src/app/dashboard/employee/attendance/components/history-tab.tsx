@@ -9,9 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useSession } from "@/components/auth/session-provider";
 import { useAttendanceRecords, useMyAttendanceRecords } from "@/lib/queries/attendance";
-import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
-
-import { formatTimeInTimezone, formatDateInDhaka } from "@/lib/utils";
+import { toStartOfDayISO, toEndOfDayISO, toLocalDateStr, formatTimeInTimezone, formatDateInDhaka } from "@/lib/utils";
 
 function formatTime(value?: string | null) {
     return formatTimeInTimezone(value || "");
@@ -27,8 +25,8 @@ export function AttendanceHistoryTab() {
 
     const [page, setPage] = useState(1);
     const [dateRange, setDateRange] = useState({
-        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
-        end: new Date().toISOString().split("T")[0],
+        start: toLocalDateStr(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+        end: toLocalDateStr(),
     });
 
     // Convert date range to ISO DateTime with user's timezone
@@ -56,7 +54,7 @@ export function AttendanceHistoryTab() {
                     <Input
                         type="date"
                         value={dateRange.start}
-                        max={new Date().toISOString().split("T")[0]}
+                        max={toLocalDateStr()}
                         onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
                         className="w-auto"
                     />
@@ -64,7 +62,7 @@ export function AttendanceHistoryTab() {
                     <Input
                         type="date"
                         value={dateRange.end}
-                        max={new Date().toISOString().split("T")[0]}
+                        max={toLocalDateStr()}
                         onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
                         className="w-auto"
                     />

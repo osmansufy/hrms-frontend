@@ -3,6 +3,7 @@
 import { Users, UserCheck, Clock, UserX, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAttendanceStats } from "@/lib/queries/attendance";
+import { toLocalDateStr } from "@/lib/utils";
 
 function StatCard({
     title,
@@ -36,7 +37,7 @@ function StatCard({
 }
 
 export function StatsCards() {
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalDateStr();
     const { data, isLoading } = useAttendanceStats(today);
 
     const stats = [

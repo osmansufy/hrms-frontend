@@ -13,7 +13,7 @@ import {
 import { useMyLeaves } from "@/lib/queries/leave";
 import { useSystemSettings } from "@/lib/queries/system-settings";
 import { useMyUserMeta } from "@/lib/queries/user-meta";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateStr } from "@/lib/utils";
 import { useTimezoneFormatters } from "@/lib/hooks/use-timezone-formatters";
 import {
   detectDevice,
@@ -90,12 +90,12 @@ export default function EmployeeDashboard() {
   const { start, chartQueryParams } = useMemo(() => {
     const end = new Date();
     const start = new Date();
-    start.setUTCDate(end.getUTCDate() - 6);
+    start.setDate(end.getDate() - 6);
     return {
       start,
       chartQueryParams: {
-        startDate: start.toISOString().split("T")[0],
-        endDate: end.toISOString().split("T")[0],
+        startDate: toLocalDateStr(start),
+        endDate: toLocalDateStr(end),
         limit: "7",
       },
     };
