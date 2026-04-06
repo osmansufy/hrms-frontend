@@ -197,9 +197,9 @@ export function AttendanceCard({
                 blockReason !== null
                   ? "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
                   : !todayAttendance?.signIn
-                    ? "bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-500/50 dark:shadow-green-900/50 ring-green-200/50 dark:ring-green-900/30"
+                    ? " from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-500/50 dark:shadow-green-900/50 ring-green-200/50 dark:ring-green-900/30"
                     : todayAttendance && !todayAttendance.signOut
-                      ? "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/50 dark:shadow-orange-900/50 ring-orange-200/50 dark:ring-orange-900/30"
+                      ? "from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/50 dark:shadow-orange-900/50 ring-orange-200/50 dark:ring-orange-900/30"
                       : "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
               )}
             >
