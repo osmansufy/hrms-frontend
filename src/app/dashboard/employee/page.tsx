@@ -398,7 +398,9 @@ export default function EmployeeDashboard() {
       return;
     }
 
-    const payload = await buildAttendancePayload(location, geoData);
+    const payload = await buildAttendancePayload(location, geoData, {
+      includeTimezone: false,
+    });
 
     try {
       await signOutMutation.mutateAsync(payload);

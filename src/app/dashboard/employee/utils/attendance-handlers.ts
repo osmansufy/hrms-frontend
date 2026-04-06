@@ -16,6 +16,7 @@ export interface AttendancePayload {
 export async function buildAttendancePayload(
   location: string,
   geoData: { latitude: number; longitude: number; address?: string } | null,
+  options?: { includeTimezone?: boolean },
 ): Promise<AttendancePayload> {
   const deviceInfo = detectDevice();
   const payload: AttendancePayload = {
@@ -33,7 +34,10 @@ export async function buildAttendancePayload(
     console.warn("No geolocation data to include in payload");
   }
 
-  payload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const includeTimezone = options?.includeTimezone ?? true;
+  if (includeTimezone) {
+    payload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
 
   // Include screen/touch info if available
   if (deviceInfo.screenWidth !== undefined) {

@@ -175,11 +175,14 @@ export async function signOut(payload: {
   screenWidth?: number;
   screenHeight?: number;
   hasTouchScreen?: boolean;
-  timezone?: string;
 }) {
+  // Backend validation rejects extra fields on this endpoint (e.g. `timezone`)
+  const { timezone: _timezone, ...cleanPayload } = payload as typeof payload & {
+    timezone?: string;
+  };
   const response = await apiClient.post<AttendanceRecord>(
     "/attendance/sign-out",
-    payload,
+    cleanPayload,
   );
   return response.data;
 }
