@@ -210,7 +210,7 @@ export function BreakTracker() {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {BREAK_TYPE_OPTIONS.map((option) => (
+                            {BREAK_TYPE_OPTIONS.filter(option => option.value !== BreakType.PRAYER && option.value !== BreakType.MEDICAL && option.value !== BreakType.PERSONAL).map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
                                     <span className="flex items-center gap-2">
                                         <span>{option.icon}</span>
