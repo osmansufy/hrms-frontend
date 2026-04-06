@@ -13,13 +13,13 @@ import {
 import { useMyLeaves } from "@/lib/queries/leave";
 import { useSystemSettings } from "@/lib/queries/system-settings";
 import { useMyUserMeta } from "@/lib/queries/user-meta";
-import { cn, toLocalDateStr } from "@/lib/utils";
+import { cn, toLocalDateStr, toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 import { useTimezoneFormatters } from "@/lib/hooks/use-timezone-formatters";
 import {
   detectDevice,
   isDeviceAllowedForAttendance
 } from "@/lib/utils/device-detection";
-import { ClockAlert, Coffee } from "lucide-react";
+import { ClockAlert, Coffee, History } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -87,15 +87,19 @@ export default function EmployeeDashboard() {
   }, [getWarningModalKey]);
 
   // Attendance chart data for last 7 days — stable references, computed once on mount
-  const { start, chartQueryParams } = useMemo(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - 6);
+  const { chartDays, chartQueryParams } = useMemo(() => {
+    const days: string[] = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      days.push(toLocalDateStr(d));
+    }
     return {
-      start,
+      chartDays: days,
       chartQueryParams: {
-        startDate: toLocalDateStr(start),
-        endDate: toLocalDateStr(end),
+        startDate: toStartOfDayISO(days[0]),
+        endDate: toEndOfDayISO(days[days.length - 1]),
         limit: "7",
       },
     };
@@ -105,13 +109,10 @@ export default function EmployeeDashboard() {
     chartQueryParams,
   );
   const attendanceBarData = useMemo(() =>
-    Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date(start);
-      d.setUTCDate(start.getUTCDate() + i);
-      const dateStr = formatDate(d, "short");
+    chartDays.map((dayStr) => {
+      const dateStr = formatDate(dayStr, "short");
       const rec = attendanceChartData?.data?.find((r: ExtendedAttendanceRecord) => {
-        const recDate = new Date(r.date);
-        return recDate.getUTCFullYear() === d.getUTCFullYear() && recDate.getUTCMonth() === d.getUTCMonth() && recDate.getUTCDate() === d.getUTCDate();
+        return toLocalDateStr(new Date(r.date)) === dayStr;
       });
       return {
         date: dateStr,
@@ -119,7 +120,7 @@ export default function EmployeeDashboard() {
         late: rec?.isLate ? 1 : 0,
         absent: rec?.signIn ? 0 : 1,
       };
-    }), [start, attendanceChartData?.data, formatDate]);
+    }), [chartDays, attendanceChartData?.data, formatDate]);
 
   // Location state
   const [location, setLocation] = useState("");
@@ -239,13 +240,7 @@ export default function EmployeeDashboard() {
   const [breakElapsedMinutes, setBreakElapsedMinutes] = useState(0);
 
   // Fetch today's breaks for work time calculation
-  const today = useMemo(() => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }, []);
+  const today = useMemo(() => toLocalDateStr(new Date()), []);
   const { data: todayBreaksData } = useMyBreaks({
     startDate: today,
     endDate: today,
@@ -462,195 +457,227 @@ export default function EmployeeDashboard() {
         : "Signed in";
 
   return (
-    <div className="container space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="container space-y-5">
+      {/* Dashboard Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">Welcome back</p>
-          <h1 className="text-2xl font-semibold">Your Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Welcome back{session?.user?.name ? `, ${session.user.name}` : ""}</p>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-3">
-            <div className="text-right text-xs text-muted-foreground">
-              <div className="font-medium text-foreground">Today</div>
-              <div>{todayDate}</div>
-            </div>
-            <div className="relative group">
-              <Button
-                size="sm"
-                disabled={isTopAttendanceButtonDisabled}
-                onClick={() => (!todayAttendance?.signIn ? handleSignIn() : handleSignOut())}
-                className="rounded-full px-4 py-1.5 text-sm font-semibold  from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
-              >
-                {!todayAttendance?.signIn
-                  ? "Sign In"
-                  : todayAttendance?.signOut
-                    ? "Signed Out"
-                    : "Sign Out"}
-              </Button>
-              {activeBreak && hasSignedInToday && (
-                <div className="hidden group-hover:block absolute top-full right-0 mt-2 w-48 p-2 bg-orange-100 border border-orange-300 rounded-md shadow-lg text-xs text-orange-800 z-10">
-                  <Coffee className="inline size-3 mr-1" />
-                  End your break first to sign out
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          {/* Status Chips */}
           <div className="flex items-center gap-2">
             {activeBreak && (
-              <Badge variant="default" className="bg-orange-500 hover:bg-orange-600 text-xs">
-                <Coffee className="mr-1 size-3" />
+              <Badge className="bg-orange-500/90 hover:bg-orange-600 text-white text-xs gap-1 animate-pulse">
+                <Coffee className="size-3" />
                 On Break
               </Badge>
             )}
-            <span className="text-[11px] text-muted-foreground">{topAttendanceStatus}</span>
+            <Badge variant="outline" className="text-xs text-muted-foreground gap-1">
+              {topAttendanceStatus}
+            </Badge>
+          </div>
+
+          {/* Date + Sign In/Out */}
+          <div className="text-right text-xs text-muted-foreground hidden sm:block">
+            <div>{todayDate}</div>
+          </div>
+          <div className="relative group">
+            <Button
+              size="sm"
+              disabled={isTopAttendanceButtonDisabled}
+              onClick={() => (!todayAttendance?.signIn ? handleSignIn() : handleSignOut())}
+              className={cn(
+                "rounded-full px-5 py-1.5 text-sm font-semibold shadow-sm transition-all",
+                !todayAttendance?.signIn
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  : todayAttendance?.signOut
+                    ? "bg-muted text-muted-foreground cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700 text-white"
+              )}
+            >
+              {!todayAttendance?.signIn
+                ? "Sign In"
+                : todayAttendance?.signOut
+                  ? "Signed Out"
+                  : "Sign Out"}
+            </Button>
+            {activeBreak && hasSignedInToday && (
+              <div className="hidden group-hover:block absolute top-full right-0 mt-2 w-48 p-2 bg-orange-100 border border-orange-300 rounded-md shadow-lg text-xs text-orange-800 z-10">
+                <Coffee className="inline size-3 mr-1" />
+                End your break first to sign out
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {userId && <EmployeeSummaryCard userId={userId} />}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex-1 min-w-[200px]">
-          <Badge
-            variant="outline"
-            className="text-sm sm:text-base px-4 py-2 from-blue-50 to-indigo-50 border-blue-400 text-blue-900 font-semibold tracking-wide rounded-full"
-          >
-            {`Keep pushing! Your productivity matters${session?.user?.name ? ", " + session.user.name : ""}. 🚀`}
-          </Badge>
-        </div>
 
-        <div className="flex gap-3 items-center">
-          {/* Active Break Indicator */}
-          {hasSignedInToday && activeBreak && (
-            <div className="flex flex-col items-end px-4 py-3 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 border-2 border-orange-400 shadow-md hover:shadow-lg transition-all animate-pulse">
-              <span className="text-xs font-semibold text-orange-700 uppercase tracking-widest flex items-center gap-1">
-                {getBreakTypeIcon(activeBreak.breakType)} On Break
-              </span>
-              <span className="font-mono text-xl font-bold text-orange-700">
-                {Math.floor(breakElapsedMinutes / 60)}h {breakElapsedMinutes % 60}m
-              </span>
-              <span className="text-[10px] text-orange-600">{getBreakTypeLabel(activeBreak.breakType)}</span>
+      {/* Live Counters Row */}
+      <div className="flex flex-wrap gap-3 items-stretch">
+        {/* Work Time Counter */}
+        <Card className="flex-1 min-w-[180px] border-green-200/60 dark:border-green-800/40">
+          <CardContent className="py-3 px-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40">
+              <span className="text-lg">⏱️</span>
             </div>
-          )}
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Work Time</p>
+              <p className="font-mono text-xl font-bold text-green-700 dark:text-green-400 tabular-nums leading-tight">{formatWorkedTime(workedSeconds)}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Work Time Counter */}
-          <div className="flex flex-col items-end px-4 py-3 rounded-lg from-green-100 to-emerald-100 border-2 border-green-400 shadow-md hover:shadow-lg transition-shadow">
-            <span className="text-xs font-semibold text-green-700 uppercase tracking-widest">⏱️ Live Work Time</span>
-            <span className="font-mono text-2xl font-bold text-green-700">{formatWorkedTime(workedSeconds)}</span>
-          </div>
-        </div>
+        {/* Active Break Counter */}
+        {hasSignedInToday && activeBreak && (
+          <Card className="flex-1 min-w-[180px] border-orange-200/60 dark:border-orange-800/40 bg-orange-50/30 dark:bg-orange-950/10">
+            <CardContent className="py-3 px-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40">
+                <span className="text-lg">{getBreakTypeIcon(activeBreak.breakType)}</span>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-orange-600 dark:text-orange-400 uppercase tracking-wider">{getBreakTypeLabel(activeBreak.breakType)}</p>
+                <p className="font-mono text-xl font-bold text-orange-700 dark:text-orange-400 tabular-nums leading-tight">
+                  {Math.floor(breakElapsedMinutes / 60)}h {breakElapsedMinutes % 60}m
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)] items-start">
-        {/* Attendance Quick Actions & Monthly Late Count */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3 mb-1">
-            <h2 className="text-lg font-semibold">Attendance</h2>
-            {hasSignedInToday && (
-              <Link href="/dashboard/employee/attendance/reconciliation">
-                <Button variant="outline" size="sm">
-                  Attendance Reconciliation
-                </Button>
-              </Link>
-            )}
-          </div>
+      {/* Section Header: Attendance & Breaks */}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold tracking-tight">Attendance & Breaks</h2>
+        {hasSignedInToday && (
+          <Link href="/dashboard/employee/attendance/reconciliation">
+            <Button variant="outline" size="sm" className="text-xs">
+              Attendance Reconciliation
+            </Button>
+          </Link>
+        )}
+      </div>
 
-          {!hasSignedInToday && !attendanceLoading && (
-            <Card className="border-2 border-emerald-500/60 bg-emerald-500/5 dark:bg-emerald-900/10">
-              <CardContent className="py-3 flex items-center justify-between gap-3">
+      {!hasSignedInToday && !attendanceLoading && (
+        <Card className="border border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-900/10">
+          <CardContent className="py-3 flex items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+              <ClockAlert className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">You haven&apos;t signed in today</p>
+              <p className="text-xs text-muted-foreground">
+                Tap the sign-in button to mark your attendance for today.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Monthly Late Count */}
+      {monthlyLateCount > 0 && (
+        <Card className={cn(
+          "border",
+          monthlyLateCount >= 3
+            ? "border-yellow-500/60 bg-yellow-50/50 dark:bg-yellow-950/20"
+            : "border-orange-200/60"
+        )}>
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                  monthlyLateCount >= 3 ? "bg-yellow-100 dark:bg-yellow-900/40" : "bg-orange-100 dark:bg-orange-900/40"
+                )}>
+                  <ClockAlert
+                    className={cn(
+                      "h-4 w-4",
+                      monthlyLateCount >= 3 ? "text-yellow-600" : "text-orange-600"
+                    )}
+                  />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">You haven&apos;t signed in today</p>
+                  <p className="text-sm font-medium">Monthly Late Count</p>
                   <p className="text-xs text-muted-foreground">
-                    Tap the green button below to mark your attendance for today.
+                    {monthlyLateCount >= leaveDeductionDay - 1
+                      ? `Warning: One more late will result in a leave adjustment.`
+                      : `Leave is deducted starting from the ${leaveDeductionDay}th late in a month.`}
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+              <Badge
+                variant={monthlyLateCount >= 3 ? "destructive" : "secondary"}
+                className="text-base px-3 py-0.5 tabular-nums"
+              >
+                {monthlyLateCount}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-          <AttendanceCard
-            todayAttendance={todayAttendance}
-            attendanceLoading={attendanceLoading}
-            attendanceFetching={attendanceFetching}
-            signInMutation={signInMutation}
-            signOutMutation={signOutMutation}
-            captureEmployeeLocation={captureEmployeeLocation}
-            deviceInfo={deviceInfo}
-            isDeviceAllowed={isDeviceAllowed}
-            geolocationStatus={geolocationStatus}
-            geolocationError={geolocationError}
-            locationPermissionStatus={locationPermissionStatus}
-            isGettingLocation={isGettingLocation}
-            isLocationReady={isLocationReady}
-            isLocationBlocked={isLocationBlocked}
-            activeBreak={activeBreak}
-            onRequestLocationAccess={requestLocationAccess}
-            onSignIn={handleSignIn}
-            onSignOut={handleSignOut}
-            location={location}
-            onLocationChange={setLocation}
-          />
+      {/* Row 1: AttendanceCard + BreakTracker side by side */}
+      <div className="grid gap-6 lg:grid-cols-2 items-start">
+        <AttendanceCard
+          todayAttendance={todayAttendance}
+          attendanceLoading={attendanceLoading}
+          attendanceFetching={attendanceFetching}
+          signInMutation={signInMutation}
+          signOutMutation={signOutMutation}
+          captureEmployeeLocation={captureEmployeeLocation}
+          deviceInfo={deviceInfo}
+          isDeviceAllowed={isDeviceAllowed}
+          geolocationStatus={geolocationStatus}
+          geolocationError={geolocationError}
+          locationPermissionStatus={locationPermissionStatus}
+          isGettingLocation={isGettingLocation}
+          isLocationReady={isLocationReady}
+          isLocationBlocked={isLocationBlocked}
+          activeBreak={activeBreak}
+          onRequestLocationAccess={requestLocationAccess}
+          onSignIn={handleSignIn}
+          onSignOut={handleSignOut}
+          location={location}
+          onLocationChange={setLocation}
+        />
 
-          {/* Monthly Late Count */}
-          {monthlyLateCount > 0 && (
-            <Card className={cn(
-              "border-2",
-              monthlyLateCount >= 3
-                ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
-                : "border-orange-200"
-            )}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <ClockAlert
-                      className={cn(
-                        "h-5 w-5",
-                        monthlyLateCount >= 3 ? "text-yellow-600" : "text-orange-600"
-                      )}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">Monthly Late Count</p>
-                      <p className="text-xs text-muted-foreground">
-                        {monthlyLateCount >= leaveDeductionDay - 1
-                          ? `Warning: One more late will result in a leave adjustment. Leave will be deducted starting from the ${leaveDeductionDay}th late in a month.`
-                          : `Keep track of your attendance. Leave is deducted starting from the ${leaveDeductionDay}th late in a month.`}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant={monthlyLateCount >= 3 ? "destructive" : "secondary"}
-                    className="text-lg px-4 py-1"
-                  >
-                    {monthlyLateCount} /month
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </section>
-
-        {/* Attendance Charts */}
-        <section className="space-y-4">
-          <AttendanceCharts attendanceBarData={attendanceBarData} />
-        </section>
+        {hasSignedInToday ? (
+          <BreakTracker />
+        ) : (
+          <Card className="flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 min-h-[280px]">
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="rounded-full bg-muted p-4 mb-4">
+                <Coffee className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">Break Tracker</p>
+              <p className="text-xs text-muted-foreground/70 mt-1 max-w-[200px]">
+                Sign in first to start tracking your breaks.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Break Management Section - Only show when signed in */}
-      {hasSignedInToday && (
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
-            <div className="flex items-center gap-2">
-              <Coffee className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">Break Management</h2>
-            </div>
-            <div className="h-px flex-1 bg-gradient-to-r from-border via-transparent to-transparent" />
-          </div>
+      {/* Row 2: AttendanceCharts + BreakHistoryCard side by side */}
+      <div className="grid gap-6 lg:grid-cols-2 items-start">
+        <AttendanceCharts attendanceBarData={attendanceBarData} />
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <BreakTracker />
-            <BreakHistoryCard />
-          </div>
-        </section>
-      )}
+        {hasSignedInToday ? (
+          <BreakHistoryCard />
+        ) : (
+          <Card className="flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 min-h-[280px]">
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="rounded-full bg-muted p-4 mb-4">
+                <History className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">Break History</p>
+              <p className="text-xs text-muted-foreground/70 mt-1 max-w-[200px]">
+                Your break history for today will appear here after you sign in.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Late Attendance Modals */}
       <LateAttendanceWarningModal

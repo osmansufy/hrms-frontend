@@ -10,6 +10,7 @@ export interface AttendancePayload {
   screenWidth?: number;
   screenHeight?: number;
   hasTouchScreen?: boolean;
+  timezone?: string;
 }
 
 export async function buildAttendancePayload(
@@ -31,6 +32,8 @@ export async function buildAttendancePayload(
   } else {
     console.warn("No geolocation data to include in payload");
   }
+
+  payload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Include screen/touch info if available
   if (deviceInfo.screenWidth !== undefined) {

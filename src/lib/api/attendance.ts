@@ -158,6 +158,7 @@ export async function signIn(payload: {
   screenWidth?: number;
   screenHeight?: number;
   hasTouchScreen?: boolean;
+  timezone?: string;
 }) {
   const response = await apiClient.post<AttendanceRecord>(
     "/attendance/sign-in",
@@ -174,6 +175,7 @@ export async function signOut(payload: {
   screenWidth?: number;
   screenHeight?: number;
   hasTouchScreen?: boolean;
+  timezone?: string;
 }) {
   const response = await apiClient.post<AttendanceRecord>(
     "/attendance/sign-out",

@@ -6,68 +6,38 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Converts a date string (YYYY-MM-DD) to ISO DateTime string at start of day in business timezone
- * @param dateString - Date in format YYYY-MM-DD (e.g., "2025-12-22")
- * @param timezone - IANA timezone identifier (defaults to "Asia/Dhaka" for backward compatibility)
- * @returns ISO 8601 DateTime string at start of day in the specified timezone
+ * Converts a date string (YYYY-MM-DD) to its pure UTC-midnight ISO string.
+ * The backend stores calendar dates at UTC midnight (e.g. "2026-04-06T00:00:00.000Z"
+ * for April 6), so query parameters should use the same format.
+ *
+ * @param dateString - Date in format YYYY-MM-DD
+ * @returns ISO 8601 DateTime string at UTC midnight
  *
  * @example
- * // For Jan 9, 2026 in Asia/Dhaka (UTC+6)
  * toStartOfDayISO("2026-01-09")
- * // Returns: "2026-01-08T18:00:00.000Z" (which is Jan 9 00:00 in Dhaka)
- * 
- * @deprecated This function uses hardcoded offset. For dynamic timezone support, use timezone from system settings.
- * Proper implementation would require calculating timezone offset dynamically (considering DST).
+ * // => "2026-01-09T00:00:00.000Z"
  */
-export function toStartOfDayISO(dateString: string, timezone: string = APP_TIMEZONE): string {
+export function toStartOfDayISO(dateString: string, _timezone?: string): string {
   if (!dateString) return "";
-
-  // Parse the date string (YYYY-MM-DD)
   const [year, month, day] = dateString.split("-").map(Number);
-
-  // TODO: Calculate timezone offset dynamically based on timezone parameter
-  // For now, using hardcoded offset for Asia/Dhaka (UTC+6) for backward compatibility
-  // Proper implementation would need to handle DST and calculate offset for the specific date
-  const offsetHours = timezone === "Asia/Dhaka" ? 6 : 6; // Default to +6 for now
-  
-  // Create date at midnight in the target timezone
-  const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-  // Subtract offset hours to get the UTC time that represents midnight in the timezone
-  date.setUTCHours(date.getUTCHours() - offsetHours);
-
-  return date.toISOString();
+  return new Date(Date.UTC(year, month - 1, day)).toISOString();
 }
 
 /**
- * Converts a date string (YYYY-MM-DD) to ISO DateTime string at end of day in business timezone
- * @param dateString - Date in format YYYY-MM-DD (e.g., "2025-12-22")
- * @param timezone - IANA timezone identifier (defaults to "Asia/Dhaka" for backward compatibility)
- * @returns ISO 8601 DateTime string at end of day (23:59:59.999) in the specified timezone
+ * Converts a date string (YYYY-MM-DD) to end-of-day in UTC
+ * (23:59:59.999Z on the same calendar date).
+ *
+ * @param dateString - Date in format YYYY-MM-DD
+ * @returns ISO 8601 DateTime string at 23:59:59.999 UTC
  *
  * @example
- * // For Jan 9, 2026 in Asia/Dhaka (UTC+6)
  * toEndOfDayISO("2026-01-09")
- * // Returns: "2026-01-09T17:59:59.999Z" (which is Jan 9 23:59:59.999 in Dhaka)
- * 
- * @deprecated This function uses hardcoded offset. For dynamic timezone support, use timezone from system settings.
- * Proper implementation would require calculating timezone offset dynamically (considering DST).
+ * // => "2026-01-09T23:59:59.999Z"
  */
-export function toEndOfDayISO(dateString: string, timezone: string = APP_TIMEZONE): string {
+export function toEndOfDayISO(dateString: string, _timezone?: string): string {
   if (!dateString) return "";
-
-  // Parse the date string (YYYY-MM-DD)
   const [year, month, day] = dateString.split("-").map(Number);
-
-  // TODO: Calculate timezone offset dynamically based on timezone parameter
-  // For now, using hardcoded offset for Asia/Dhaka (UTC+6) for backward compatibility
-  const offsetHours = timezone === "Asia/Dhaka" ? 6 : 6; // Default to +6 for now
-  
-  // Create date at end of day (23:59:59.999) in the target timezone
-  const date = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
-  // Subtract offset hours to get the UTC time that represents end of day in the timezone
-  date.setUTCHours(date.getUTCHours() - offsetHours);
-
-  return date.toISOString();
+  return new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999)).toISOString();
 }
 
 /**

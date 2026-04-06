@@ -2,47 +2,32 @@
 
 import { useMemo } from "react";
 import { Calendar, Clock, TrendingUp, Users } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSession } from "@/components/auth/session-provider";
-import { useMyAttendanceRecords } from "@/lib/queries/attendance";
-import { toStartOfDayISO, toEndOfDayISO, toLocalDateStr } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMyMonthlyAttendanceSummary } from "@/lib/queries/attendance";
 
 export function AttendanceStatsCard() {
-    const { session } = useSession();
-    const userId = session?.user.id;
-
-    // Get current month's attendance
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
 
-    const queryParams = useMemo(() => ({
-        startDate: toStartOfDayISO(toLocalDateStr(startOfMonth)),
-        endDate: toEndOfDayISO(toLocalDateStr(endOfMonth)),
-        limit: "100", // Get all records for the month
-    }), []);
-
-    const { data } = useMyAttendanceRecords(userId, queryParams);
+    const { data: summary } = useMyMonthlyAttendanceSummary({ year, month });
 
     const stats = useMemo(() => {
-        if (!data?.data) return { present: 0, late: 0, onTime: 0, percentage: 0 };
+        if (!summary) return { present: 0, late: 0, onTime: 0, percentage: 0 };
 
-        const records = data.data.filter(r => r.signIn); // Only count actual attendance
-        const late = records.filter(r => r.isLate).length;
-        const onTime = records.length - late;
-
-        // Calculate working days in month (rough estimate: total days - weekends)
-        const totalDays = endOfMonth.getDate();
-        const workingDays = Math.floor(totalDays * 5 / 7); // Approximate
-        const percentage = workingDays > 0 ? Math.round((records.length / workingDays) * 100) : 0;
+        const present = summary.totalPresentDays ?? 0;
+        const late = summary.totalLateDays ?? 0;
+        const onTime = present - late;
+        const workingDays = summary.totalWorkingDays ?? 0;
+        const percentage = workingDays > 0 ? Math.round((present / workingDays) * 100) : 0;
 
         return {
-            present: records.length,
+            present,
             late,
             onTime,
             percentage: Math.min(percentage, 100),
         };
-    }, [data, endOfMonth]);
+    }, [summary]);
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

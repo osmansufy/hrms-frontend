@@ -99,6 +99,9 @@ export function useSignOut(userId?: string) {
     onSuccess: () => {
       if (!userId) return;
       queryClient.invalidateQueries({ queryKey: attendanceKeys.today(userId) });
+      queryClient.invalidateQueries({ queryKey: ["attendance", "my-records", userId] });
+      queryClient.invalidateQueries({ queryKey: ["attendance", "my-monthly-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance", "my-lost-hours", userId] });
     },
   });
 }
@@ -435,7 +438,7 @@ export function useActiveBreak() {
  */
 export function useMyBreaks(params?: { startDate?: string; endDate?: string }) {
   return useQuery({
-    queryKey: attendanceKeys.breaks.myBreaks(params),
+    queryKey: ["my-breaks"],
     queryFn: () => getMyBreaks(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -515,7 +518,7 @@ export function useEndBreak(userId?: string) {
       });
       // Invalidate today's breaks
       queryClient.invalidateQueries({
-        queryKey: attendanceKeys.breaks.myBreaks(),
+        queryKey: ["my-breaks"],
       });
       // Invalidate today's attendance to update metrics
       if (userId) {
