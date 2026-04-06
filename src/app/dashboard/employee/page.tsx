@@ -1,3 +1,4 @@
+// cspell:ignore tabular-nums
 "use client";
 
 import { useSession } from "@/components/auth/session-provider";
@@ -138,7 +139,6 @@ export default function EmployeeDashboard() {
     requestLocationAccess,
     waitForGeolocation,
     setGeolocationError,
-    setGeolocation,
   } = useGeolocation(captureEmployeeLocation);
 
   // Device detection for attendance restriction
@@ -366,11 +366,11 @@ export default function EmployeeDashboard() {
 
   const handleSignOut = useCallback(async () => {
     if (!isDeviceAllowed) {
-      const device = detectDevice();
+      // Use already-computed deviceInfo — avoids re-running UA parsing
       const message =
         allowMobileAttendance && userMeta?.allowMobileSignIn === false
           ? "Your account is not allowed to mark attendance from mobile devices."
-          : device.type === "mobile"
+          : deviceInfo?.type === "mobile"
             ? "Attendance is only allowed from desktop or laptop computers."
             : "Device not allowed";
       toast.error(message);
@@ -389,7 +389,7 @@ export default function EmployeeDashboard() {
       getCurrentLocation,
       waitForGeolocation,
       geolocationRef,
-      true // Force refresh for sign-out
+      true, // Force refresh for sign-out
     );
 
     // Final check - if still no location and it's required, block
@@ -406,7 +406,7 @@ export default function EmployeeDashboard() {
       await signOutMutation.mutateAsync(payload);
       toast.success("Signed out successfully");
       setLocation("");
-      setGeolocation({});
+      // watchPosition keeps geolocation current — no need to clear it here
       setGeolocationError(null);
     } catch (err: any) {
       console.error("Sign-out error:", err);
@@ -424,15 +424,16 @@ export default function EmployeeDashboard() {
     isDeviceAllowed,
     allowMobileAttendance,
     userMeta?.allowMobileSignIn,
+    deviceInfo,           // replaces inline detectDevice() call
     signOutMutation,
     location,
     captureEmployeeLocation,
     locationPermissionStatus,
     getCurrentLocation,
     waitForGeolocation,
-    geolocationRef,
-    setGeolocation,
+    // geolocationRef omitted — React refs are stable, never need to be deps
     setGeolocationError,
+    // setGeolocation omitted — no longer called
   ]);
 
   // Leave-related queries and calculations removed from dashboard (now only on leave page)
@@ -519,7 +520,7 @@ export default function EmployeeDashboard() {
       {/* Live Counters Row */}
       <div className="flex flex-wrap gap-3 items-stretch">
         {/* Work Time Counter */}
-        <Card className="flex-1 min-w-[180px] border-green-200/60 dark:border-green-800/40">
+        <Card className="flex-1 min-w-45 border-green-200/60 dark:border-green-800/40">
           <CardContent className="py-3 px-4 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40">
               <span className="text-lg">⏱️</span>
@@ -533,7 +534,7 @@ export default function EmployeeDashboard() {
 
         {/* Active Break Counter */}
         {hasSignedInToday && activeBreak && (
-          <Card className="flex-1 min-w-[180px] border-orange-200/60 dark:border-orange-800/40 bg-orange-50/30 dark:bg-orange-950/10">
+          <Card className="flex-1 min-w-45 border-orange-200/60 dark:border-orange-800/40 bg-orange-50/30 dark:bg-orange-950/10">
             <CardContent className="py-3 px-4 flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40">
                 <span className="text-lg">{getBreakTypeIcon(activeBreak.breakType)}</span>
@@ -646,13 +647,13 @@ export default function EmployeeDashboard() {
         {hasSignedInToday ? (
           <BreakTracker />
         ) : (
-          <Card className="flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 min-h-[280px]">
+          <Card className="flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 min-h-70">
             <CardContent className="flex flex-col items-center justify-center py-10 text-center">
               <div className="rounded-full bg-muted p-4 mb-4">
                 <Coffee className="h-8 w-8 text-muted-foreground/50" />
               </div>
               <p className="text-sm font-medium text-muted-foreground">Break Tracker</p>
-              <p className="text-xs text-muted-foreground/70 mt-1 max-w-[200px]">
+              <p className="text-xs text-muted-foreground/70 mt-1 max-w-50">
                 Sign in first to start tracking your breaks.
               </p>
             </CardContent>
@@ -667,13 +668,13 @@ export default function EmployeeDashboard() {
         {hasSignedInToday ? (
           <BreakHistoryCard />
         ) : (
-          <Card className="flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 min-h-[280px]">
+          <Card className="flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 min-h-70">
             <CardContent className="flex flex-col items-center justify-center py-10 text-center">
               <div className="rounded-full bg-muted p-4 mb-4">
                 <History className="h-8 w-8 text-muted-foreground/50" />
               </div>
               <p className="text-sm font-medium text-muted-foreground">Break History</p>
-              <p className="text-xs text-muted-foreground/70 mt-1 max-w-[200px]">
+              <p className="text-xs text-muted-foreground/70 mt-1 max-w-50">
                 Your break history for today will appear here after you sign in.
               </p>
             </CardContent>

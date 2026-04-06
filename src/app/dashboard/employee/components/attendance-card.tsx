@@ -156,9 +156,9 @@ export function AttendanceCard({
           blockReason !== null
             ? "bg-muted/30 border border-muted"
             : !todayAttendance?.signIn
-              ? " from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border border-green-200 dark:border-green-900/50"
+              ? "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/50"
               : todayAttendance && !todayAttendance.signOut
-                ? " from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border border-orange-200 dark:border-orange-900/50"
+                ? "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50"
                 : "bg-muted/30 border border-muted"
         )}>
           <div className="flex flex-col items-center justify-center">
@@ -175,10 +175,10 @@ export function AttendanceCard({
                   </div>
                 )}
                 {todayAttendance?.signOut && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800">
-                    <LogOut className="size-4 text-orange-600 dark:text-orange-400" />
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
+                    <LogOut className="size-4 text-red-600 dark:text-red-400" />
                     <span className="text-muted-foreground">Out:</span>
-                    <span className="font-semibold text-orange-700 dark:text-orange-300">
+                    <span className="font-semibold text-red-700 dark:text-red-300">
                       {formatTimeInTimezone(todayAttendance.signOut)}
                     </span>
                   </div>
@@ -197,9 +197,9 @@ export function AttendanceCard({
                 blockReason !== null
                   ? "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
                   : !todayAttendance?.signIn
-                    ? " from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-500/50 dark:shadow-green-900/50 ring-green-200/50 dark:ring-green-900/30"
+                    ? "bg-green-600 hover:bg-green-700 shadow-green-500/50 dark:shadow-green-900/50 ring-green-200/50 dark:ring-green-900/30"
                     : todayAttendance && !todayAttendance.signOut
-                      ? "from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/50 dark:shadow-orange-900/50 ring-orange-200/50 dark:ring-orange-900/30"
+                      ? "bg-red-600 hover:bg-red-700 shadow-red-500/50 dark:shadow-red-900/50 ring-red-200/50 dark:ring-red-900/30"
                       : "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
               )}
             >
@@ -234,7 +234,7 @@ export function AttendanceCard({
                   : !todayAttendance?.signIn
                     ? "text-green-700 dark:text-green-300"
                     : todayAttendance && !todayAttendance.signOut
-                      ? "text-orange-700 dark:text-orange-300"
+                      ? "text-red-700 dark:text-red-300"
                       : "text-muted-foreground"
             )}>
               {blockReason === "device"

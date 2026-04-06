@@ -36,14 +36,25 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
   // Use ref to track latest geolocation for checking in async contexts
   const geolocationRef = useRef(geolocation);
   const watchIdRef = useRef<number | null>(null);
-  const hasAutoPromptedRef = useRef(false); // Track if we've already auto-prompted
+  const hasAutoPromptedRef = useRef(false);
+  // MEDIUM-1: stable in-progress flag — avoids stale closure on isGettingLocation state
+  const isGettingLocationRef = useRef(false);
+  // LOW-1: pending resolvers resolved when watchPosition fires, avoiding polling loops
+  const pendingLocationResolversRef = useRef<
+    Array<
+      (geo: {
+        latitude: number;
+        longitude: number;
+        address?: string;
+      } | null) => void
+    >
+  >([]);
 
   useEffect(() => {
     geolocationRef.current = geolocation;
   }, [geolocation]);
 
   // Computed: Is location ready for attendance?
-  // True if we have valid coordinates or location capture is not required
   const isLocationReady =
     !captureEmployeeLocation ||
     (locationPermissionStatus === "granted" &&
@@ -63,6 +74,50 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
    * fail due to rate limits, impacting sign-in/sign-out UX. Attendance only
    * requires coordinates (lat/lng); `address` remains optional.
    */
+
+  // MEDIUM-3: stopWatchingPosition as a stable useCallback so onchange handlers
+  // always reference the latest version across effect re-runs.
+  const stopWatchingPosition = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  }, []);
+
+  // MEDIUM-3: startWatchingPosition as a stable useCallback for the same reason.
+  const startWatchingPosition = useCallback(() => {
+    if (watchIdRef.current !== null) return; // Already watching
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setGeolocation((prev) => ({
+          ...prev,
+          latitude,
+          longitude,
+          timestamp: Date.now(),
+        }));
+        setGeolocationStatus("available");
+        setGeolocationError(null);
+
+        // LOW-1: resolve pending waiters immediately when position arrives
+        const resolvers = pendingLocationResolversRef.current.splice(0);
+        resolvers.forEach((resolve) => resolve({ latitude, longitude }));
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setGeolocationStatus("denied");
+          setLocationPermissionStatus("denied");
+          stopWatchingPosition();
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: LOCATION_STALE_THRESHOLD,
+      },
+    );
+  }, [stopWatchingPosition]);
 
   // Check geolocation permission status on mount and start watching if granted
   useEffect(() => {
@@ -90,6 +145,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
             startWatchingPosition();
           }
 
+          // MEDIUM-3: onchange now references stable callbacks — safe across re-runs
           permissionStatus.onchange = () => {
             const newState = permissionStatus.state as
               | "granted"
@@ -97,14 +153,13 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
               | "prompt";
             setLocationPermissionStatus(newState);
 
-            // Start watching when permission becomes granted
             if (newState === "granted") {
               startWatchingPosition();
             } else {
               stopWatchingPosition();
             }
           };
-        } catch (error) {
+        } catch {
           checkLocationPermissionFallback();
         }
       } else {
@@ -116,7 +171,6 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setLocationPermissionStatus("granted");
-          // Update geolocation immediately
           const { latitude, longitude } = position.coords;
           setGeolocation({ latitude, longitude, timestamp: Date.now() });
           setGeolocationStatus("available");
@@ -133,62 +187,21 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
       );
     };
 
-    const startWatchingPosition = () => {
-      if (watchIdRef.current !== null) return; // Already watching
-
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setGeolocation((prev) => ({
-            ...prev,
-            latitude,
-            longitude,
-            timestamp: Date.now(),
-          }));
-          setGeolocationStatus("available");
-          setGeolocationError(null);
-        },
-        (error) => {
-          if (error.code === error.PERMISSION_DENIED) {
-            setGeolocationStatus("denied");
-            setLocationPermissionStatus("denied");
-            stopWatchingPosition();
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: LOCATION_STALE_THRESHOLD,
-        },
-      );
-    };
-
-    const stopWatchingPosition = () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-    };
-
     checkLocationPermission();
 
-    // Cleanup on unmount
     return () => {
       stopWatchingPosition();
     };
-  }, [captureEmployeeLocation]);
+  }, [captureEmployeeLocation, startWatchingPosition, stopWatchingPosition]);
 
   // Auto-prompt for location permission on first visit if status is "prompt"
-  // This effect runs after permission status is determined
   useEffect(() => {
     if (!captureEmployeeLocation) return;
-    if (hasAutoPromptedRef.current) return; // Already prompted once
-    if (locationPermissionStatus !== "prompt") return; // Only auto-prompt when status is "prompt"
+    if (hasAutoPromptedRef.current) return;
+    if (locationPermissionStatus !== "prompt") return;
 
-    // Mark as prompted to prevent multiple prompts
     hasAutoPromptedRef.current = true;
 
-    // Small delay to ensure UI is rendered before showing browser prompt
     const timeoutId = setTimeout(() => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -196,6 +209,8 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           setGeolocation({ latitude, longitude, timestamp: Date.now() });
           setGeolocationStatus("available");
           setLocationPermissionStatus("granted");
+          // HIGH-2: start watching after the user grants permission here
+          startWatchingPosition();
         },
         (error) => {
           if (error.code === error.PERMISSION_DENIED) {
@@ -212,10 +227,10 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           maximumAge: LOCATION_CACHE_DURATION,
         },
       );
-    }, 500); // 500ms delay for better UX
+    }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [captureEmployeeLocation, locationPermissionStatus]);
+  }, [captureEmployeeLocation, locationPermissionStatus, startWatchingPosition]);
 
   // Optimized getCurrentLocation - uses cached data from watchPosition when available
   const getCurrentLocation = useCallback(
@@ -226,22 +241,19 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
       longitude: number;
       address?: string;
     } | null> => {
-      // If permission is denied, return null immediately
       if (locationPermissionStatus === "denied") {
         return null;
       }
 
-      // Check if we have cached geolocation that's still valid
       const currentGeo = geolocationRef.current;
+      // HIGH-1: use !== undefined instead of falsy check — 0 is a valid coordinate
       if (
         !forceRefresh &&
-        currentGeo.latitude &&
-        currentGeo.longitude &&
+        currentGeo.latitude !== undefined &&
+        currentGeo.longitude !== undefined &&
         currentGeo.timestamp
       ) {
         const age = Date.now() - currentGeo.timestamp;
-
-        // For non-forced requests, use cache if within duration
         if (age < LOCATION_CACHE_DURATION) {
           return {
             latitude: currentGeo.latitude,
@@ -251,22 +263,33 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         }
       }
 
-      // For force refresh or stale cache, get fresh location
-      // Prevent concurrent calls
-      if (isGettingLocation) {
-        // Wait for up to 3 seconds for the ongoing request
-        for (let i = 0; i < 30; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          const geo = geolocationRef.current;
-          if (geo.latitude && geo.longitude) {
-            return {
-              latitude: geo.latitude,
-              longitude: geo.longitude,
-              address: geo.address,
-            };
-          }
-        }
-        return null;
+      // MEDIUM-1: use ref for concurrent guard — state value is stale in same render cycle
+      if (isGettingLocationRef.current) {
+        // LOW-1: Promise-based wait — no polling loop
+        return new Promise((resolve) => {
+          pendingLocationResolversRef.current.push(resolve);
+          // Safety timeout after 3 seconds
+          setTimeout(() => {
+            const idx = pendingLocationResolversRef.current.indexOf(resolve);
+            if (idx !== -1) {
+              pendingLocationResolversRef.current.splice(idx, 1);
+              const geo = geolocationRef.current;
+              // HIGH-1: undefined check
+              if (
+                geo.latitude !== undefined &&
+                geo.longitude !== undefined
+              ) {
+                resolve({
+                  latitude: geo.latitude,
+                  longitude: geo.longitude,
+                  address: geo.address,
+                });
+              } else {
+                resolve(null);
+              }
+            }
+          }, 3000);
+        });
       }
 
       return new Promise((resolve) => {
@@ -277,76 +300,95 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           return;
         }
 
+        // MEDIUM-1: set ref immediately so concurrent calls see it right away
+        isGettingLocationRef.current = true;
         setIsGettingLocation(true);
         setGeolocationStatus("checking");
 
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
+        // LOW-5: try high accuracy first, fall back to low accuracy on timeout
+        const tryGetPosition = (highAccuracy: boolean) => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const { latitude, longitude } = position.coords;
 
-            // Update state immediately with coordinates
-            const geoData: GeolocationData = {
-              latitude,
-              longitude,
-              timestamp: Date.now(),
-            };
-            setGeolocation(geoData);
-            setGeolocationError(null);
-            setGeolocationStatus("available");
-            setLocationPermissionStatus("granted");
-            setIsGettingLocation(false);
+              const geoData: GeolocationData = {
+                latitude,
+                longitude,
+                timestamp: Date.now(),
+              };
+              setGeolocation(geoData);
+              setGeolocationError(null);
+              setGeolocationStatus("available");
+              setLocationPermissionStatus("granted");
+              isGettingLocationRef.current = false; // MEDIUM-1
+              setIsGettingLocation(false);
 
-            // Return immediately without waiting for address
-            resolve({ latitude, longitude, address: currentGeo.address });
-          },
-          (error) => {
+              resolve({ latitude, longitude, address: currentGeo.address });
+            },
+            (error) => {
+              let errorMessage = "Failed to get location";
 
-            let errorMessage = "Failed to get location";
+              switch (error.code) {
+                case error.PERMISSION_DENIED:
+                  setGeolocationStatus("denied");
+                  setLocationPermissionStatus("denied");
+                  errorMessage =
+                    "Location access denied. Please enable location access to mark attendance.";
+                  break;
+                case error.POSITION_UNAVAILABLE:
+                  setGeolocationStatus("unavailable");
+                  errorMessage = "Location information unavailable";
+                  break;
+                case error.TIMEOUT:
+                  // LOW-5: retry with low accuracy before giving up
+                  if (highAccuracy) {
+                    tryGetPosition(false);
+                    return;
+                  }
+                  setGeolocationStatus("unavailable");
+                  errorMessage = "Location request timed out";
+                  // Fall back to cached location if available
+                  {
+                    const cachedGeo = geolocationRef.current;
+                    // HIGH-1: undefined check
+                    if (
+                      cachedGeo.latitude !== undefined &&
+                      cachedGeo.longitude !== undefined
+                    ) {
+                      isGettingLocationRef.current = false; // MEDIUM-1
+                      setIsGettingLocation(false);
+                      resolve({
+                        latitude: cachedGeo.latitude,
+                        longitude: cachedGeo.longitude,
+                        address: cachedGeo.address,
+                      });
+                      return;
+                    }
+                  }
+                  // LOW-2: removed dead `break` that followed a `return`
+                  break;
+                default:
+                  setGeolocationStatus("unavailable");
+                  errorMessage = error.message || "Unable to determine location";
+              }
 
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                setGeolocationStatus("denied");
-                setLocationPermissionStatus("denied");
-                errorMessage =
-                  "Location access denied. Please enable location access to mark attendance.";
-                break;
-              case error.POSITION_UNAVAILABLE:
-                setGeolocationStatus("unavailable");
-                errorMessage = "Location information unavailable";
-                break;
-              case error.TIMEOUT:
-                setGeolocationStatus("unavailable");
-                errorMessage = "Location request timed out";
-                // On timeout, try to use cached location if available
-                const cachedGeo = geolocationRef.current;
-                if (cachedGeo.latitude && cachedGeo.longitude) {
-                  setIsGettingLocation(false);
-                  resolve({
-                    latitude: cachedGeo.latitude,
-                    longitude: cachedGeo.longitude,
-                    address: cachedGeo.address,
-                  });
-                  return;
-                }
-                break;
-              default:
-                setGeolocationStatus("unavailable");
-                errorMessage = error.message || "Unable to determine location";
-            }
+              setGeolocationError(errorMessage);
+              isGettingLocationRef.current = false; // MEDIUM-1
+              setIsGettingLocation(false);
+              resolve(null);
+            },
+            {
+              enableHighAccuracy: highAccuracy,
+              timeout: 10000,
+              maximumAge: forceRefresh ? 0 : LOCATION_STALE_THRESHOLD,
+            },
+          );
+        };
 
-            setGeolocationError(errorMessage);
-            setIsGettingLocation(false);
-            resolve(null);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000, // Reduced timeout for faster feedback
-            maximumAge: forceRefresh ? 0 : LOCATION_STALE_THRESHOLD,
-          },
-        );
+        tryGetPosition(true);
       });
     },
-    [isGettingLocation, locationPermissionStatus],
+    [locationPermissionStatus],
   );
 
   const requestLocationAccess = useCallback(async () => {
@@ -364,45 +406,78 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         toast.success("Location access granted");
         setLocationPermissionStatus("granted");
       } else {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        if (geolocationStatus === "denied") {
-          setLocationPermissionStatus("denied");
-          toast.error(
-            "Location access denied. Please enable location permissions in your browser settings.",
-          );
+        // MEDIUM-2: query the Permissions API directly instead of reading stale state
+        if ("permissions" in navigator) {
+          try {
+            const perm = await navigator.permissions.query({
+              name: "geolocation" as PermissionName,
+            });
+            if (perm.state === "denied") {
+              setLocationPermissionStatus("denied");
+              toast.error(
+                "Location access denied. Please enable location permissions in your browser settings.",
+              );
+            } else {
+              setLocationPermissionStatus("prompt");
+              toast.error("Unable to get location. Please try again.");
+            }
+          } catch {
+            toast.error("Unable to get location. Please try again.");
+          }
         } else {
-          setLocationPermissionStatus("prompt");
+          toast.error(
+            "Unable to get location. Please enable location permissions in your browser settings.",
+          );
         }
       }
-    } catch (error) {
+    } catch {
       setLocationPermissionStatus("denied");
     } finally {
       setIsGettingLocation(false);
     }
-  }, [getCurrentLocation, geolocationStatus]);
+  }, [getCurrentLocation]);
 
+  // LOW-1: Promise-based wait — no polling loop
   const waitForGeolocation = useCallback(async (): Promise<{
     latitude: number;
     longitude: number;
     address?: string;
   } | null> => {
-    // Wait up to 3 seconds for geolocation to become available
-    for (let i = 0; i < 30; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const currentGeo = geolocationRef.current;
-      const currentLat = currentGeo?.latitude;
-      const currentLng = currentGeo?.longitude;
-      const currentAddress = currentGeo?.address;
-
-      if (currentLat && currentLng) {
-        return {
-          latitude: currentLat,
-          longitude: currentLng,
-          address: currentAddress,
-        };
-      }
+    // Return immediately if location is already available
+    const currentGeo = geolocationRef.current;
+    // HIGH-1: undefined check
+    if (
+      currentGeo.latitude !== undefined &&
+      currentGeo.longitude !== undefined
+    ) {
+      return {
+        latitude: currentGeo.latitude,
+        longitude: currentGeo.longitude,
+        address: currentGeo.address,
+      };
     }
-    return null;
+
+    // Wait for watchPosition to fire, with a 3-second safety timeout
+    return new Promise((resolve) => {
+      pendingLocationResolversRef.current.push(resolve);
+      setTimeout(() => {
+        const idx = pendingLocationResolversRef.current.indexOf(resolve);
+        if (idx !== -1) {
+          pendingLocationResolversRef.current.splice(idx, 1);
+          const geo = geolocationRef.current;
+          // HIGH-1: undefined check
+          if (geo.latitude !== undefined && geo.longitude !== undefined) {
+            resolve({
+              latitude: geo.latitude,
+              longitude: geo.longitude,
+              address: geo.address,
+            });
+          } else {
+            resolve(null);
+          }
+        }
+      }, 3000);
+    });
   }, []);
 
   return {
@@ -413,11 +488,11 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     locationPermissionStatus,
     isLocationReady,
     isLocationBlocked,
-    geolocationRef,
+    geolocationRef,       // kept: used by page.tsx and attendance-handlers.ts
     getCurrentLocation,
     requestLocationAccess,
     waitForGeolocation,
-    setGeolocation,
-    setGeolocationError,
+    setGeolocation,       // kept: used by page.tsx
+    setGeolocationError,  // kept: used by page.tsx
   };
 }
