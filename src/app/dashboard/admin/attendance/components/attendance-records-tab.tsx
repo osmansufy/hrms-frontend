@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Filter, Edit, Trash2, ArrowLeft, ArrowRight, Calendar, CalendarDays, MapPin, Loader2 } from "lucide-react";
+import { Search, Edit, Trash2, ArrowLeft, ArrowRight, CalendarDays, MapPin, Loader2, CalendarRange, LayoutGrid, LogIn, LogOut } from "lucide-react";
 import { useAttendanceRecords, useUpdateAttendanceRecord, useDeleteAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
 import { useEmployees } from "@/lib/queries/employees";
-import { toStartOfDayISO, toEndOfDayISO, formatTimeInTimezone, formatDateInTimezone } from "@/lib/utils";
-import { useDateRangePresets, DATE_RANGE_PRESETS } from "@/hooks/useDateRangePresets";
+import { toStartOfDayISO, toEndOfDayISO, toLocalDateStr as toLocalStr, formatTimeInTimezone, formatDateInTimezone, formatMinutesToHours } from "@/lib/utils";
+import { useDateRangePresets, DATE_RANGE_PRESETS, type DateRangePreset } from "@/hooks/useDateRangePresets";
 import { useTimezone } from "@/contexts/timezone-context";
 
 import { Button } from "@/components/ui/button";
@@ -70,30 +70,53 @@ const LIMITS_OPTIONS = LIMITS.map((limit) => ({
     label: limit.toString(),
     value: limit.toString(),
 }));
+// ── Monthly mode helpers ────────────────────────────────────────
+type FilterMode = "preset" | "monthly";
+
+function currentMonthValue() {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthToRange(ym: string) {
+    const [y, m] = ym.split("-").map(Number) as [number, number];
+    const start = new Date(y, m - 1, 1);
+    const end   = new Date(y, m, 0);
+    return { startDate: toLocalStr(start), endDate: toLocalStr(end) };
+}
+
 export function AttendanceRecordsTab() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [departmentId, setDepartmentId] = useState<string>("all");
     const [employeeId, setEmployeeId] = useState<string>("all");
-    const [statusFilter, setStatusFilter] = useState<string>("all"); // "all", "late", "ontime", "absent", "onleave"
+    const [statusFilter, setStatusFilter] = useState<string>("all");
     const [limit, setLimit] = useState(30);
-    // Use date range presets hook
+
+    // Date filter
     const { preset, dateRange, setPreset, setCustomRange } = useDateRangePresets("today");
+    const [filterMode, setFilterMode]         = useState<FilterMode>("preset");
+    const [selectedMonth, setSelectedMonth]   = useState<string>(currentMonthValue);
+
+    const effectiveDateRange = useMemo(() =>
+        filterMode === "monthly" ? monthToRange(selectedMonth) : dateRange,
+    [filterMode, selectedMonth, dateRange]);
+
+    const maxMonth = currentMonthValue();
 
     const { data: departments } = useDepartments();
     const { data: employees } = useEmployees();
 
-    // Convert date range to ISO DateTime with user's timezone
     const queryParams = useMemo(() => ({
         page: page.toString(),
         limit: limit.toString(),
         search: search.trim() || undefined,
         departmentId: departmentId === "all" ? undefined : departmentId,
         userId: employeeId === "all" ? undefined : employeeId,
-        startDate: toStartOfDayISO(dateRange.startDate),
-        endDate: toEndOfDayISO(dateRange.endDate),
+        startDate: toStartOfDayISO(effectiveDateRange.startDate),
+        endDate:   toEndOfDayISO(effectiveDateRange.endDate),
         isLate: statusFilter === "late" ? true : statusFilter === "ontime" ? false : undefined,
-    }), [page, limit, search, departmentId, employeeId, dateRange.startDate, dateRange.endDate, statusFilter]);
+    }), [page, limit, search, departmentId, employeeId, effectiveDateRange.startDate, effectiveDateRange.endDate, statusFilter]);
 
     const { data: recordsData, isLoading } = useAttendanceRecords(queryParams);
 
@@ -143,92 +166,136 @@ export function AttendanceRecordsTab() {
 
 
 
+    // Month label for the monthly chip
+    const monthLabel = useMemo(() => {
+        const [y, m] = selectedMonth.split("-").map(Number) as [number, number];
+        return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    }, [selectedMonth]);
+
     return (
         <>
             <div className="space-y-4">
 
-
-                {/* Date Range Quick Filters */}
+                {/* ── Date range card ── */}
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-2 text-base">
-                            <Calendar className="h-4 w-4" />
+                            <CalendarRange className="size-4 text-muted-foreground" />
                             Date Range
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-                            {DATE_RANGE_PRESETS.map((option) => (
-                                <Button
-                                    key={option.value}
-                                    variant={preset === option.value ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setPreset(option.value)}
-                                    className="w-full"
-                                >
-                                    {option.label}
-                                </Button>
-                            ))}
+                        {/* Pill strip */}
+                        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {DATE_RANGE_PRESETS.map((opt) => {
+                                const active = filterMode === "preset" && preset === opt.value;
+                                return (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => { setFilterMode("preset"); setPreset(opt.value as DateRangePreset); setPage(1); }}
+                                        className={[
+                                            "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
+                                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                            active
+                                                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                                : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                                        ].join(" ")}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                );
+                            })}
+
+                            <div className="mx-1 self-stretch w-px bg-border shrink-0" />
+
+                            {/* Monthly chip */}
+                            <button
+                                onClick={() => { setFilterMode("monthly"); setPage(1); }}
+                                className={[
+                                    "shrink-0 flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                    filterMode === "monthly"
+                                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                        : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                                ].join(" ")}
+                            >
+                                <LayoutGrid className="size-3 shrink-0" />
+                                {filterMode === "monthly" ? monthLabel : "Monthly"}
+                            </button>
                         </div>
 
-                        {preset === "custom" && (
-                            <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                                <div>
+                        {/* Monthly picker */}
+                        {filterMode === "monthly" && (
+                            <div className="flex items-end gap-3 rounded-lg border bg-muted/30 p-3">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Select month</label>
                                     <Input
-                                        type="date"
-                                        value={dateRange.startDate}
-                                        max={new Date().toISOString().split("T")[0]}
-                                        onChange={(e) => setCustomRange({ startDate: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <Input
-                                        type="date"
-                                        value={dateRange.endDate}
-                                        max={new Date().toISOString().split("T")[0]}
-                                        onChange={(e) => setCustomRange({ endDate: e.target.value })}
+                                        type="month"
+                                        value={selectedMonth}
+                                        max={maxMonth}
+                                        className="h-8 w-44 text-sm"
+                                        onChange={(e) => { if (e.target.value) { setSelectedMonth(e.target.value); setPage(1); } }}
                                     />
                                 </div>
                             </div>
                         )}
+
+                        {/* Custom date range */}
+                        {filterMode === "preset" && preset === "custom" && (
+                            <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3 sm:max-w-sm">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">From</label>
+                                    <Input type="date" value={dateRange.startDate} max={new Date().toISOString().split("T")[0]} className="h-8 text-sm" onChange={(e) => { setCustomRange({ startDate: e.target.value }); setPage(1); }} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">To</label>
+                                    <Input type="date" value={dateRange.endDate} max={new Date().toISOString().split("T")[0]} className="h-8 text-sm" onChange={(e) => { setCustomRange({ endDate: e.target.value }); setPage(1); }} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Active range readout */}
+                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <CalendarRange className="size-3.5 shrink-0" />
+                            <span className="font-medium text-foreground">
+                                {effectiveDateRange.startDate === effectiveDateRange.endDate
+                                    ? effectiveDateRange.startDate
+                                    : `${effectiveDateRange.startDate} – ${effectiveDateRange.endDate}`}
+                            </span>
+                        </p>
                     </CardContent>
                 </Card>
 
-                {/* Filters */}
-                <div className="flex flex-wrap items-center gap-4 rounded-lg border p-4 shadow-sm">
-                    <div className="flex-1 min-w-[200px]">
-                        <div className="relative">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by name, email, code..."
-                                value={search}
-                                onChange={handleSearch}
-                                className="pl-8"
-                            />
-                        </div>
+                {/* ── Filters bar ── */}
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+                    {/* Search */}
+                    <div className="relative flex-1 min-w-[180px]">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search name, email, code…"
+                            value={search}
+                            onChange={handleSearch}
+                            className="pl-8 h-9"
+                        />
                     </div>
 
                     <Select value={departmentId} onValueChange={handleDepartmentChange}>
-                        <SelectTrigger >
+                        <SelectTrigger className="h-9 w-full sm:w-[160px]">
                             <SelectValue placeholder="Department" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Departments</SelectItem>
-                            {departments?.map((dept) => (
-                                <SelectItem key={dept.id} value={dept.id}>
-                                    {dept.name}
-                                </SelectItem>
-                            ))}
+                            {departments?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
 
                     <Select value={employeeId} onValueChange={handleEmployeeChange}>
-                        <SelectTrigger className="w-[200px]">
+                        <SelectTrigger className="h-9 w-full sm:w-[180px]">
                             <SelectValue placeholder="Employee" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Employees</SelectItem>
-                            {employees?.map((emp) => (
+                            {employees?.map(emp => (
                                 <SelectItem key={emp.userId} value={emp.userId || ""}>
                                     {emp.name} ({emp.employeeCode})
                                 </SelectItem>
@@ -236,8 +303,8 @@ export function AttendanceRecordsTab() {
                         </SelectContent>
                     </Select>
 
-                    <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPage(1); }}>
-                        <SelectTrigger >
+                    <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                        <SelectTrigger className="h-9 w-full sm:w-[140px]">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -248,171 +315,167 @@ export function AttendanceRecordsTab() {
                             <SelectItem value="absent">Absent</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Select value={limit.toString()} onValueChange={(val) => {
-                        setLimit(Number(val));
-                        setPage(1);
-                    }}>
-                        <SelectTrigger >
-                            <SelectValue placeholder="Limit" />
+
+                    <Select value={limit.toString()} onValueChange={(v) => { setLimit(Number(v)); setPage(1); }}>
+                        <SelectTrigger className="h-9 w-[90px]">
+                            <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {LIMITS_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                            ))}
+                            {LIMITS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label} / page</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
 
-                {/* Table */}
-                <div className="rounded-md border">
+                {/* ── Table ── */}
+                <div className="overflow-x-auto rounded-lg border">
                     <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Employee</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Sign In</TableHead>
-                                <TableHead>Sign Out</TableHead>
-                                <TableHead>Location</TableHead>
-                                <TableHead>Lost Time</TableHead>
-                                <TableHead>Overtime</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                            <TableRow className="bg-muted/40 hover:bg-muted/40">
+                                <TableHead className="font-semibold">Employee</TableHead>
+                                <TableHead className="font-semibold">Date</TableHead>
+                                <TableHead className="font-semibold">
+                                    <span className="flex items-center gap-1"><LogIn className="size-3.5" />In</span>
+                                </TableHead>
+                                <TableHead className="font-semibold">
+                                    <span className="flex items-center gap-1"><LogOut className="size-3.5" />Out</span>
+                                </TableHead>
+                                <TableHead className="font-semibold hidden xl:table-cell">Location</TableHead>
+                                <TableHead className="font-semibold text-right">Lost</TableHead>
+                                <TableHead className="font-semibold text-right">OT</TableHead>
+                                <TableHead className="font-semibold">Status</TableHead>
+                                <TableHead className="font-semibold text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-24 text-center">
-                                        Loading...
+                                    <TableCell colSpan={9} className="py-12 text-center text-muted-foreground">
+                                        <Loader2 className="mx-auto mb-2 size-5 animate-spin" />
+                                        Loading records…
                                     </TableCell>
                                 </TableRow>
                             ) : filteredRecords.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-24 text-center">
-                                        No records found.
+                                    <TableCell colSpan={9} className="py-12 text-center text-muted-foreground text-sm">
+                                        No records found for this period.
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                filteredRecords.map((record) => (
-                                    <TableRow key={record.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Avatar className="h-8 w-8">
-                                                    <AvatarImage src={record.user.employee?.profilePicture || undefined} />
-                                                    <AvatarFallback>{record.user.name.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex flex-col">
-                                                    <Link
-                                                        href={`/dashboard/admin/employees/${record.user.employee?.id}`}
-                                                        className="font-medium text-primary hover:underline"
-                                                        rel="noopener noreferrer"
-                                                    >
-                                                        {record.user.name}
-                                                    </Link>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {record.user.employee?.employeeCode}
-                                                    </span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {departments?.find(dept => dept.id === record.user.employee?.departmentId)?.name || "—"}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>{formatDateInTimezone(record.date, "long")}</TableCell>
-                                        <TableCell>{formatTime(record.signIn)}</TableCell>
-                                        <TableCell>{formatTime(record.signOut)}</TableCell>
-                                        <RecordsLocationCell record={record} />
-                                        <TableCell>
-                                            {record.lostMinutes != null ? `${record.lostMinutes} mins` : "—"}
-                                        </TableCell>
-                                        <TableCell>
-                                            {record.overtimeMinutes != null ? `${record.overtimeMinutes} mins` : "—"}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col gap-1">
-                                                {!record.signIn ? (
-                                                    record.isWeekend ? (
-                                                        <Badge variant="outline" className="border-gray-200 text-gray-700 bg-gray-50">
-                                                            Weekend
-                                                        </Badge>
-                                                    ) : record.isOnLeave ? (
-                                                        <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
-                                                            <CalendarDays className="mr-1 h-3 w-3" />
-                                                            On Leave
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">Absent</Badge>
-                                                    )
-                                                ) : record.isLate ? (
-                                                    <Badge variant="destructive">Late</Badge>
-                                                ) : (
-                                                    <Badge variant="secondary">On Time</Badge>
-                                                )}
-                                                {record.isOnLeave && record.leave && (
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {record.leave.leaveType.name}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {formatTimeInTimezone(record.leave.startDate, false)}
-                                                            {record.leave.startDate !== record.leave.endDate && (
-                                                                <> - {formatTimeInTimezone(record.leave.endDate, false)}</>
-                                                            )}
-                                                        </span>
+                                filteredRecords.map((record, idx) => {
+                                    const rowBg = idx % 2 !== 0 ? "bg-muted/20" : "";
+                                    const deptName = departments?.find(d => d.id === record.user.employee?.departmentId)?.name;
+                                    return (
+                                        <TableRow key={record.id} className={`${rowBg} hover:bg-muted/40 transition-colors`}>
+                                            {/* Employee */}
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="size-8 shrink-0">
+                                                        <AvatarImage src={record.user.employee?.profilePicture || undefined} />
+                                                        <AvatarFallback className="text-xs">{record.user.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex flex-col">
+                                                        <Link href={`/dashboard/admin/employees/${record.user.employee?.id}`} className="font-medium hover:underline text-primary leading-tight">
+                                                            {record.user.name}
+                                                        </Link>
+                                                        <span className="text-xs text-muted-foreground">{record.user.employee?.employeeCode}</span>
+                                                        {deptName && <span className="text-xs text-muted-foreground">{deptName}</span>}
                                                     </div>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => setSelectedEmployee({
-                                                        userId: record.user.id,
-                                                        name: record.user.name,
-                                                        record: record
-                                                    })}
-                                                    title="View leave balance"
-                                                >
-                                                    <Info className="h-4 w-4" />
-                                                </Button>
-                                                {record.signIn && <EditRecordDialog record={record} />}
-                                                {
-                                                    record.signIn && <DeleteRecordDialog record={record} />
-                                                }
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
+                                                </div>
+                                            </TableCell>
+
+                                            {/* Date */}
+                                            <TableCell className="whitespace-nowrap text-sm">
+                                                {formatDateInTimezone(record.date, "medium")}
+                                            </TableCell>
+
+                                            {/* Sign in */}
+                                            <TableCell>
+                                                <span className={`tabular-nums font-medium ${record.isLate ? "text-amber-600 dark:text-amber-400" : ""}`}>
+                                                    {record.signIn ? formatTime(record.signIn) : <span className="text-muted-foreground">—</span>}
+                                                </span>
+                                            </TableCell>
+
+                                            {/* Sign out */}
+                                            <TableCell>
+                                                <span className="tabular-nums text-muted-foreground">
+                                                    {record.signOut ? formatTime(record.signOut) : "—"}
+                                                </span>
+                                            </TableCell>
+
+                                            {/* Location */}
+                                            <RecordsLocationCell record={record} />
+
+                                            {/* Lost */}
+                                            <TableCell className="text-right tabular-nums">
+                                                {record.lostMinutes != null && record.lostMinutes > 0
+                                                    ? <span className="font-semibold text-red-600 dark:text-red-400">{formatMinutesToHours(record.lostMinutes)}</span>
+                                                    : <span className="text-muted-foreground">—</span>}
+                                            </TableCell>
+
+                                            {/* OT */}
+                                            <TableCell className="text-right tabular-nums">
+                                                {record.overtimeMinutes != null && record.overtimeMinutes > 0
+                                                    ? <span className="font-semibold text-emerald-700 dark:text-emerald-400">+{formatMinutesToHours(record.overtimeMinutes)}</span>
+                                                    : <span className="text-muted-foreground">—</span>}
+                                            </TableCell>
+
+                                            {/* Status */}
+                                            <TableCell>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {!record.signIn ? (
+                                                        record.isWeekend ? (
+                                                            <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-500 dark:bg-slate-900/40 text-xs">Weekend</Badge>
+                                                        ) : record.isOnLeave ? (
+                                                            <Badge variant="outline" className="border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 text-xs">
+                                                                <CalendarDays className="mr-1 size-3" />
+                                                                {record.leave?.leaveType.name ?? "On Leave"}
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="border-red-300 bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400 text-xs">Absent</Badge>
+                                                        )
+                                                    ) : record.isLate ? (
+                                                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 text-xs">Late</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 text-xs">On Time</Badge>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+
+                                            {/* Actions */}
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <Button variant="ghost" size="icon" className="size-8"
+                                                        onClick={() => setSelectedEmployee({ userId: record.user.id, name: record.user.name, record })}
+                                                        title="View employee details"
+                                                    >
+                                                        <Info className="size-4" />
+                                                    </Button>
+                                                    {record.signIn && <EditRecordDialog record={record} />}
+                                                    {record.signIn && <DeleteRecordDialog record={record} />}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
                             )}
                         </TableBody>
                     </Table>
                 </div>
 
-                {/* Pagination */}
-                <div className="flex items-center justify-end space-x-2 py-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((old) => Math.max(old - 1, 1))}
-                        disabled={page === 1 || isLoading}
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Previous
-                    </Button>
-                    <div className="text-sm font-medium">
-                        Page {page} of {recordsData?.totalPages}
+                {/* ── Pagination ── */}
+                <div className="flex items-center justify-between py-2">
+                    <p className="text-sm text-muted-foreground">
+                        Page {page}{recordsData?.totalPages ? ` of ${recordsData.totalPages}` : ""}
+                        {recordsData?.total ? ` · ${recordsData.total} total records` : ""}
+                    </p>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1 || isLoading}>
+                            <ArrowLeft className="mr-1.5 size-4" /> Previous
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={isLoading || !recordsData || recordsData.data.length < limit}>
+                            Next <ArrowRight className="ml-1.5 size-4" />
+                        </Button>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((old) => old + 1)}
-                        disabled={isLoading || !recordsData || recordsData.data.length < limit}
-                    >
-                        Next
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
                 </div>
             </div>
 

@@ -1,468 +1,406 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+    Card, CardContent, CardDescription, CardHeader, CardTitle,
+} from "@/components/ui/card";
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Clock, Search, Filter, X, CalendarDays, MapPin, AlertTriangle } from "lucide-react";
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+    Loader2, Clock, Search, X, CalendarDays, MapPin,
+    AlertTriangle, LogIn, LogOut, RefreshCw,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAttendanceRecords } from "@/lib/queries/attendance";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toStartOfDayISO, toEndOfDayISO, formatTimeInTimezone, toLocalDateStr } from "@/lib/utils";
 import Link from "next/link";
-import { useDepartment, useDepartments } from "@/lib/queries/departments";
+import { useDepartments } from "@/lib/queries/departments";
+import { useQueryClient } from "@tanstack/react-query";
 
-function formatTime(value?: string | null) {
-    return formatTimeInTimezone(value || "");
-}
+// ──────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────
+
+function formatTime(v?: string | null) { return formatTimeInTimezone(v || ""); }
 
 function getInitials(name: string) {
-    return name
-        .split(" ")
-        .map(n => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-type FilterStatus = "all" | "present" | "signedOut" | "late" | "absent" | "onleave" | "onbreak";
+type FilterStatus = "all" | "present" | "signedOut" | "late" | "onleave" | "onbreak" | "absent";
+
+const STATUS_FILTERS: { value: FilterStatus; label: string }[] = [
+    { value: "all",       label: "All" },
+    { value: "present",   label: "Present" },
+    { value: "signedOut", label: "Signed Out" },
+    { value: "late",      label: "Late" },
+    { value: "onbreak",   label: "On Break" },
+    { value: "onleave",   label: "On Leave" },
+    { value: "absent",    label: "Absent" },
+];
+
+// ──────────────────────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────────────────────
 
 export function TodayAttendanceCard() {
-    const today = toLocalDateStr();
-    const [searchQuery, setSearchQuery] = useState("");
-    const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
-    const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
-    const [resolvingLocationId, setResolvingLocationId] = useState<string | null>(null);
-    const [resolvedAddresses, setResolvedAddresses] = useState<Record<string, string>>({});
+    const queryClient  = useQueryClient();
+    const today        = toLocalDateStr();
+    const [search,     setSearch]     = useState("");
+    const [status,     setStatus]     = useState<FilterStatus>("all");
+    const [deptId,     setDeptId]     = useState("all");
 
     const queryParams = useMemo(() => ({
         startDate: toStartOfDayISO(today),
-        endDate: toEndOfDayISO(today),
-        limit: "100", // Get all for today
+        endDate:   toEndOfDayISO(today),
+        limit:     "200",
     }), [today]);
 
-    const { data, isLoading } = useAttendanceRecords(queryParams);
-
-    const records = data?.data || [];
-
+    const { data, isLoading, isFetching } = useAttendanceRecords(queryParams);
     const { data: departments } = useDepartments();
+    const records = data?.data ?? [];
 
-    // Filter and search logic
-    const filteredRecords = useMemo(() => {
-        let filtered = [...records];
+    // Derived counts
+    const counts = useMemo(() => ({
+        present:   records.filter(r => r.signIn && !r.signOut && !r.isOnBreak).length,
+        signedOut: records.filter(r => r.signIn && r.signOut).length,
+        late:      records.filter(r => r.isLate).length,
+        onBreak:   records.filter(r => r.isOnBreak).length,
+        onLeave:   records.filter(r => r.isOnLeave).length,
+        absent:    records.filter(r => !r.signIn && !r.isOnLeave && !r.isWeekend).length,
+    }), [records]);
 
-        // Apply search filter
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(record =>
-                record.user?.name?.toLowerCase().includes(query) ||
-                record.user?.employee?.employeeCode?.toLowerCase().includes(query) ||
-                record.user?.employee?.departmentId?.toLowerCase().includes(query)
+    // Departments with ≥3 employees on break
+    const breakAlerts = useMemo(() => {
+        const map = new Map<string, { count: number; names: string[] }>();
+        records.filter(r => r.isOnBreak).forEach(r => {
+            const dId = r.user?.employee?.departmentId;
+            if (!dId) return;
+            const cur = map.get(dId) ?? { count: 0, names: [] };
+            cur.count++;
+            cur.names.push(r.user?.name ?? "?");
+            map.set(dId, cur);
+        });
+        return Array.from(map.entries())
+            .filter(([, v]) => v.count >= 3)
+            .map(([deptId, v]) => ({
+                deptId,
+                deptName: departments?.find(d => d.id === deptId)?.name ?? deptId,
+                ...v,
+            }));
+    }, [records, departments]);
+
+    // Filtered records
+    const filtered = useMemo(() => {
+        let rows = records;
+        if (search.trim()) {
+            const q = search.toLowerCase();
+            rows = rows.filter(r =>
+                r.user?.name?.toLowerCase().includes(q) ||
+                r.user?.employee?.employeeCode?.toLowerCase().includes(q)
             );
         }
-
-        // Apply department filter
-        if (selectedDepartment !== "all") {
-            filtered = filtered.filter(record =>
-                record.user?.employee?.departmentId === selectedDepartment
-            );
+        if (deptId !== "all") {
+            rows = rows.filter(r => r.user?.employee?.departmentId === deptId);
         }
-
-        // Apply status filter
-        if (filterStatus !== "all") {
-            filtered = filtered.filter(record => {
-                switch (filterStatus) {
-                    case "present":
-                        return record.signIn && !record.signOut;
-                    case "signedOut":
-                        return record.signIn && record.signOut;
-                    case "late":
-                        return record.isLate;
-                    case "absent":
-                        return !record.signIn && !record.isOnLeave;
-                    case "onleave":
-                        return record.isOnLeave === true;
-                    case "onbreak":
-                        return record.isOnBreak === true;
-                    default:
-                        return true;
+        if (status !== "all") {
+            rows = rows.filter(r => {
+                switch (status) {
+                    case "present":   return r.signIn && !r.signOut;
+                    case "signedOut": return r.signIn && !!r.signOut;
+                    case "late":      return r.isLate;
+                    case "onbreak":   return r.isOnBreak;
+                    case "onleave":   return r.isOnLeave;
+                    case "absent":    return !r.signIn && !r.isOnLeave && !r.isWeekend;
+                    default:          return true;
                 }
             });
         }
+        return rows;
+    }, [records, search, deptId, status]);
 
-        return filtered;
-    }, [records, searchQuery, selectedDepartment, filterStatus]);
+    const handleRefresh = () => {
+        queryClient.invalidateQueries({ queryKey: ["attendance", "admin", "records"] });
+    };
 
-    const present = records.filter(r => r.signIn && !r.signOut);
-    const signedOut = records.filter(r => r.signIn && r.signOut);
-    const late = records.filter(r => r.isLate);
-    const onLeave = records.filter(r => r.isOnLeave === true);
-    const onBreak = records.filter(r => r.isOnBreak === true);
-
-    async function reverseGeocode(
-        latitude?: number | null,
-        longitude?: number | null
-    ): Promise<string | null> {
-        if (latitude == null || longitude == null) return null;
-
-        try {
-            const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18`,
-                {
-                    headers: { "User-Agent": "HRMS Admin Attendance Dashboard" },
-                }
-            );
-
-            if (!response.ok) return null;
-            const data = await response.json();
-            return typeof data.display_name === "string" ? data.display_name : null;
-        } catch (error) {
-            console.warn("Failed to reverse geocode admin attendance location:", error);
-            return null;
-        }
-    }
-
-    async function handleFetchLocation(record: any) {
-        if (resolvingLocationId === record.id) return;
-
-        const latitude = record.signInLatitude ?? record.signOutLatitude;
-        const longitude = record.signInLongitude ?? record.signOutLongitude;
-        if (latitude == null || longitude == null) return;
-
-        setResolvingLocationId(record.id);
-        try {
-            const address = await reverseGeocode(latitude, longitude);
-            if (address) {
-                setResolvedAddresses((prev) => ({ ...prev, [record.id]: address }));
-            }
-        } finally {
-            setResolvingLocationId(null);
-        }
-    }
-    // Check for departments with more than 3 employees on break
-    const departmentsWithManyOnBreak = useMemo(() => {
-        const deptBreakCount = new Map<string, { count: number; employees: string[] }>();
-
-        onBreak.forEach(record => {
-            const departmentId = record.user?.employee?.departmentId;
-            if (departmentId) {
-                const current = deptBreakCount.get(departmentId) || { count: 0, employees: [] };
-                current.count++;
-                current.employees.push(record.user?.name || 'Unknown');
-                deptBreakCount.set(departmentId, current);
-            }
-        });
-
-        return Array.from(deptBreakCount.entries())
-            .filter(([_, data]) => data.count > 3)
-            .map(([dept, data]) => ({ departmentId: dept, ...data }));
-    }, [onBreak]);
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <CardTitle>Today&apos;s Attendance</CardTitle>
-                        <CardDescription>Real-time view of employee attendance</CardDescription>
+                        <CardDescription className="mt-0.5">
+                            Live view · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                        </CardDescription>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        {formatTimeInTimezone(new Date())}
+                    <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Clock className="size-3.5" />
+                            {formatTimeInTimezone(new Date())}
+                        </span>
+                        <Button
+                            variant="outline" size="sm"
+                            onClick={handleRefresh}
+                            disabled={isFetching}
+                            className="gap-2"
+                        >
+                            <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+                            Refresh
+                        </Button>
                     </div>
                 </div>
             </CardHeader>
-            <CardContent>
+
+            <CardContent className="space-y-4">
+                {/* ── Break alerts ── */}
+                {breakAlerts.length > 0 && (
+                    <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
+                        <AlertTriangle className="size-4 text-amber-600" />
+                        <AlertTitle className="text-amber-800 dark:text-amber-400">
+                            High Break Concentration
+                        </AlertTitle>
+                        <AlertDescription className="text-amber-700 dark:text-amber-500 space-y-1 mt-1">
+                            {breakAlerts.map(a => (
+                                <div key={a.deptId} className="text-sm">
+                                    <strong>{a.deptName}</strong> — {a.count} employees on break simultaneously
+                                </div>
+                            ))}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* ── Status summary pills ── */}
+                {!isLoading && records.length > 0 && (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                        {[
+                            { label: "Present",    count: counts.present,   dot: "bg-emerald-500" },
+                            { label: "Signed Out", count: counts.signedOut, dot: "bg-slate-400" },
+                            { label: "Late",       count: counts.late,      dot: "bg-amber-500" },
+                            { label: "On Break",   count: counts.onBreak,   dot: "bg-orange-500" },
+                            { label: "On Leave",   count: counts.onLeave,   dot: "bg-blue-500" },
+                            { label: "Absent",     count: counts.absent,    dot: "bg-red-500" },
+                        ].map(({ label, count, dot }) => (
+                            <span key={label} className="flex items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1">
+                                <span className={`size-2 rounded-full ${dot}`} />
+                                <span className="text-muted-foreground">{label}</span>
+                                <span className="font-semibold text-foreground">{count}</span>
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {/* ── Filters ── */}
+                <div className="space-y-3">
+                    {/* Search + department */}
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search name or employee code…"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                className="pl-9 pr-9"
+                            />
+                            {search && (
+                                <button
+                                    onClick={() => setSearch("")}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                >
+                                    <X className="size-4" />
+                                </button>
+                            )}
+                        </div>
+                        <Select value={deptId} onValueChange={setDeptId}>
+                            <SelectTrigger className="w-full sm:w-[200px]">
+                                <SelectValue placeholder="All Departments" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Departments</SelectItem>
+                                {departments?.map(d => (
+                                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Status pill strip */}
+                    <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {STATUS_FILTERS.map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => setStatus(opt.value)}
+                                className={[
+                                    "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                    status === opt.value
+                                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                        : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                                ].join(" ")}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Result count */}
+                    {(search || status !== "all" || deptId !== "all") && (
+                        <p className="text-xs text-muted-foreground">
+                            Showing <strong>{filtered.length}</strong> of {records.length} records
+                        </p>
+                    )}
+                </div>
+
+                {/* ── Table ── */}
                 {isLoading ? (
-                    <div className="flex items-center justify-center py-10 text-muted-foreground">
-                        <Loader2 className="mr-2 size-5 animate-spin" />
-                        Loading today&apos;s attendance...
+                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                        <Loader2 className="mr-2 size-5 animate-spin" /> Loading…
                     </div>
                 ) : records.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground">
+                    <div className="py-12 text-center text-muted-foreground text-sm">
                         No attendance records for today yet.
                     </div>
                 ) : (
-                    <>
-                        {/* Warning for departments with many employees on break */}
-                        {departmentsWithManyOnBreak.length > 0 && (
-                            <Alert variant="destructive" className="mb-4 border-orange-200 bg-orange-50 text-orange-900">
-                                <AlertTriangle className="h-4 w-4 stroke-orange-600" />
-                                <AlertTitle className="text-orange-900">Multiple Employees on Break</AlertTitle>
-                                <AlertDescription className="text-orange-800">
-                                    {departmentsWithManyOnBreak.map((dept, index) => (
-                                        <div key={dept.departmentId} className={index > 0 ? "mt-2" : ""}>
-                                            <strong>{departments?.find(d => d.id === dept.departmentId)?.name}</strong> has {dept.count} employees currently on break
-                                        </div>
-                                    ))}
-                                </AlertDescription>
-                            </Alert>
-                        )}
-
-                        {/* Search and Filter Controls */}
-                        <div className="flex flex-col gap-4 mb-4">
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search by name, employee code, or department..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-9 pr-9"
-                                    />
-                                    {searchQuery && (
-                                        <button
-                                            onClick={() => setSearchQuery("")}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-                                <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                                    <SelectTrigger className="w-full sm:w-[200px]">
-                                        <SelectValue placeholder="All Departments" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Departments</SelectItem>
-                                        {departments?.map((dept) => (
-                                            <SelectItem key={dept.id} value={dept.id}>
-                                                {dept.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex gap-2 flex-wrap">
-                                <Button
-                                    variant={filterStatus === "all" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setFilterStatus("all")}
-                                    className="flex items-center gap-1"
-                                >
-                                    <Filter className="h-3 w-3" />
-                                    All
-                                </Button>
-                                <Button
-                                    variant={filterStatus === "present" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setFilterStatus("present")}
-                                >
-                                    Present
-                                </Button>
-                                <Button
-                                    variant={filterStatus === "signedOut" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setFilterStatus("signedOut")}
-                                >
-                                    Signed Out
-                                </Button>
-                                <Button
-                                    variant={filterStatus === "late" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setFilterStatus("late")}
-                                >
-                                    Late
-                                </Button>
-                                <Button
-                                    variant={filterStatus === "onleave" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setFilterStatus("onleave")}
-                                >
-                                    <CalendarDays className="mr-1 h-3 w-3" />
-                                    On Leave
-                                </Button>
-                                <Button
-                                    variant={filterStatus === "onbreak" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setFilterStatus("onbreak")}
-                                >
-                                    <Clock className="mr-1 h-3 w-3" />
-                                    On Break
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex gap-4 text-sm flex-wrap">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-green-500" />
-                                    <span className="text-muted-foreground">Present: {present.length}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-gray-400" />
-                                    <span className="text-muted-foreground">Signed Out: {signedOut.length}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-red-500" />
-                                    <span className="text-muted-foreground">Late: {late.length}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                                    <span className="text-muted-foreground">On Leave: {onLeave.length}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-orange-500" />
-                                    <span className="text-muted-foreground">On Break: {onBreak.length}</span>
-                                </div>
-                            </div>
-                            {(searchQuery || filterStatus !== "all" || selectedDepartment !== "all") && (
-                                <div className="text-sm text-muted-foreground">
-                                    Showing {filteredRecords.length} of {records.length} records
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="rounded-md border">
-                            <Table>
-                                <TableHeader>
+                    <div className="overflow-x-auto rounded-lg border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                                    <TableHead className="font-semibold">Employee</TableHead>
+                                    <TableHead className="font-semibold">
+                                        <span className="flex items-center gap-1.5"><LogIn className="size-3.5" />In</span>
+                                    </TableHead>
+                                    <TableHead className="font-semibold">
+                                        <span className="flex items-center gap-1.5"><LogOut className="size-3.5" />Out</span>
+                                    </TableHead>
+                                    <TableHead className="font-semibold">Status</TableHead>
+                                    <TableHead className="font-semibold hidden lg:table-cell">Location</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filtered.length === 0 ? (
                                     <TableRow>
-                                        <TableHead>Employee</TableHead>
-                                        <TableHead>Sign In</TableHead>
-                                        <TableHead>Sign Out</TableHead>
-                                        <TableHead>Location</TableHead>
-                                        <TableHead>Status</TableHead>
+                                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground text-sm">
+                                            No records match your filters.
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredRecords.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                                                No records found matching your search or filter criteria.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        filteredRecords.map((record) => (
-                                                <TableRow key={record.id}>
+                                ) : (
+                                    filtered.map((record, idx) => {
+                                        const rowBg = idx % 2 !== 0 ? "bg-muted/20" : "";
+                                        const deptName = departments?.find(d => d.id === record.user?.employee?.departmentId)?.name;
+
+                                        return (
+                                            <TableRow key={record.id} className={`${rowBg} hover:bg-muted/40 transition-colors`}>
+                                                {/* Employee */}
                                                 <TableCell>
                                                     <Link href={`/dashboard/admin/employees/${record.user?.employee?.id}`}>
-
                                                         <div className="flex items-center gap-3">
-                                                            <Avatar className="h-8 w-8">
+                                                            <Avatar className="size-8 shrink-0">
                                                                 <AvatarFallback className="text-xs">
-                                                                    {getInitials(record.user?.name || "?")}
+                                                                    {getInitials(record.user?.name ?? "?")}
                                                                 </AvatarFallback>
                                                             </Avatar>
                                                             <div className="flex flex-col">
-                                                                <div className="font-medium">{record.user?.name}</div>
-                                                                <div className="text-xs text-muted-foreground">
+                                                                <span className="font-medium leading-tight hover:underline">
+                                                                    {record.user?.name}
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground">
                                                                     {record.user?.employee?.employeeCode}
-                                                                </div>
-                                                                <div className="text-xs text-muted-foreground">
-                                                                    {departments?.find(dept => dept.id === record.user?.employee?.departmentId)?.name || "—"}
-                                                                </div>
+                                                                </span>
+                                                                {deptName && (
+                                                                    <span className="text-xs text-muted-foreground">{deptName}</span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </Link>
                                                 </TableCell>
-                                                <TableCell className="font-medium">
-                                                    {formatTime(record.signIn)}
-                                                </TableCell>
+
+                                                {/* Sign in */}
                                                 <TableCell>
-                                                    {formatTime(record.signOut)}
+                                                    <span className={`tabular-nums font-medium ${record.isLate ? "text-amber-600 dark:text-amber-400" : ""}`}>
+                                                        {record.signIn ? formatTime(record.signIn) : <span className="text-muted-foreground">—</span>}
+                                                    </span>
                                                 </TableCell>
-                                                <TableCell className="max-w-xs">
-                                                    {(() => {
-                                                        const resolved = resolvedAddresses[record.id];
-                                                        const effectiveAddress =
-                                                            record.signInAddress ||
-                                                            record.signOutAddress ||
-                                                            resolved;
-                                                        const hasLatLng =
-                                                            (record.signInLatitude != null &&
-                                                                record.signInLongitude != null) ||
-                                                            (record.signOutLatitude != null &&
-                                                                record.signOutLongitude != null);
 
-                                                        if (effectiveAddress) {
-                                                            return (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                                                    <span
-                                                                        className="text-xs text-muted-foreground truncate"
-                                                                        title={effectiveAddress}
-                                                                    >
-                                                                        {effectiveAddress}
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        }
-
-                                                        if (hasLatLng) {
-                                                            return (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="h-7 px-2 text-xs"
-                                                                    onClick={() => handleFetchLocation(record)}
-                                                                    disabled={resolvingLocationId === record.id}
-                                                                >
-                                                                    {resolvingLocationId === record.id ? (
-                                                                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                                                    ) : (
-                                                                        <MapPin className="mr-1 h-3 w-3" />
-                                                                    )}
-                                                                    Fetch address
-                                                                </Button>
-                                                            );
-                                                        }
-
-                                                        return (
-                                                            <span className="text-xs text-muted-foreground">—</span>
-                                                        );
-                                                    })()}
-                                                </TableCell>
+                                                {/* Sign out */}
                                                 <TableCell>
-                                                    <div className="flex flex-col gap-1">
+                                                    <span className="tabular-nums text-muted-foreground">
+                                                        {record.signOut ? formatTime(record.signOut) : "—"}
+                                                    </span>
+                                                </TableCell>
+
+                                                {/* Status */}
+                                                <TableCell>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {/* Primary status */}
                                                         {!record.signIn ? (
                                                             record.isWeekend ? (
-                                                                <Badge variant="outline" className="border-gray-200 text-gray-700 bg-gray-50">
+                                                                <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-500 dark:bg-slate-900/40 text-xs">
                                                                     Weekend
                                                                 </Badge>
                                                             ) : record.isOnLeave ? (
-                                                                <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
-                                                                    <CalendarDays className="mr-1 h-3 w-3" />
-                                                                    On Leave
+                                                                <Badge variant="outline" className="border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 text-xs">
+                                                                    <CalendarDays className="mr-1 size-3" />
+                                                                    {record.leave?.leaveType.name ?? "On Leave"}
                                                                 </Badge>
                                                             ) : (
-                                                                <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50">
+                                                                <Badge variant="outline" className="border-red-300 bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400 text-xs">
                                                                     Absent
                                                                 </Badge>
                                                             )
                                                         ) : record.signOut ? (
-                                                            <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
+                                                            <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-600 dark:bg-slate-900/30 dark:text-slate-400 text-xs">
                                                                 Signed Out
                                                             </Badge>
+                                                        ) : record.isOnBreak ? (
+                                                            <Badge variant="outline" className="border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400 text-xs">
+                                                                <Clock className="mr-1 size-3" />
+                                                                On Break
+                                                                {record.activeBreak?.durationMinutes
+                                                                    ? ` · ${record.activeBreak.durationMinutes}m`
+                                                                    : ""}
+                                                            </Badge>
                                                         ) : (
-                                                            <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
-                                                                Signed In
+                                                            <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 text-xs">
+                                                                Present
                                                             </Badge>
                                                         )}
+
+                                                        {/* Late badge (secondary) */}
                                                         {record.isLate && (
-                                                            <Badge variant="destructive" className="ml-2">Late</Badge>
-                                                        )}
-                                                        {record.isOnBreak && record.activeBreak && (
-                                                            <Badge variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">
-                                                                <Clock className="mr-1 h-3 w-3" />
-                                                                On Break ({record.activeBreak.durationMinutes}m)
+                                                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 text-xs">
+                                                                Late
                                                             </Badge>
-                                                        )}
-                                                        {record.isOnLeave && record.leave && (
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {record.leave.leaveType.name}
-                                                            </span>
                                                         )}
                                                     </div>
                                                 </TableCell>
+
+                                                {/* Location */}
+                                                <TableCell className="hidden lg:table-cell max-w-[180px]">
+                                                    {(() => {
+                                                        const addr = record.signInAddress || record.signOutAddress || record.signInLocation || record.signOutLocation;
+                                                        if (addr) return (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <MapPin className="size-3.5 text-muted-foreground shrink-0" />
+                                                                <span className="text-xs text-muted-foreground truncate" title={addr}>{addr}</span>
+                                                            </div>
+                                                        );
+                                                        return <span className="text-xs text-muted-foreground">—</span>;
+                                                    })()}
+                                                </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 )}
             </CardContent>
         </Card>
