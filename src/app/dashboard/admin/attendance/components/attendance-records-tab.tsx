@@ -385,7 +385,7 @@ export function AttendanceRecordsTab() {
 
                                             {/* Date */}
                                             <TableCell className="whitespace-nowrap text-sm">
-                                                {formatDateInTimezone(record.date, "medium")}
+                                                {formatDateInTimezone(record.date)}
                                             </TableCell>
 
                                             {/* Sign in */}
