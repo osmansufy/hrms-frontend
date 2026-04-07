@@ -67,8 +67,10 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // If error is not 401 or we've already tried refreshing, reject
-    if (error.response?.status !== 401 || !originalRequest) {
+    // If error is not auth-related (401/403) or we've already tried refreshing, reject.
+    // Some deployments return 403 for expired/invalid/missing JWTs.
+    const status = error.response?.status;
+    if ((status !== 401 && status !== 403) || !originalRequest) {
       return Promise.reject(error);
     }
 

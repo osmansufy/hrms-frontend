@@ -299,7 +299,7 @@ export async function getProfilePictureUrl(
   employeeId: string,
 ): Promise<ProfilePictureUrlResponse> {
   const response = await apiClient.get<ProfilePictureUrlResponse>(
-    `/employees/admin/${employeeId}/profile-picture-url`,
+    `/employees/${employeeId}/profile-picture-url`,
   );
   return response.data;
 }
