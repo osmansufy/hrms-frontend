@@ -131,10 +131,15 @@ export default function DesignationsPage() {
 
   return (
     <div className="container space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">Admin · Organization</p>
-          <h1 className="text-2xl font-semibold">Designations</h1>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Organization
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Designations</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Define job roles and designation levels
+          </p>
         </div>
       </div>
 

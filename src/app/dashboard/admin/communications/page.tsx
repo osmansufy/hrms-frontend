@@ -82,8 +82,16 @@ export default function AdminCommunicationsPage() {
     };
 
     return (
-        <div className="container p-6 space-y-6">
-            <h1 className="text-xl font-semibold">Admin Communications</h1>
+        <div className="container space-y-6">
+            <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Notifications
+                </p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight">Communications</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                    Send bulk emails to employees across the organization
+                </p>
+            </div>
 
             {/* Rate Limit Warning */}
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 max-w-3xl">

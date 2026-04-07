@@ -26,9 +26,27 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useAllEmployeeLeaves, useCreateAmendment } from "@/lib/queries/leave";
-import { Loader2, Search, FileText, ExternalLink, Pencil, XCircle } from "lucide-react";
+import { useAllEmployeeLeaves } from "@/lib/queries/leave";
+import {
+    Search,
+    FileText,
+    ExternalLink,
+    Pencil,
+    XCircle,
+    CalendarOff,
+    MoreHorizontal,
+    ArrowLeft,
+    ArrowRight,
+    Loader2,
+} from "lucide-react";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 import { LeaveAmendmentDialog } from "@/components/leave/leave-amendment-dialog";
 import { getLeaveDocumentUrl, LeaveRecord } from "@/lib/api/leave";
@@ -81,10 +99,10 @@ export function EmployeeLeavesTab() {
         setLoadingDocument(leaveId);
         try {
             const { url } = await getLeaveDocumentUrl(leaveId);
-            window.open(url, '_blank');
+            window.open(url, "_blank");
         } catch (error: any) {
             toast.error("Failed to load document", {
-                description: error?.response?.data?.message || "Unable to access the document"
+                description: error?.response?.data?.message || "Unable to access the document",
             });
         } finally {
             setLoadingDocument(null);
@@ -94,7 +112,6 @@ export function EmployeeLeavesTab() {
     const leaves: LeaveRecord[] = data?.data ?? [];
     const pagination = data?.pagination;
 
-    // Get unique statuses and leave types for filters (from current page data)
     const uniqueStatuses = useMemo<string[]>(() => {
         if (!leaves) return [];
         return Array.from(new Set(leaves.map((l) => l.status)));
@@ -103,269 +120,258 @@ export function EmployeeLeavesTab() {
     const uniqueLeaveTypes = useMemo<string[]>(() => {
         if (!leaves) return [];
         return Array.from(
-            new Set(
-                leaves.map((l) => l.leaveType?.name ?? l.leaveTypeId),
-            ),
+            new Set(leaves.map((l) => l.leaveType?.name ?? l.leaveTypeId))
         );
     }, [leaves]);
 
-    // Filter leaves by status and leave type (text search is backend-driven)
     const filteredLeaves = useMemo<LeaveRecord[]>(() => {
         if (!leaves) return [];
-
         return leaves.filter((leave) => {
             const matchesStatus = statusFilter === "all" || leave.status === statusFilter;
-
-            const matchesLeaveType = leaveTypeFilter === "all" ||
-                (leave.leaveType?.name === leaveTypeFilter);
-
+            const matchesLeaveType =
+                leaveTypeFilter === "all" || leave.leaveType?.name === leaveTypeFilter;
             return matchesStatus && matchesLeaveType;
         });
     }, [leaves, statusFilter, leaveTypeFilter]);
 
-    // Sort by start date (most recent first)
     const sortedLeaves = useMemo(
-        () => [...(filteredLeaves ?? [])].sort((a, b) =>
-            new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-        ),
+        () =>
+            [...(filteredLeaves ?? [])].sort(
+                (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+            ),
         [filteredLeaves]
     );
 
     const totalFiltered = pagination?.totalCount ?? sortedLeaves.length;
     const totalPages = pagination?.totalPages ?? 1;
     const currentPage = pagination?.page ?? page;
-const {data: departments, isLoading: departmentsLoading} = useDepartments();
+
+    const { data: departments, isLoading: departmentsLoading } = useDepartments();
+
+    const statCounts = useMemo(() => {
+        const total = pagination?.totalCount ?? leaves.length;
+        const approved = leaves.filter((l) => l.status === "APPROVED").length;
+        const pending = leaves.filter((l) => l.status === "PENDING").length;
+        const rejected = leaves.filter((l) => l.status === "REJECTED").length;
+        return { total, approved, pending, rejected, pageTotal: leaves.length };
+    }, [leaves, pagination]);
+
     return (
         <div className="space-y-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Employee Leave Records</CardTitle>
-                    <CardDescription>
-                        View all leave requests across the organization
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {/* Filters */}
-                    <div className="grid gap-4 md:grid-cols-4">
-                        <div className="flex items-center gap-2">
-                            <Search className="size-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by employee, type, reason, or ID..."
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value);
-                                }}
-                                className="flex-1"
-                            />
-                        </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Filter by status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Statuses</SelectItem>
-                                {uniqueStatuses.map((status) => (
-                                    <SelectItem key={status} value={status}>
-                                        {status}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Filter by leave type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Leave Types</SelectItem>
-                                {uniqueLeaveTypes.map((type) => (
-                                    <SelectItem key={type} value={type}>
-                                        {type}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select
-                            disabled={departmentsLoading || !departments}
-                            value={departmentFilter}
-                            onValueChange={(value) => {
-                                setDepartmentFilter(value as typeof departmentFilter);
-                                setPage(1);
-                            }}
-                        >
-                            <SelectTrigger className="max-w-50 w-full">
-                                <SelectValue placeholder="Filter by department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Departments</SelectItem>
-                                {departments?.map((department: Department) => (
-                                    <SelectItem key={department.id} value={department.id}>
-                                        {department.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                   
-    {/* Summary Stats */}
-    {pagination && pagination?.totalCount > 0 && (
-                <div className="grid gap-4 md:grid-cols-4">
+            {/* Stats row */}
+            {statCounts.total > 0 && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Card>
-                        <CardHeader className="pb-3">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Leaves</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{pagination?.totalCount} </div>
+                            <div className="text-2xl font-bold">{statCounts.total}</div>
                             <p className="text-xs text-muted-foreground">all records</p>
                         </CardContent>
                     </Card>
-
                     <Card>
-                        <CardHeader className="pb-3">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Approved</CardTitle>
+                            <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+                                {statCounts.pageTotal > 0
+                                    ? ((statCounts.approved / statCounts.pageTotal) * 100).toFixed(0) + "%"
+                                    : "—"}
+                            </Badge>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-green-600">
-                                {leaves.filter((l) => l.status === "APPROVED").length}
+                            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                                {statCounts.approved}
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                {(
-                                    (leaves.filter((l) => l.status === "APPROVED").length /
-                                        leaves.length) *
-                                    100
-                                ).toFixed(1)}
-                            </p>
                         </CardContent>
                     </Card>
-
                     <Card>
-                        <CardHeader className="pb-3">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                            <Badge variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-400">
+                                {statCounts.pageTotal > 0
+                                    ? ((statCounts.pending / statCounts.pageTotal) * 100).toFixed(0) + "%"
+                                    : "—"}
+                            </Badge>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-yellow-600">
-                                {leaves.filter((l) => l.status === "PENDING").length}
+                            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                                {statCounts.pending}
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                {(
-                                    (leaves.filter((l) => l.status === "PENDING").length /
-                                        leaves.length) *
-                                    100
-                                ).toFixed(1)}
-                            </p>
                         </CardContent>
                     </Card>
-
                     <Card>
-                        <CardHeader className="pb-3">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+                            <Badge variant="outline" className="border-red-300 text-red-600 dark:text-red-400">
+                                {statCounts.pageTotal > 0
+                                    ? ((statCounts.rejected / statCounts.pageTotal) * 100).toFixed(0) + "%"
+                                    : "—"}
+                            </Badge>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-red-600">
-                                {leaves.filter((l) => l.status === "REJECTED").length}
+                            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                                {statCounts.rejected}
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                {(
-                                    (leaves.filter((l) => l.status === "REJECTED").length /
-                                        leaves.length) *
-                                    100
-                                ).toFixed(1)}
-                            </p>
                         </CardContent>
                     </Card>
                 </div>
             )}
-             {/* Results info */}
-             <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>
-                            Showing {sortedLeaves.length} of {totalFiltered} filtered record
-                            {totalFiltered === 1 ? "" : "s"}
-                        </span>
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1">
-                                <span>Rows per page:</span>
-                                <Select
-                                    value={String(pageSize)}
-                                    onValueChange={(value) => {
-                                        const newSize = Number(value);
-                                        setPageSize(newSize);
-                                        setPage(1);
-                                    }}
-                                >
-                                    <SelectTrigger className="h-7 w-[72px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="10">10</SelectItem>
-                                        <SelectItem value="20">20</SelectItem>
-                                        <SelectItem value="50">50</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 px-2"
-                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                    disabled={currentPage <= 1}
-                                >
-                                    Prev
-                                </Button>
-                                <span>
-                                    Page {currentPage} of {totalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 px-2"
-                                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage >= totalPages}
-                                >
-                                    Next
-                                </Button>
-                            </div>
+
+            {/* Filters bar */}
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+                <div className="relative min-w-[200px] flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search employee, type, reason…"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="h-9 pl-8"
+                    />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-9 w-full sm:w-[150px]">
+                        <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        {uniqueStatuses.map((s) => (
+                            <SelectItem key={s} value={s}>
+                                {s}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+                    <SelectTrigger className="h-9 w-full sm:w-[160px]">
+                        <SelectValue placeholder="Leave type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        {uniqueLeaveTypes.map((t) => (
+                            <SelectItem key={t} value={t}>
+                                {t}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select
+                    disabled={departmentsLoading || !departments}
+                    value={departmentFilter}
+                    onValueChange={(v) => {
+                        setDepartmentFilter(v as typeof departmentFilter);
+                        setPage(1);
+                    }}
+                >
+                    <SelectTrigger className="h-9 w-full sm:w-[160px]">
+                        <SelectValue placeholder="Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Departments</SelectItem>
+                        {departments?.map((d: Department) => (
+                            <SelectItem key={d.id} value={d.id}>
+                                {d.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select
+                    value={String(pageSize)}
+                    onValueChange={(v) => {
+                        setPageSize(Number(v));
+                        setPage(1);
+                    }}
+                >
+                    <SelectTrigger className="h-9 w-[90px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {/* Table card */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-0.5">
+                            <CardTitle className="text-base">Leave records</CardTitle>
+                            <CardDescription>
+                                All leave requests across the organization
+                            </CardDescription>
                         </div>
+                        <p className="text-sm text-muted-foreground">
+                            Page {currentPage} of {totalPages} · {totalFiltered} total
+                        </p>
                     </div>
-                    {/* Table */}
-                    {isLoading ? (
-                        <TableSkeleton columns={8} rows={5} />
-                    ) : sortedLeaves.length === 0 ? (
-                        <div className="flex items-center justify-center py-12 text-muted-foreground">
-                            <p>No leave records found</p>
-                        </div>
-                    ) : (
-                        <div className="border rounded-lg overflow-hidden">
+                </CardHeader>
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto border-t">
+                        {isLoading ? (
+                            <div className="p-4">
+                                <TableSkeleton columns={9} rows={5} />
+                            </div>
+                        ) : sortedLeaves.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                                <CalendarOff className="size-6 text-muted-foreground" />
+                                <span className="text-sm font-medium">No leave records found</span>
+                                <span className="max-w-xs text-sm text-muted-foreground">
+                                    Adjust your filters or search to see more results.
+                                </span>
+                            </div>
+                        ) : (
                             <Table>
-                                <TableHeader>
+                                <TableHeader className="sticky top-0 bg-background">
                                     <TableRow className="bg-muted/50">
-                                        <TableHead>Employee Name</TableHead>
-                                        <TableHead>Leave Type</TableHead>
-                                        <TableHead>Period</TableHead>
-                                        <TableHead>Days</TableHead>
-                                        <TableHead>Reason</TableHead>
-                                        <TableHead>Document</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="w-24">Actions</TableHead>
-                                        <TableHead>Applied On</TableHead>
+                                        <TableHead className="font-semibold">Employee</TableHead>
+                                        <TableHead className="font-semibold">Leave Type</TableHead>
+                                        <TableHead className="font-semibold">Period</TableHead>
+                                        <TableHead className="font-semibold">Days</TableHead>
+                                        <TableHead className="font-semibold">Reason</TableHead>
+                                        <TableHead className="font-semibold">Document</TableHead>
+                                        <TableHead className="font-semibold">Status</TableHead>
+                                        <TableHead className="font-semibold">Applied</TableHead>
+                                        <TableHead className="w-12 font-semibold text-right"> </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {sortedLeaves.map((leave: LeaveRecord) => {
-                                        const leaveDays = Math.ceil(
-                                            (new Date(leave.endDate).getTime() - new Date(leave.startDate).getTime()) /
-                                            (1000 * 60 * 60 * 24)
-                                        ) + 1;
+                                    {sortedLeaves.map((leave: LeaveRecord, idx) => {
+                                        const leaveDays =
+                                            Math.ceil(
+                                                (new Date(leave.endDate).getTime() -
+                                                    new Date(leave.startDate).getTime()) /
+                                                    (1000 * 60 * 60 * 24)
+                                            ) + 1;
+
+                                        const rowBg = idx % 2 !== 0 ? "bg-muted/20" : "";
+
                                         return (
-                                            <TableRow key={leave.id} className="hover:bg-muted/50">
-                                                <TableCell className="font-mono text-xs">
-                                                    {leave?.user?.employee
-                                                        ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
-                                                        : "Unknown"}
+                                            <TableRow
+                                                key={leave.id}
+                                                className={`${rowBg} transition-colors hover:bg-muted/40`}
+                                            >
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium leading-tight">
+                                                            {leave?.user?.employee
+                                                                ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
+                                                                : "Unknown"}
+                                                        </span>
+                                                        {leave?.user?.employee?.employeeCode && (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {leave.user.employee.employeeCode}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <span>{leave.leaveType?.name || leave.leaveTypeId}</span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-sm">
+                                                            {leave.leaveType?.name || leave.leaveTypeId}
+                                                        </span>
                                                         {leave.leaveType?.code && (
                                                             <Badge variant="outline" className="text-xs">
                                                                 {leave.leaveType.code}
@@ -373,31 +379,33 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-sm">
+                                                <TableCell className="whitespace-nowrap text-sm">
                                                     {formatDateRange(leave.startDate, leave.endDate)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="secondary">{leaveDays} days</Badge>
+                                                    <Badge variant="secondary">
+                                                        {leaveDays} {leaveDays === 1 ? "day" : "days"}
+                                                    </Badge>
                                                 </TableCell>
-                                                <TableCell className="max-w-xs truncate text-sm">
-                                                    {leave.reason}
+                                                <TableCell className="max-w-[180px] truncate text-sm">
+                                                    {leave.reason || "—"}
                                                 </TableCell>
                                                 <TableCell>
                                                     {leave.supportingDocumentUrl ? (
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                            className="h-7 gap-1 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                                                             onClick={() => handleViewDocument(leave.id)}
                                                             disabled={loadingDocument === leave.id}
                                                         >
                                                             {loadingDocument === leave.id ? (
-                                                                <Loader2 className="mr-1 size-4 animate-spin" />
+                                                                <Loader2 className="size-3.5 animate-spin" />
                                                             ) : (
-                                                                <FileText className="mr-1 size-4" />
+                                                                <FileText className="size-3.5" />
                                                             )}
                                                             View
-                                                            <ExternalLink className="ml-1 size-3" />
+                                                            <ExternalLink className="size-3" />
                                                         </Button>
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground">—</span>
@@ -406,55 +414,86 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                                                 <TableCell>
                                                     <LeaveStatusBadge status={leave.status} />
                                                 </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-1">
-                                                        {leave.status === "APPROVED" && (
-                                                            <>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-8 text-blue-600 hover:text-blue-700"
-                                                                    onClick={() => {
-                                                                        setAmendmentLeave(leave);
-                                                                        setAmendmentMode("AMEND");
-                                                                    }}
-                                                                >
-                                                                    <span title="Amend"><Pencil className="size-4" /></span>
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-8 text-red-600 hover:text-red-700"
-                                                                    onClick={() => {
-                                                                        setAmendmentLeave(leave);
-                                                                        setAmendmentMode("CANCEL");
-                                                                    }}
-                                                                >
-                                                                    <span title="Cancel leave"><XCircle className="size-4" /></span>
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                        <Link href={`/dashboard/employee/leave/${leave.id}`}>
-                                                            <Button variant="ghost" size="sm" className="h-8">
-                                                                <ExternalLink className="size-4" />
-                                                            </Button>
-                                                        </Link>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
+                                                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                                                     {formatDate(leave.createdAt)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="size-8">
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={`/dashboard/employee/leave/${leave.id}`}>
+                                                                    <ExternalLink className="size-4" />
+                                                                    View details
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            {leave.status === "APPROVED" && (
+                                                                <>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => {
+                                                                            setAmendmentLeave(leave);
+                                                                            setAmendmentMode("AMEND");
+                                                                        }}
+                                                                    >
+                                                                        <Pencil className="size-4" />
+                                                                        Amend
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        variant="destructive"
+                                                                        onClick={() => {
+                                                                            setAmendmentLeave(leave);
+                                                                            setAmendmentMode("CANCEL");
+                                                                        }}
+                                                                    >
+                                                                        <XCircle className="size-4" />
+                                                                        Cancel leave
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </TableCell>
                                             </TableRow>
                                         );
                                     })}
                                 </TableBody>
                             </Table>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </CardContent>
             </Card>
 
-            {/* Amendment dialog (admin create) */}
+            {/* Pagination */}
+            <div className="flex items-center justify-between py-2">
+                <p className="text-sm text-muted-foreground">
+                    Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ""} · {totalFiltered} total
+                </p>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                        disabled={currentPage <= 1 || isLoading}
+                    >
+                        <ArrowLeft className="mr-1.5 size-4" /> Previous
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage >= totalPages || isLoading}
+                    >
+                        Next <ArrowRight className="ml-1.5 size-4" />
+                    </Button>
+                </div>
+            </div>
+
+            {/* Amendment dialog */}
             {amendmentLeave && (
                 <LeaveAmendmentDialog
                     leave={amendmentLeave}
@@ -472,8 +511,6 @@ const {data: departments, isLoading: departmentsLoading} = useDepartments();
                     }}
                 />
             )}
-
-        
         </div>
     );
 }

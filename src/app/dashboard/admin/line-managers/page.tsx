@@ -38,12 +38,16 @@ export default function LineManagerManagementPage() {
 
     return (
         <div className="container space-y-6">
-            <div>
-                <p className="text-sm text-muted-foreground">Admin · Management</p>
-                <h1 className="text-3xl font-bold">Line Manager Assignment</h1>
-                <p className="mt-2 text-muted-foreground">
-                    Manage reporting relationships across your organization
-                </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Management
+                    </p>
+                    <h1 className="mt-1 text-2xl font-semibold tracking-tight">Line Manager Assignment</h1>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                        Manage reporting relationships across your organization
+                    </p>
+                </div>
             </div>
 
             {/* Stats Cards */}

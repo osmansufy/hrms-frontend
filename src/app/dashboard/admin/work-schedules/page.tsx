@@ -265,12 +265,22 @@ export default function WorkSchedulesPage() {
 
     return (
         <div className="container space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => router.back()} title="Back">
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <div className="flex-1 flex items-center justify-between">
-                    <h1 className="text-2xl font-semibold">Work Schedules</h1>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => router.back()} title="Back">
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            Attendance
+                        </p>
+                        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Work Schedules</h1>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                            Define work hours, break times, and day patterns
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
                     <Dialog open={open} onOpenChange={(o) => {
                         setOpen(o);
                         if (!o) {

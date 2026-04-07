@@ -49,14 +49,19 @@ export default function AdminEmployeesPage() {
 
   return (
     <div className="container space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">People Operations</p>
-          <h1 className="text-2xl font-semibold">Employees</h1>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            People Operations
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Employees</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            View, search, and manage employee records
+          </p>
         </div>
-        <Button asChild>
+        <Button asChild size="sm" className="gap-2">
           <Link href="/dashboard/admin/employees/create">
-            <Plus className="mr-2 size-4" />
+            <Plus className="size-4" />
             Create employee
           </Link>
         </Button>

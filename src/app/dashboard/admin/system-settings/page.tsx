@@ -105,12 +105,14 @@ export default function SystemSettingsPage() {
     }
 
     return (
-        <div className="container space-y-6 py-6">
+        <div className="container space-y-6">
             <div>
-                <p className="text-sm text-muted-foreground">Configuration</p>
-                <h1 className="text-2xl font-semibold">System Settings</h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                    Configure system-wide settings for leave deduction, mobile attendance, and location tracking
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Configuration
+                </p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight">System Settings</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                    Configure leave deduction, mobile attendance, and location tracking
                 </p>
             </div>
 

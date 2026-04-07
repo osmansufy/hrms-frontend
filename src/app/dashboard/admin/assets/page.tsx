@@ -66,16 +66,19 @@ export default function AdminAssetsPage() {
 
   return (
     <div className="container space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Inventory
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             Asset Management
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             View and manage company assets, assignments, and inventory
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href="/dashboard/admin/assets/types">
             <Button variant="outline" size="sm">
               Asset Types
