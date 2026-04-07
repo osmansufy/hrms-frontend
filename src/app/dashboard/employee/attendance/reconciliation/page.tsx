@@ -68,7 +68,7 @@ export default function AttendanceReconciliationEmployeePage() {
         queryKey: [RECONCILIATION_QUERY_KEY, userEmail],
         queryFn: async () => {
             if (!userEmail) return [];
-            const res = await apiClient.get("/attendance/reconciliation/my");
+            const res = await apiClient.get("/attendance/my/reconciliation");
             return res.data;
         },
         enabled: !!userEmail,
@@ -83,7 +83,7 @@ export default function AttendanceReconciliationEmployeePage() {
             requestedSignOut?: string;
             reason: string;
         }) => {
-            const res = await apiClient.post("/attendance/reconciliation", payload);
+            const res = await apiClient.post("/attendance/my/reconciliation", payload);
             return res.data;
         },
         onSuccess: () => {
@@ -117,7 +117,7 @@ export default function AttendanceReconciliationEmployeePage() {
 
         let requestedSignIn: Date | undefined;
         let requestedSignOut: Date | undefined;
-console.log(form);
+        // console.log(form);
 //
 // date
 // : 
@@ -136,13 +136,18 @@ console.log(form);
 // "SIGN_IN"
 
 // create date object from form.date and form.requestedSignIn and form.requestedSignOut
-const date = new Date(form.date);
- requestedSignIn = new Date(`${form.date}T${form.requestedSignIn}`);
- requestedSignOut = form.requestedSignOut ? new Date(`${form.date}T${form.requestedSignOut}`) : undefined;
- // convert date to ISO string with date-fns
- const dateISO = formatISO(date, { representation: 'complete' });
- const requestedSignInISO = formatISO(requestedSignIn, { representation: 'complete' });
- const requestedSignOutISO = requestedSignOut ? formatISO(requestedSignOut, { representation: 'complete' }) : undefined;
+        // Build timezone-aware ISO timestamps (UTC) from local date + time inputs
+        requestedSignIn = new Date(`${form.date}T${form.requestedSignIn}`);
+        requestedSignOut = form.requestedSignOut
+          ? new Date(`${form.date}T${form.requestedSignOut}`)
+          : undefined;
+        const requestedSignInISO = form.requestedSignIn
+          ? localDateTimeToISO(form.date, form.requestedSignIn, timezone)
+          : undefined;
+        const requestedSignOutISO =
+          form.requestedSignOut && requestedSignOut
+            ? localDateTimeToISO(form.date, form.requestedSignOut, timezone)
+            : undefined;
 
        if(!requestedSignInISO && !requestedSignOutISO) {
         toast.error("Please select a time");

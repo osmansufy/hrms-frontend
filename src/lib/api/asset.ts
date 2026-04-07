@@ -202,30 +202,30 @@ export async function listAssets(params?: {
   assetTypeId?: string;
   search?: string;
 }) {
-  const response = await apiClient.get<PaginatedResponse<Asset>>("/assets", {
+  const response = await apiClient.get<PaginatedResponse<Asset>>("/assets/admin", {
     params,
   });
   return response.data;
 }
 
 export async function getAsset(id: string) {
-  const response = await apiClient.get<Asset>(`/assets/${id}`);
+  const response = await apiClient.get<Asset>(`/assets/admin/${id}`);
   return response.data;
 }
 
 export async function createAsset(payload: CreateAssetPayload) {
-  const response = await apiClient.post<Asset>("/assets", payload);
+  const response = await apiClient.post<Asset>("/assets/admin", payload);
   return response.data;
 }
 
 export async function updateAsset(id: string, payload: UpdateAssetPayload) {
-  const response = await apiClient.patch<Asset>(`/assets/${id}`, payload);
+  const response = await apiClient.patch<Asset>(`/assets/admin/${id}`, payload);
   return response.data;
 }
 
 export async function assignAsset(assetId: string, payload: AssignAssetPayload) {
   const response = await apiClient.post<Asset>(
-    `/assets/${assetId}/assign`,
+    `/assets/admin/${assetId}/assign`,
     payload
   );
   return response.data;
@@ -233,7 +233,7 @@ export async function assignAsset(assetId: string, payload: AssignAssetPayload) 
 
 export async function returnAsset(assetId: string, payload?: ReturnAssetPayload) {
   const response = await apiClient.post<Asset>(
-    `/assets/${assetId}/return`,
+    `/assets/admin/${assetId}/return`,
     payload ?? {}
   );
   return response.data;
@@ -247,7 +247,7 @@ export async function listAssignments(params?: {
   isActive?: boolean;
 }) {
   const response = await apiClient.get<PaginatedResponse<AssetAssignment>>(
-    "/assets/assignments",
+    "/assets/admin/assignments",
     { params }
   );
   return response.data;
@@ -255,7 +255,7 @@ export async function listAssignments(params?: {
 
 export async function getMyAssets() {
   const response = await apiClient.get<PaginatedResponse<AssetAssignment>>(
-    "/assets/my-assets"
+    "/assets/my"
   );
   return response.data;
 }
@@ -265,25 +265,25 @@ export async function returnAllAssetsByEmployee(employeeId: string) {
     returnedCount: number;
     message: string;
     assignments: Array<{ assignmentId: string; assetId: string }>;
-  }>("/assets/offboarding/return-all", { employeeId });
+  }>("/assets/admin/offboarding/return-all", { employeeId });
   return response.data;
 }
 
 // --- Asset Types API ---
 export async function listAssetTypes(activeOnly?: boolean) {
-  const response = await apiClient.get<AssetType[]>("/asset-types", {
+  const response = await apiClient.get<AssetType[]>("/assets/admin/types", {
     params: activeOnly != null ? { activeOnly } : undefined,
   });
   return response.data;
 }
 
 export async function getAssetType(id: string) {
-  const response = await apiClient.get<AssetType>(`/asset-types/${id}`);
+  const response = await apiClient.get<AssetType>(`/assets/admin/types/${id}`);
   return response.data;
 }
 
 export async function createAssetType(payload: CreateAssetTypePayload) {
-  const response = await apiClient.post<AssetType>("/asset-types", payload);
+  const response = await apiClient.post<AssetType>("/assets/admin/types", payload);
   return response.data;
 }
 
@@ -292,7 +292,7 @@ export async function updateAssetType(
   payload: UpdateAssetTypePayload
 ) {
   const response = await apiClient.patch<AssetType>(
-    `/asset-types/${id}`,
+    `/assets/admin/types/${id}`,
     payload
   );
   return response.data;
@@ -301,7 +301,7 @@ export async function updateAssetType(
 // --- Asset Requests API ---
 export async function createAssetRequest(payload: CreateAssetRequestPayload) {
   const response = await apiClient.post<AssetRequest>(
-    "/asset-requests",
+    "/assets/my/requests",
     payload
   );
   return response.data;
@@ -313,7 +313,7 @@ export async function getMyAssetRequests(params?: {
   status?: AssetRequestStatus;
 }) {
   const response = await apiClient.get<PaginatedResponse<AssetRequest>>(
-    "/asset-requests/my-requests",
+    "/assets/my/requests",
     { params }
   );
   return response.data;
@@ -326,27 +326,27 @@ export async function listAssetRequests(params?: {
   employeeId?: string;
 }) {
   const response = await apiClient.get<PaginatedResponse<AssetRequest>>(
-    "/asset-requests",
+    "/assets/admin/requests",
     { params }
   );
   return response.data;
 }
 
 export async function getAssetRequest(id: string) {
-  const response = await apiClient.get<AssetRequest>(`/asset-requests/${id}`);
+  const response = await apiClient.get<AssetRequest>(`/assets/admin/requests/${id}`);
   return response.data;
 }
 
 export async function approveAssetRequest(id: string) {
   const response = await apiClient.patch<AssetRequest>(
-    `/asset-requests/${id}/approve`
+    `/assets/admin/requests/${id}/approve`
   );
   return response.data;
 }
 
 export async function rejectAssetRequest(id: string, rejectionReason: string) {
   const response = await apiClient.patch<AssetRequest>(
-    `/asset-requests/${id}/reject`,
+    `/assets/admin/requests/${id}/reject`,
     { rejectionReason }
   );
   return response.data;
@@ -357,7 +357,7 @@ export async function fulfillAssetRequest(
   payload: FulfillAssetRequestPayload
 ) {
   const response = await apiClient.post<AssetRequest>(
-    `/asset-requests/${id}/fulfill`,
+    `/assets/admin/requests/${id}/fulfill`,
     payload
   );
   return response.data;
@@ -366,7 +366,7 @@ export async function fulfillAssetRequest(
 // --- Manager Asset Request Endpoints ---
 export async function getManagerPendingAssetRequests() {
   const response = await apiClient.get<AssetRequest[]>(
-    "/asset-requests/manager/pending"
+    "/assets/manager/requests/pending"
   );
   return response.data;
 }
@@ -374,7 +374,7 @@ export async function getManagerPendingAssetRequests() {
 // --- HR Asset Request Endpoints ---
 export async function getHRProcessingAssetRequests() {
   const response = await apiClient.get<AssetRequest[]>(
-    "/asset-requests/hr/processing"
+    "/assets/admin/requests/processing"
   );
   return response.data;
 }

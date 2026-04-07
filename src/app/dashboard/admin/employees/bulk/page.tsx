@@ -49,7 +49,7 @@ export default function BulkCreateEmployeesPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await apiClient.post<BulkCreateResult>("/employees/bulk", formData, {
+      const response = await apiClient.post<BulkCreateResult>("/employees/admin/bulk", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

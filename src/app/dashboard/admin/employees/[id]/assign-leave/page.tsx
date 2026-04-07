@@ -132,7 +132,7 @@ export default function AssignLeavePage() {
 
             await Promise.all(
                 leaveAssignments.map((assignment) =>
-                    apiClient.post("/leave/balance/initialize", {
+                    apiClient.post("/leave/admin/balance/initialize", {
                         userId,
                         leaveTypeId: assignment.leaveType,
                         initialBalance: assignment.totalDays,

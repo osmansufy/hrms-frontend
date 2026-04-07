@@ -41,6 +41,7 @@ import {
   getActiveBreak,
   getMyBreaks,
   getAttendanceBreaks,
+  getSubordinateBreaks,
   type BreakType,
 } from "@/lib/api/attendance";
 
@@ -62,6 +63,16 @@ export const attendanceKeys = {
       ["attendance", "breaks", "my", params] as const,
     attendanceBreaks: (attendanceId: string) =>
       ["attendance", "breaks", "attendance", attendanceId] as const,
+    subordinate: (
+      subordinateUserId: string,
+      params?: {
+        page?: number;
+        limit?: number;
+        startDate?: string;
+        endDate?: string;
+        breakType?: BreakType;
+      },
+    ) => ["attendance", "breaks", "subordinate", subordinateUserId, params ?? {}] as const,
   },
 };
 
@@ -453,6 +464,27 @@ export function useAttendanceBreaks(attendanceId: string) {
     queryFn: () => getAttendanceBreaks(attendanceId),
     enabled: Boolean(attendanceId),
     staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+export function useSubordinateBreaks(
+  subordinateUserId: string | undefined,
+  params?: {
+    page?: number;
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+    breakType?: BreakType;
+  },
+) {
+  return useQuery({
+    queryKey: attendanceKeys.breaks.subordinate(subordinateUserId || "", params),
+    queryFn: () => {
+      if (!subordinateUserId) throw new Error("Subordinate user ID required");
+      return getSubordinateBreaks({ subordinateUserId, ...(params ?? {}) });
+    },
+    enabled: Boolean(subordinateUserId),
+    staleTime: 2 * 60_000,
   });
 }
 

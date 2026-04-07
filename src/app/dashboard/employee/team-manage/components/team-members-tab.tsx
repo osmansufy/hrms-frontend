@@ -14,7 +14,6 @@ export const TeamMembersTab = () => {
     const employeeId = session?.user.employeeId;
 
     const { data: managerSubordinates, isLoading: isManagerSubordinatesLoading, error: isManagerSubordinatesError } = useManagerSubordinates(employeeId);
-    console.log("managerSubordinates", managerSubordinates);
     if (isManagerSubordinatesLoading) {
         return (
             <Card>

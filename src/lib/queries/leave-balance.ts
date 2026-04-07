@@ -2,13 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getUserBalances,
   getBalanceDetails,
-  getUserLeaveBalance,
   adjustBalance,
   initializeBalance,
   getAllUsersBalances,
   type AdjustBalancePayload,
   type InitializeBalancePayload,
 } from "@/lib/api/leave";
+import { getEmployeeLeaveBalances } from "@/lib/api/leave";
 import { toast } from "sonner";
 
 // Query Keys
@@ -59,7 +59,13 @@ export function useUserLeaveBalance(
 ) {
   return useQuery({
     queryKey: leaveBalanceKeys.userBalance(userId, leaveTypeId, leaveYear),
-    queryFn: () => getUserLeaveBalance(userId, leaveTypeId, leaveYear),
+    queryFn: async () => {
+      const balances = await getEmployeeLeaveBalances(
+        userId,
+        leaveYear ? Number(leaveYear) : undefined,
+      );
+      return balances.find((b) => b.leaveType.id === leaveTypeId) ?? null;
+    },
     enabled: enabled && !!userId && !!leaveTypeId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

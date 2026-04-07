@@ -9,6 +9,7 @@ import {
   updateEmployeeApi,
   assignManager,
   getSubordinates,
+  getMyTeam,
   getSubordinateDetails,
   getMyEmployeeProfile,
   type ApiEmployee,
@@ -93,6 +94,7 @@ export const employeeKeys = {
   detailRaw: (id: string) => [...employeeKeys.all, "detail-raw", id] as const,
   subordinates: (id: string) =>
     [...employeeKeys.all, "subordinates", id] as const,
+  myTeam: ["employees", "manager", "my-team"] as const,
   subordinateDetails: (userId: string) =>
     [...employeeKeys.all, "subordinate", "details", userId] as const,
 };
@@ -227,12 +229,12 @@ export function useAssignManager(employeeId: string) {
 
 export function useManagerSubordinates(employeeId?: string) {
   return useQuery({
-    queryKey: employeeKeys.subordinates(employeeId || ""),
+    queryKey: employeeKeys.myTeam,
     queryFn: () => {
-      if (!employeeId) throw new Error("Employee ID required");
-      return getSubordinates(employeeId);
+      // Manager list is relationship-based and does not require an employeeId param.
+      return getMyTeam();
     },
-    enabled: Boolean(employeeId),
+    enabled: true,
   });
 }
 

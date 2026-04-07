@@ -26,7 +26,7 @@ export default function AdminCommunicationsPage() {
             setLoading(true);
             setError(null);
             try {
-                const res = await apiClient.get("/employees", {
+                const res = await apiClient.get("/employees/admin", {
                     params: {
                         departmentId: departmentId || undefined,
                         designationId: designationId || undefined,

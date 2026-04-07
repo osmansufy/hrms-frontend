@@ -143,9 +143,9 @@ export type AttendanceListParams = {
 };
 
 // Employee endpoints
-export async function getTodayAttendance(userId: string) {
+export async function getTodayAttendance(_userId?: string) {
   const response = await apiClient.get<AttendanceRecord>(
-    `/attendance/${userId}/today`,
+    `/attendance/my/today`,
   );
   return response.data;
 }
@@ -161,7 +161,7 @@ export async function signIn(payload: {
   timezone?: string;
 }) {
   const response = await apiClient.post<AttendanceRecord>(
-    "/attendance/sign-in",
+    "/attendance/my/sign-in",
     payload,
   );
   return response.data;
@@ -181,7 +181,7 @@ export async function signOut(payload: {
     timezone?: string;
   };
   const response = await apiClient.post<AttendanceRecord>(
-    "/attendance/sign-out",
+    "/attendance/my/sign-out",
     cleanPayload,
   );
   return response.data;
@@ -267,7 +267,7 @@ export async function getAttendanceRecords(params: AttendanceListParams) {
 }
 
 export async function getMyAttendanceRecords(
-  userId: string,
+  _userId: string,
   params: Omit<AttendanceListParams, "userId">,
 ) {
   const response = await apiClient.get<{
@@ -276,7 +276,7 @@ export async function getMyAttendanceRecords(
     page: number;
     limit: number;
     totalPages: number;
-  }>(`/attendance/employee/${userId}/records`, { params });
+  }>(`/attendance/my/records`, { params });
   return response.data;
 }
 
@@ -554,14 +554,14 @@ export async function getLostHoursReport(params: {
  * @param params.endDate - ISO DateTime string at end of day (use toEndOfDayISO)
  */
 export async function getMyLostHoursReport(
-  userId: string,
+  _userId: string,
   params: {
     startDate: string;
     endDate: string;
   },
 ) {
   const response = await apiClient.get<LostHoursRow[]>(
-    `/attendance/${userId}/lost-hours`,
+    `/attendance/my/lost-hours`,
     { params },
   );
   return response.data;
@@ -574,7 +574,7 @@ export type MonthlyLateCount = {
 };
 
 export async function getMonthlyLateCount(
-  userId: string,
+  _userId: string,
   year?: number,
   month?: number,
 ) {
@@ -586,7 +586,7 @@ export async function getMonthlyLateCount(
     params.month = month.toString();
   }
   const response = await apiClient.get<MonthlyLateCount>(
-    `/attendance/${userId}/monthly-late-count`,
+    `/attendance/my/monthly-late-count`,
     { params },
   );
   return response.data;
@@ -626,7 +626,7 @@ export async function getManagerAttendanceRecords(
     page: number;
     limit: number;
     totalPages: number;
-  }>(`/attendance/employee/${userId}/attendance-history`, { params });
+  }>(`/attendance/manager/subordinate/${userId}/history`, { params });
   return response.data;
 }
 
@@ -642,6 +642,54 @@ export async function getSubordinateAttendance(
     limit: number;
     totalPages: number;
   }>(`/attendance/manager/subordinate/${subordinateUserId}`, { params });
+  return response.data;
+}
+
+export type ManagerSubordinateBreaksResponse = {
+  success: boolean;
+  employee: {
+    id: string;
+    name: string;
+    email: string;
+    employee?: { employeeCode?: string | null } | null;
+  };
+  statistics: {
+    totalBreaks: number;
+    totalBreakMinutes: number;
+    openBreaks: number;
+    closedBreaks: number;
+    breaksByType: Record<BreakType, number>;
+  };
+  data: Array<
+    AttendanceBreak & {
+      attendance?: {
+        id: string;
+        date: string;
+        signIn: string | null;
+        signOut: string | null;
+      } | null;
+    }
+  >;
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export async function getSubordinateBreaks(params: {
+  subordinateUserId: string;
+  page?: number;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
+  breakType?: BreakType;
+}): Promise<ManagerSubordinateBreaksResponse> {
+  const response = await apiClient.get<ManagerSubordinateBreaksResponse>(
+    `/attendance/manager/subordinate/${params.subordinateUserId}/breaks`,
+    { params: { ...params, subordinateUserId: undefined } },
+  );
   return response.data;
 }
 
@@ -690,7 +738,7 @@ export async function startBreak(payload: {
   notes?: string;
 }): Promise<AttendanceBreakResponse> {
   const response = await apiClient.post<AttendanceBreakResponse>(
-    "/attendance/breaks/start",
+    "/attendance/my/breaks/start",
     payload,
   );
   return response.data;
@@ -704,7 +752,7 @@ export async function endBreak(
   breakId: string,
 ): Promise<AttendanceBreakResponse> {
   const response = await apiClient.patch<AttendanceBreakResponse>(
-    `/attendance/breaks/${breakId}/end`,
+    `/attendance/my/breaks/${breakId}/end`,
   );
   return response.data;
 }
@@ -714,7 +762,7 @@ export async function endBreak(
  */
 export async function getActiveBreak(): Promise<AttendanceBreakResponse> {
   const response = await apiClient.get<AttendanceBreakResponse>(
-    "/attendance/breaks/active",
+    "/attendance/my/breaks/active",
   );
   return response.data;
 }
@@ -727,7 +775,7 @@ export async function getMyBreaks(params?: {
   endDate?: string; // ISO date string YYYY-MM-DD
 }): Promise<AttendanceBreakListResponse> {
   const response = await apiClient.get<AttendanceBreakListResponse>(
-    "/attendance/breaks/my-breaks",
+    "/attendance/my/breaks",
     { params },
   );
   return response.data;
@@ -741,7 +789,7 @@ export async function getAttendanceBreaks(
   attendanceId: string,
 ): Promise<AttendanceBreakListResponse> {
   const response = await apiClient.get<AttendanceBreakListResponse>(
-    `/attendance/breaks/admin/attendance/${attendanceId}`,
+    `/attendance/admin/breaks/attendance/${attendanceId}`,
   );
   return response.data;
 }
@@ -872,7 +920,7 @@ export async function adminGetAllBreaks(
   params?: AdminBreakListParams,
 ): Promise<AdminBreakListResponse> {
   const response = await apiClient.get<AdminBreakListResponse>(
-    "/attendance/breaks/admin/all",
+    "/attendance/admin/breaks",
     { params },
   );
   return response.data;
@@ -885,7 +933,7 @@ export async function adminGetBreakById(
   breakId: string,
 ): Promise<{ break: AttendanceBreakWithUser }> {
   const response = await apiClient.get<{ break: AttendanceBreakWithUser }>(
-    `/attendance/breaks/admin/${breakId}`,
+    `/attendance/admin/breaks/${breakId}`,
   );
   return response.data;
 }
@@ -903,7 +951,7 @@ export async function adminCreateBreak(payload: {
   reason?: string;
 }): Promise<{ break: AttendanceBreak }> {
   const response = await apiClient.post<{ break: AttendanceBreak }>(
-    "/attendance/breaks/admin/create",
+    "/attendance/admin/breaks",
     payload,
   );
   return response.data;
@@ -923,7 +971,7 @@ export async function adminUpdateBreak(
   },
 ): Promise<{ break: AttendanceBreak }> {
   const response = await apiClient.patch<{ break: AttendanceBreak }>(
-    `/attendance/breaks/admin/${breakId}`,
+    `/attendance/admin/breaks/${breakId}`,
     payload,
   );
   return response.data;
@@ -936,7 +984,7 @@ export async function adminDeleteBreak(
   breakId: string,
 ): Promise<{ message: string }> {
   const response = await apiClient.delete<{ message: string }>(
-    `/attendance/breaks/admin/${breakId}`,
+    `/attendance/admin/breaks/${breakId}`,
   );
   return response.data;
 }
@@ -953,7 +1001,7 @@ export async function adminGetEmployeeBreaks(params: {
   breakType?: BreakType;
 }): Promise<AdminEmployeeBreaksResponse> {
   const response = await apiClient.get<AdminEmployeeBreaksResponse>(
-    `/attendance/breaks/admin/employee/${params.userId}`,
+    `/attendance/admin/breaks/employee/${params.userId}`,
     { params: { ...params, userId: undefined } },
   );
   return response.data;
@@ -997,7 +1045,7 @@ export async function getAttendanceReconciliationRequests(
       )
     : {};
   const response = await apiClient.get<AttendanceReconciliationListResponse>(
-    "/attendance/reconciliation",
+    "/attendance/admin/reconciliation-requests",
     { params: cleaned },
   );
   return response.data;
@@ -1008,7 +1056,7 @@ export async function updateReconciliationStatus(
   payload: UpdateReconciliationStatusPayload,
 ) {
   const response = await apiClient.put<AttendanceReconciliationRequestResponse>(
-    `/attendance/reconciliation/${id}/status`,
+    `/attendance/admin/reconciliation-requests/${id}/status`,
     payload,
   );
   return response.data;

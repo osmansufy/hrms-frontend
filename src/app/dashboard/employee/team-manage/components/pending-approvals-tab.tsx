@@ -33,7 +33,7 @@ import { AlertCircle, Check, Loader2, X, User, CheckSquare, History, Edit } from
 import { useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { bulkApproveLeaves, bulkRejectLeaves, overrideLeaveAsManager } from "@/lib/api/leave";
+import { approveLeave, rejectLeave, overrideLeaveAsManager } from "@/lib/api/leave";
 import { EmployeeLeaveHistoryDialog } from "@/components/employee-leave-history-dialog";
 
 import { formatDateInDhaka } from "@/lib/utils";
@@ -61,10 +61,12 @@ export function PendingApprovalsTab() {
     });
 
     const bulkApproveMutation = useMutation({
-        mutationFn: (leaveIds: string[]) => bulkApproveLeaves(leaveIds),
-        onSuccess: (data, variables) => {
+        mutationFn: async (leaveIds: string[]) => {
+            await Promise.all(leaveIds.map((id) => approveLeave(id)));
+        },
+        onSuccess: (_data, variables) => {
             toast.success(`${variables.length} leave requests approved`, {
-                description: "All selected leaves have been approved and moved to HR"
+                description: "All selected leaves have been approved and moved to HR",
             });
             setSelectedLeaveIds([]);
             setShowBulkConfirm(null);
@@ -77,9 +79,10 @@ export function PendingApprovalsTab() {
     });
 
     const bulkRejectMutation = useMutation({
-        mutationFn: ({ leaveIds, comment }: { leaveIds: string[]; comment: string }) =>
-            bulkRejectLeaves(leaveIds, comment),
-        onSuccess: (data, variables) => {
+        mutationFn: async ({ leaveIds }: { leaveIds: string[] }) => {
+            await Promise.all(leaveIds.map((id) => rejectLeave(id)));
+        },
+        onSuccess: (_data, variables) => {
             toast.success(`${variables.leaveIds.length} leave requests rejected`);
             setSelectedLeaveIds([]);
             setShowBulkConfirm(null);
@@ -138,8 +141,7 @@ export function PendingApprovalsTab() {
 
     const handleBulkReject = () => {
         bulkRejectMutation.mutate({
-            leaveIds: selectedLeaveIds,
-            comment: "Bulk rejected by manager"
+            leaveIds: selectedLeaveIds
         });
     };
 

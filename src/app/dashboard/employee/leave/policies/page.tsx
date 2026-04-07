@@ -1,8 +1,7 @@
 "use client";
 
 import { useSession } from "@/components/auth/session-provider";
-import { useQuery } from "@tanstack/react-query";
-import { getMyLeavePolicies } from "@/lib/api/leave";
+import { useLeaveTypes } from "@/lib/queries/leave";
 import { PolicySummaryCard } from "@/components/leave/policy-summary-card";
 import { Loader2, BookOpen } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,14 +11,29 @@ export default function LeavePoliciesPage() {
     const userId = session?.user.id;
 
     const {
-        data: policies,
+        data: leaveTypes,
         isLoading,
         error,
-    } = useQuery({
-        queryKey: ["leave-policies", userId],
-        queryFn: () => getMyLeavePolicies(userId!),
-        enabled: !!userId,
-    });
+    } = useLeaveTypes();
+
+    const policies =
+        leaveTypes
+            ?.filter((lt) => lt.leavePolicy?.maxDays != null)
+            .map((lt) => ({
+                id: lt.id,
+                leaveType: {
+                    name: lt.name,
+                    code: lt.code,
+                    description: lt.description ?? null,
+                },
+                maxDaysPerYear: Number(lt.leavePolicy?.maxDays ?? 0),
+                carryForwardDays: lt.leavePolicy?.carryForwardCap ?? null,
+                requireDocThresholdDays: lt.leavePolicy?.requireDocThresholdDays ?? null,
+                encashmentEligible: lt.leavePolicy?.encashmentFlag ?? null,
+                noticeRules: lt.leavePolicy ? [] : [],
+                accrualRate: null,
+                accrualFrequency: null,
+            })) ?? [];
 
     if (isLoading) {
         return (
@@ -63,12 +77,12 @@ export default function LeavePoliciesPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {policies?.map((policy: any) => (
+                {policies.map((policy: any) => (
                     <PolicySummaryCard key={policy.id} policy={policy} />
                 ))}
             </div>
 
-            {policies?.length === 0 && (
+            {policies.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                     <BookOpen className="size-12 text-muted-foreground mb-3" />
                     <h3 className="font-semibold text-lg mb-1">No policies found</h3>

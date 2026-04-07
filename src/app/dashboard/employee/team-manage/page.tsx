@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, ClipboardCheck, Clock, AlertCircle, Package } from "lucide-react";
+import { Users, ClipboardCheck, Clock, AlertCircle, Package, Coffee } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -9,7 +9,8 @@ import {
     PendingApprovalsTab,
     PendingAssetApprovalsTab,
     TeamCalendarTab,
-    TeamMembersTab
+    TeamMembersTab,
+    TeamBreakRecordsTab
 } from "./components";
 
 import { useManagerSubordinates } from "@/lib/queries/employees";
@@ -71,7 +72,7 @@ export default function TeamManagePage() {
             </div>
 
             <Tabs defaultValue="pending" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="pending" className="flex items-center gap-2">
                         <ClipboardCheck className="size-4" />
                         Leave Approvals
@@ -79,6 +80,10 @@ export default function TeamManagePage() {
                     <TabsTrigger value="asset-approvals" className="flex items-center gap-2">
                         <Package className="size-4" />
                         Asset Approvals
+                    </TabsTrigger>
+                    <TabsTrigger value="breaks" className="flex items-center gap-2">
+                        <Coffee className="size-4" />
+                        Break Records
                     </TabsTrigger>
                     <TabsTrigger value="subordinates" className="flex items-center gap-2">
                         <Users className="size-4" />
@@ -96,6 +101,10 @@ export default function TeamManagePage() {
 
                 <TabsContent value="asset-approvals" className="space-y-4">
                     <PendingAssetApprovalsTab />
+                </TabsContent>
+
+                <TabsContent value="breaks" className="space-y-4">
+                    <TeamBreakRecordsTab />
                 </TabsContent>
 
                 <TabsContent value="calendar" className="space-y-4">

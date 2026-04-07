@@ -21,13 +21,14 @@ import {
   listLeaveTypes,
   listLeavesByUser,
   getUserBalances,
-  getUserLeaveBalance,
   getBalanceDetails,
   getAllUsersBalances,
   getSubordinateBalances,
   adjustBalance,
   initializeBalance,
   getMyLedgerHistory,
+  approveLeave,
+  rejectLeave,
   type ApplyLeavePayload,
   type AdjustBalancePayload,
   type InitializeBalancePayload,
@@ -156,7 +157,7 @@ export function useManagerRejectLeave() {
 // Admin/HR Hooks
 import {
   approveAmendment,
-  approveLeave,
+  approveLeaveAsAdmin,
   createAccrualRule,
   createAmendment,
   createLeavePolicy,
@@ -168,7 +169,7 @@ import {
   listAccrualRules,
   listAmendments,
   rejectAmendment,
-  rejectLeave,
+  rejectLeaveAsAdmin,
   updateAccrualRule,
   updateLeavePolicy,
   addNoticeRule,
@@ -350,7 +351,7 @@ export function useAllEmployeeLeaves(params?: {
 export function useApproveLeave() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => approveLeave(id),
+    mutationFn: (id: string) => approveLeaveAsAdmin(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: adminLeaveKeys.pendingApprovals,
@@ -363,7 +364,7 @@ export function useApproveLeave() {
 export function useRejectLeave() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => rejectLeave(id),
+    mutationFn: (id: string) => rejectLeaveAsAdmin(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: adminLeaveKeys.pendingApprovals,
@@ -523,7 +524,14 @@ export function useEmployeeLeaveBalance(
 ) {
   return useQuery({
     queryKey: ["leave-balance", "employee", userId, leaveTypeId, leaveYear],
-    queryFn: () => getUserLeaveBalance(userId, leaveTypeId, leaveYear),
+    queryFn: async () => {
+      const { getEmployeeLeaveBalances } = await import("@/lib/api/leave");
+      const balances = await getEmployeeLeaveBalances(
+        userId,
+        leaveYear ? Number(leaveYear) : undefined,
+      );
+      return balances.find((b) => b.leaveType.id === leaveTypeId) ?? null;
+    },
     enabled: Boolean(userId) && Boolean(leaveTypeId),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
