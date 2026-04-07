@@ -3,6 +3,7 @@ export { PendingAssetApprovalsTab } from "./pending-asset-approvals-tab";
 export { TeamCalendarTab } from "./team-calendar-tab";
 export { TeamMembersTab } from "./team-members-tab";
 export { TeamBreakRecordsTab } from "./team-break-records-tab";
+export { TeamPresenceTab } from "./team-presence-tab";
 export { EmployeeDetailDialog } from "./employee-detail-dialog";
 export { JobCardTab } from "./team-member/job-card-tab";
 export { SubordinateLeaveRecordsTab } from "./team-member/subordinate-leave-records-tab";
