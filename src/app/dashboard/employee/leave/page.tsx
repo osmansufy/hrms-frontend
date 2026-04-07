@@ -426,8 +426,8 @@ export default function LeavePage() {
     <div className="container space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground">Time away</p>
-          <h1 className="text-2xl font-semibold">Leave</h1>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time away</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Leave</h1>
         </div>
         <Badge variant="secondary">
           <CalendarDays className="mr-2 size-4" />
@@ -435,15 +435,17 @@ export default function LeavePage() {
         </Badge>
       </div>
 
-      {/* Policy context and progressive disclosure for leave balance */}
-      <div className="mb-4">
-        <div className="text-sm text-muted-foreground mb-1">
-          Company leave policy applies. Manager approval required. Team workload will be considered.
-        </div>
-        <div className="text-xs text-gray-500">
-          Leave eligibility (as per policy)
-        </div>
-      </div>
+      {/* Policy context */}
+      <Card className="border-dashed">
+        <CardContent className="py-3 px-4">
+          <p className="text-sm text-muted-foreground">
+            Company leave policy applies. Manager approval required. Team workload will be considered.
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-0.5">
+            Leave eligibility (as per policy)
+          </p>
+        </CardContent>
+      </Card>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 h-auto">
@@ -523,7 +525,7 @@ export default function LeavePage() {
                           <FormMessage />
                           {/* Show leave notice rule in small text if available */}
                           {leavePolicy?.noticeRules && leavePolicy.noticeRules.length > 0 && (
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-xs text-muted-foreground mt-1">
                               {leavePolicy.noticeRules.map((rule, idx) => (
                                 <div key={idx}>
                                   {rule.minLength && rule.maxLength
@@ -544,7 +546,7 @@ export default function LeavePage() {
                     {/* Progressive disclosure: show balance only after dates are selected */}
                     {selectedBalance && watchedValues.startDate && watchedValues.endDate ? (
                       <div className="rounded border bg-muted/50 p-2 mt-2">
-                        <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>Leave balance (subject to policy)</span>
                           <span className="font-semibold">{Math.round(selectedBalance.available)} days</span>
                         </div>
@@ -555,7 +557,7 @@ export default function LeavePage() {
                         )}
                       </div>
                     ) : selectedBalance ? (
-                      <div className="text-xs text-gray-400 mt-2">Leave balance available</div>
+                      <div className="text-xs text-muted-foreground mt-2">Leave balance available</div>
                     ) : null}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <FormField

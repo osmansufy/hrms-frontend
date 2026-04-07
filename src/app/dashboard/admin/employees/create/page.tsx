@@ -116,8 +116,10 @@ export default function CreateEmployeePage() {
           </Link>
         </Button>
         <div>
-          <p className="text-sm text-muted-foreground">Admin · Employees</p>
-          <h1 className="text-2xl font-semibold">Create employee</h1>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Employees
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Create employee</h1>
         </div>
       </div>
 

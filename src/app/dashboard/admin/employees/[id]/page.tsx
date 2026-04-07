@@ -348,7 +348,7 @@ export default function AdminEmployeeDetailPage() {
             />
             <div className="space-y-2">
               <div>
-                <h1 className="text-3xl font-bold">{fullName}</h1>
+                <h1 className="text-2xl font-semibold tracking-tight">{fullName}</h1>
                 <p className="text-muted-foreground">
                   {data.designation?.title || data.designation?.name || "Employee"}
                 </p>

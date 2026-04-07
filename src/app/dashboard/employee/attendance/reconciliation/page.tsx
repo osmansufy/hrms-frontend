@@ -1,10 +1,13 @@
 "use client";
 import { useState, useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { useSession } from "@/components/auth/session-provider";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
@@ -15,7 +18,7 @@ import { useTimezoneFormatters } from "@/lib/hooks/use-timezone-formatters";
 import { useTimezone } from "@/contexts/timezone-context";
 import { toast } from "sonner";
 import { fromZonedTime } from "date-fns-tz";
-import {formatISO} from 'date-fns'
+import { ClipboardList } from "lucide-react";
 
 interface AttendanceReconciliationRequest {
     id: string;
@@ -168,39 +171,49 @@ export default function AttendanceReconciliationEmployeePage() {
 
     return (
         <div className="container space-y-6">
+            <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Attendance</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight">Reconciliation</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">Submit and track attendance correction requests</p>
+            </div>
             <Card>
                 <CardHeader>
                     <CardTitle>Submit Attendance Reconciliation Request</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <form className="space-y-4" onSubmit={handleSubmit}>
-                        <div>
-                            <label className="text-sm font-medium">Date</label>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="recon-date">Date</Label>
                             <Input
+                                id="recon-date"
                                 type="date"
                                 value={form.date}
                                 onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
                                 max={todayLocal}
                                 required
                             />
-                            <p className="text-xs text-gray-500 mt-1">Only past dates can be selected</p>
+                            <p className="text-xs text-muted-foreground">Only past dates can be selected</p>
                         </div>
-                        <Select
-                            value={form.type}
-                            onValueChange={(v) => setForm((f) => ({ ...f, type: v as "SIGN_IN" | "SIGN_OUT" }))}
-                        >
-                            <SelectTrigger>
-                                <SelectValue>{form.type === "SIGN_IN" ? "Sign In" : "Sign Out"}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="SIGN_IN">Sign In</SelectItem>
-                                <SelectItem value="SIGN_OUT">Sign Out</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="space-y-1.5">
+                            <Label>Request Type</Label>
+                            <Select
+                                value={form.type}
+                                onValueChange={(v) => setForm((f) => ({ ...f, type: v as "SIGN_IN" | "SIGN_OUT" }))}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue>{form.type === "SIGN_IN" ? "Sign In" : "Sign Out"}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="SIGN_IN">Sign In</SelectItem>
+                                    <SelectItem value="SIGN_OUT">Sign Out</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                         {form.type === "SIGN_IN" && (
-                            <div>
-                                <label className="text-sm font-medium">Requested Sign-In Time</label>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="recon-signin">Requested Sign-In Time</Label>
                                 <Input
+                                    id="recon-signin"
                                     type="time"
                                     value={form.requestedSignIn}
                                     onChange={(e) => setForm((f) => ({ ...f, requestedSignIn: e.target.value }))}
@@ -209,9 +222,10 @@ export default function AttendanceReconciliationEmployeePage() {
                             </div>
                         )}
                         {form.type === "SIGN_OUT" && (
-                            <div>
-                                <label className="text-sm font-medium">Requested Sign-Out Time</label>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="recon-signout">Requested Sign-Out Time</Label>
                                 <Input
+                                    id="recon-signout"
                                     type="time"
                                     value={form.requestedSignOut}
                                     onChange={(e) => setForm((f) => ({ ...f, requestedSignOut: e.target.value }))}
@@ -219,13 +233,17 @@ export default function AttendanceReconciliationEmployeePage() {
                                 />
                             </div>
                         )}
-                        <Textarea
-                            placeholder="Reason"
-                            value={form.reason}
-                            onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-                            required
-                            rows={3}
-                        />
+                        <div className="space-y-1.5">
+                            <Label htmlFor="recon-reason">Reason</Label>
+                            <Textarea
+                                id="recon-reason"
+                                placeholder="Explain why the correction is needed"
+                                value={form.reason}
+                                onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+                                required
+                                rows={3}
+                            />
+                        </div>
                         <Button type="submit" disabled={submitMutation.isPending}>
                             {submitMutation.isPending ? "Submitting..." : "Submit Request"}
                         </Button>
@@ -238,62 +256,73 @@ export default function AttendanceReconciliationEmployeePage() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <div>Loading...</div>
+                        <TableSkeleton columns={6} rows={4} />
+                    ) : !data?.length ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <ClipboardList className="size-10 text-muted-foreground mb-3" />
+                            <p className="text-sm font-medium">No requests yet</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Submit a reconciliation request above to get started
+                            </p>
+                        </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Original Time</TableHead>
-                                    <TableHead>Requested Time</TableHead>
-                                    <TableHead>Reason</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data?.map((req) => (
-                                    <TableRow key={req.id}>
-                                        <TableCell>{formatDate(req.date, "long")}</TableCell>
-                                        <TableCell>{req.type === "SIGN_IN" ? "Sign In" : "Sign Out"}</TableCell>
-                                        <TableCell>
-                                            {req.type === "SIGN_IN"
-                                                ? (req.originalSignIn ? formatTime(req.originalSignIn) : "Missing")
-                                                : (req.originalSignOut ? formatTime(req.originalSignOut) : "Missing")}
-                                        </TableCell>
-                                        <TableCell>
-                                            {req.type === "SIGN_IN"
-                                                ? (req.requestedSignIn ? formatTime(req.requestedSignIn) : "-")
-                                                : (req.requestedSignOut ? formatTime(req.requestedSignOut) : "-")}
-                                        </TableCell>
-                                        <TableCell className="max-w-xs">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <p className="truncate text-sm cursor-help">
-                                                            {req.reason}
-                                                        </p>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent className="max-w-md">
-                                                        <p className="whitespace-normal">
-                                                            {req.reason}
-                                                        </p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className={`px-2 py-1 rounded text-xs ${req.status === "APPROVED" ? "bg-green-100 text-green-800" :
-                                                req.status === "REJECTED" ? "bg-red-100 text-red-800" :
-                                                    "bg-yellow-100 text-yellow-800"
-                                                }`}>
-                                                {req.status}
-                                            </span>
-                                        </TableCell>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Original Time</TableHead>
+                                        <TableHead>Requested Time</TableHead>
+                                        <TableHead>Reason</TableHead>
+                                        <TableHead>Status</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.map((req) => (
+                                        <TableRow key={req.id}>
+                                            <TableCell>{formatDate(req.date, "long")}</TableCell>
+                                            <TableCell>{req.type === "SIGN_IN" ? "Sign In" : "Sign Out"}</TableCell>
+                                            <TableCell>
+                                                {req.type === "SIGN_IN"
+                                                    ? (req.originalSignIn ? formatTime(req.originalSignIn) : "Missing")
+                                                    : (req.originalSignOut ? formatTime(req.originalSignOut) : "Missing")}
+                                            </TableCell>
+                                            <TableCell>
+                                                {req.type === "SIGN_IN"
+                                                    ? (req.requestedSignIn ? formatTime(req.requestedSignIn) : "-")
+                                                    : (req.requestedSignOut ? formatTime(req.requestedSignOut) : "-")}
+                                            </TableCell>
+                                            <TableCell className="max-w-xs">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <p className="truncate text-sm cursor-help">
+                                                                {req.reason}
+                                                            </p>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-md">
+                                                            <p className="whitespace-normal">
+                                                                {req.reason}
+                                                            </p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={
+                                                    req.status === "APPROVED" ? "default" :
+                                                    req.status === "REJECTED" ? "destructive" :
+                                                    "secondary"
+                                                }>
+                                                    {req.status.charAt(0) + req.status.slice(1).toLowerCase()}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     )}
                 </CardContent>
             </Card>

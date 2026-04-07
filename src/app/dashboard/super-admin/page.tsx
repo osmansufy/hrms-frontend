@@ -122,13 +122,16 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="container space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage administrative users and system access</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Administration
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Super Admin Dashboard</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Manage administrative users and system access</p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
+        <Button onClick={() => setIsDialogOpen(true)} size="sm" className="gap-2">
+          <UserPlus className="size-4" />
           Create User
         </Button>
       </div>
@@ -299,7 +302,7 @@ export default function SuperAdminDashboard() {
               )}
 
               <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-sm">
-                <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <div className="space-y-1">
                   <p className="font-medium">Automated Backups (Production Only)</p>
                   <p className="text-muted-foreground text-xs">

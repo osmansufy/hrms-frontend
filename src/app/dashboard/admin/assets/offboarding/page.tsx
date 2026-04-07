@@ -68,18 +68,21 @@ export default function AssetOffboardingPage() {
 
   return (
     <div className="container space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/admin/assets">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="size-4" />
             </Button>
           </Link>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Inventory
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
               Asset Offboarding
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               Return all assets assigned to an employee (e.g. when they leave)
             </p>
           </div>

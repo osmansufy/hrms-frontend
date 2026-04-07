@@ -118,10 +118,13 @@ export default function AssetDetailPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Asset
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
               {asset.assetTag}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {asset.assetType?.name ?? "Asset"} · {statusLabel(asset.status)}
             </p>
           </div>

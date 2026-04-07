@@ -57,8 +57,9 @@ export default function ProfilePage() {
   return (
     <div className="container space-y-6">
       <div>
-        <p className="text-sm text-muted-foreground">Account</p>
-        <h1 className="text-2xl font-semibold">Your Profile</h1>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Your Profile</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">Manage your personal information and preferences</p>
       </div>
 
       {/* Profile Header Card */}

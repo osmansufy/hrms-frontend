@@ -49,8 +49,8 @@ export default function EmployeeDetailPage() {
           </Link>
         </Button>
         <div>
-          <p className="text-sm text-muted-foreground">Employee</p>
-          <h1 className="text-2xl font-semibold">{data.name}</h1>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Employee</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{data.name}</h1>
         </div>
       </div>
 

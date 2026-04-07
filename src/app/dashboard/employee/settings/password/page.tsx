@@ -93,8 +93,9 @@ export default function PasswordChangePage() {
     return (
         <div className="container space-y-6">
             <div>
-                <p className="text-sm text-muted-foreground">Account Security</p>
-                <h1 className="text-2xl font-semibold">Change Password</h1>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Security</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight">Change Password</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">Update your account credentials</p>
             </div>
 
             <Card className="max-w-2xl">

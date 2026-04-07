@@ -16,10 +16,13 @@ export default function EmployeeAssetsPage() {
 
   return (
     <div className="container space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">My Assets</h1>
-          <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Inventory
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">My Assets</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {allowAssetRequest
               ? "View assets assigned to you and request new ones"
               : "View assets assigned to you"}

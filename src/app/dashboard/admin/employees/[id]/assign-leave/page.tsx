@@ -160,15 +160,18 @@ export default function AssignLeavePage() {
     return (
         <div className="container space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
                 <Link href={`/dashboard/admin/employees/${employeeId}`}>
                     <Button variant="ghost" size="icon">
-                        <ArrowLeft className="w-4 h-4" />
+                        <ArrowLeft className="size-4" />
                     </Button>
                 </Link>
                 <div>
-                    <h1 className="text-3xl font-bold">Assign Leave Balances</h1>
-                    <p className="text-gray-600">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Employees
+                    </p>
+                    <h1 className="mt-1 text-2xl font-semibold tracking-tight">Assign Leave Balances</h1>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
                         {employee?.firstName} {employee?.lastName} • {employee?.user?.email}
                     </p>
                 </div>

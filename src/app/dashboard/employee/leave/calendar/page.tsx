@@ -32,8 +32,9 @@ export default function LeaveCalendarPage() {
     return (
         <div className="container space-y-6">
             <div>
-                <h1 className="text-2xl font-semibold">Leave Calendar</h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time Away</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight">Leave Calendar</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
                     Visualize your leave schedule
                 </p>
             </div>

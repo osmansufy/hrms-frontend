@@ -279,16 +279,19 @@ jane.smith@example.com,SecurePass456,Jane,,Smith,2024-02-01,FEMALE,1234567891,PA
   };
 
   return (
-    <div className="container space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="container space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Bulk Create Employees</h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Employees
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Bulk Create</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Upload a CSV file to create multiple employees at once (max 100 per upload)
           </p>
         </div>
-        <Button onClick={downloadTemplate} variant="outline">
-          <Download className="mr-2 h-4 w-4" />
+        <Button onClick={downloadTemplate} variant="outline" size="sm" className="gap-2">
+          <Download className="size-4" />
           Download Template
         </Button>
       </div>

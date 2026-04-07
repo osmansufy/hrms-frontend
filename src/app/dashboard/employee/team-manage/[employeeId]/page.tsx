@@ -102,26 +102,23 @@ export default function SubordinateDetailPage() {
       />
 
       {/* Header with Back Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/dashboard/employee/team-manage")}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <UserCircle className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-semibold tracking-tight">{subordinateName}</h1>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {subordinate.designation?.name || subordinate.designation?.title || "Employee"}
-              {subordinate.department?.name && ` • ${subordinate.department.name}`}
-            </p>
-          </div>
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="px-2"
+          onClick={() => router.push("/dashboard/employee/team-manage")}
+        >
+          <ArrowLeft className="mr-1 size-4" />
+          Back
+        </Button>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Team Member</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{subordinateName}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {subordinate.designation?.name || subordinate.designation?.title || "Employee"}
+            {subordinate.department?.name && ` • ${subordinate.department.name}`}
+          </p>
         </div>
       </div>
 

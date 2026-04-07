@@ -46,14 +46,12 @@ export default function LeavePoliciesPage() {
     if (error) {
         return (
             <div className="container space-y-6">
-                <div className="flex items-start gap-3">
-                    <BookOpen className="size-6 text-blue-600 mt-1" />
-                    <div>
-                        <h1 className="text-2xl font-semibold">Leave Policies</h1>
-                        <p className="text-sm text-muted-foreground">
-                            Understanding your leave entitlements and requirements
-                        </p>
-                    </div>
+                <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time Away</p>
+                    <h1 className="mt-1 text-2xl font-semibold tracking-tight">Leave Policies</h1>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                        Understanding your leave entitlements and requirements
+                    </p>
                 </div>
                 <Alert variant="destructive">
                     <AlertDescription>
@@ -66,14 +64,12 @@ export default function LeavePoliciesPage() {
 
     return (
         <div className="container space-y-6">
-            <div className="flex items-start gap-3">
-                <BookOpen className="size-6 text-blue-600 mt-1" />
-                <div>
-                    <h1 className="text-2xl font-semibold">Leave Policies</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Understanding your leave entitlements and requirements
-                    </p>
-                </div>
+            <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time Away</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight">Leave Policies</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                    Understanding your leave entitlements and requirements
+                </p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

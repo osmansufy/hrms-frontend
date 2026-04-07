@@ -30,11 +30,19 @@ export default function LostHoursReportPage() {
 
     return (
         <div className="container space-y-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
                 <Button variant="ghost" size="icon" onClick={() => router.back()} title="Back">
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <h1 className="text-2xl font-semibold">Lost Hours Report</h1>
+                <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Attendance
+                    </p>
+                    <h1 className="mt-1 text-2xl font-semibold tracking-tight">Lost Hours Report</h1>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                        Analyze employee time loss across departments and date ranges
+                    </p>
+                </div>
             </div>
 
             <Card>

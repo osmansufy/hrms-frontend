@@ -24,10 +24,11 @@ export default function TeamManagePage() {
     if (isManagerSubordinatesError && !isManagerSubordinatesLoading && !managerSubordinates) {
         return (
             <div className="container space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                        <h1 className="text-2xl font-semibold tracking-tight">Team Management</h1>
-                        <p className="text-sm text-muted-foreground">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Leadership</p>
+                        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Team Management</h1>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
                             Manage your team members
                         </p>
                     </div>
@@ -62,10 +63,11 @@ export default function TeamManagePage() {
 
     return (
         <div className="container space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold tracking-tight">Team Management</h1>
-                    <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Leadership</p>
+                    <h1 className="mt-1 text-2xl font-semibold tracking-tight">Team Management</h1>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
                         Manage your team members
                     </p>
                 </div>

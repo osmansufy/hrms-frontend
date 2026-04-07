@@ -25,8 +25,13 @@ export default function DashboardPage() {
   return (
     <div className="container space-y-6">
       <div>
-        <p className="text-sm text-muted-foreground">Welcome back</p>
-        <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Welcome back
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Admin Dashboard</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Organization overview and quick metrics
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

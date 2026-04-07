@@ -33,7 +33,7 @@ export default function LeaveDetailPage({ params }: PageProps) {
     if (isLoading) {
         return (
             <div className="container space-y-6">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -42,8 +42,9 @@ export default function LeaveDetailPage({ params }: PageProps) {
                         <ArrowLeft className="size-5" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-semibold">Leave Request Details</h1>
-                        <p className="text-sm text-muted-foreground">Loading...</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time Away</p>
+                        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Leave Request Details</h1>
+                        <p className="mt-0.5 text-sm text-muted-foreground">Loading...</p>
                     </div>
                 </div>
                 <div className="flex items-center justify-center py-12">
@@ -56,7 +57,7 @@ export default function LeaveDetailPage({ params }: PageProps) {
     if (error || !leave) {
         return (
             <div className="container space-y-6">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -65,8 +66,9 @@ export default function LeaveDetailPage({ params }: PageProps) {
                         <ArrowLeft className="size-5" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-semibold">Leave Request Details</h1>
-                        <p className="text-sm text-muted-foreground">Error loading details</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time Away</p>
+                        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Leave Request Details</h1>
+                        <p className="mt-0.5 text-sm text-muted-foreground">Error loading details</p>
                     </div>
                 </div>
                 <Alert variant="destructive">
@@ -82,7 +84,7 @@ export default function LeaveDetailPage({ params }: PageProps) {
     return (
         <div className="container space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
                 <Button
                     variant="ghost"
                     size="icon"
@@ -91,8 +93,9 @@ export default function LeaveDetailPage({ params }: PageProps) {
                     <ArrowLeft className="size-5" />
                 </Button>
                 <div>
-                    <h1 className="text-2xl font-semibold">Leave Request Details</h1>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Time Away</p>
+                    <h1 className="mt-1 text-2xl font-semibold tracking-tight">Leave Request Details</h1>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
                         Request ID: {leave.id.substring(0, 8)}...
                     </p>
                 </div>

@@ -464,8 +464,11 @@ export default function EmployeeDashboard() {
       {/* Dashboard Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">Welcome back{session?.user?.name ? `, ${session.user.name}` : ""}</p>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Welcome back{session?.user?.name ? `, ${session.user.name}` : ""}
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Your daily overview at a glance</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Status Chips */}
