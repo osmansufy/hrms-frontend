@@ -678,6 +678,45 @@ export type ManagerSubordinateBreaksResponse = {
   };
 };
 
+// ──────────────────────────────────────────────────────────────
+// Manager — Team Presence (single-call endpoint)
+// ──────────────────────────────────────────────────────────────
+
+export type TeamMemberPresence = {
+  employeeId: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  profilePicture: string | null;
+  department: { id: string; name: string } | null;
+  designation: { id: string; title: string } | null;
+  signIn: string | null;
+  signOut: string | null;
+  isLate: boolean;
+  isOnBreak: boolean;
+  isOnLeave: boolean;
+  activeBreak: {
+    id: string;
+    breakType: string;
+    startTime: string;
+    durationMinutes: number | null;
+  } | null;
+  leave: {
+    id: string;
+    leaveType: { id: string; name: string; code: string } | null;
+    startDate: string;
+    endDate: string;
+  } | null;
+  workedMinutes: number;
+};
+
+export async function getTeamPresence(): Promise<{ data: TeamMemberPresence[] }> {
+  const response = await apiClient.get<{ data: TeamMemberPresence[] }>(
+    "/attendance/manager/team/presence",
+  );
+  return response.data;
+}
+
 export async function getSubordinateBreaks(params: {
   subordinateUserId: string;
   page?: number;

@@ -1,20 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useManagerSubordinates } from "@/lib/queries/employees";
-import { getSubordinateAttendance } from "@/lib/api/attendance";
-import type { ExtendedAttendanceRecord } from "@/lib/api/attendance";
+import { getTeamPresence, type TeamMemberPresence } from "@/lib/api/attendance";
 import {
   Users,
   CheckCircle2,
@@ -27,7 +24,6 @@ import {
   LogOut,
   Timer,
 } from "lucide-react";
-import { toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -36,31 +32,6 @@ import { useQueryClient } from "@tanstack/react-query";
 // ──────────────────────────────────────────────────────────────
 
 type PresenceStatus = "present" | "on_break" | "on_leave" | "absent";
-
-interface MemberPresence {
-  id: string;
-  userId: string;
-  firstName: string;
-  lastName: string;
-  designation: string;
-  department: string;
-  status: PresenceStatus;
-  signIn: string | null;
-  signOut: string | null;
-  isLate: boolean;
-  breakType?: string | null;
-  breakSince?: string | null;
-  leaveType?: string | null;
-  workedMinutes?: number;
-}
-
-function getTodayString() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
 
 function formatTime(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -80,11 +51,10 @@ function getInitials(first: string, last: string) {
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
 }
 
-function resolveStatus(record?: ExtendedAttendanceRecord | null): PresenceStatus {
-  if (!record) return "absent";
-  if (record.isOnLeave) return "on_leave";
-  if (record.signIn && record.isOnBreak) return "on_break";
-  if (record.signIn) return "present";
+function resolveStatus(member: TeamMemberPresence): PresenceStatus {
+  if (member.isOnLeave) return "on_leave";
+  if (member.signIn && member.isOnBreak) return "on_break";
+  if (member.signIn) return "present";
   return "absent";
 }
 
@@ -123,6 +93,58 @@ const STATUS_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────────────────────
+// Break status banner — shown when anyone is on break
+// ──────────────────────────────────────────────────────────────
+
+function BreakStatusBanner({ members }: { members: Array<TeamMemberPresence & { status: PresenceStatus }> }) {
+  const onBreak = members.filter((m) => m.status === "on_break");
+  if (onBreak.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Coffee className="size-4 text-amber-600 dark:text-amber-400" />
+        <span className="font-semibold text-sm text-amber-700 dark:text-amber-400">
+          {onBreak.length} team member{onBreak.length > 1 ? "s" : ""} currently on break
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {onBreak.map((m) => (
+          <div
+            key={m.employeeId}
+            className="flex items-center gap-2 rounded-md bg-white/60 dark:bg-black/20 border border-amber-200 dark:border-amber-700 px-3 py-1.5 text-xs"
+          >
+            <Avatar className="size-5 shrink-0">
+              <AvatarFallback className="text-[9px] font-bold bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300">
+                {getInitials(m.firstName, m.lastName)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="font-medium text-foreground">
+              {m.firstName} {m.lastName}
+            </span>
+            {m.activeBreak && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-amber-700 dark:text-amber-400">
+                  {m.activeBreak.breakType.charAt(0) +
+                    m.activeBreak.breakType.slice(1).toLowerCase().replace(/_/g, " ")}
+                </span>
+                <span className="text-muted-foreground">since {formatTime(m.activeBreak.startTime)}</span>
+                {typeof m.activeBreak.durationMinutes === "number" && (
+                  <Badge variant="outline" className="h-4 px-1 text-[10px] border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400">
+                    {formatDuration(m.activeBreak.durationMinutes)}
+                  </Badge>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
 // Summary stat card
 // ──────────────────────────────────────────────────────────────
 
@@ -143,7 +165,7 @@ function StatCard({
     <div
       className={`flex items-center gap-3 rounded-lg border p-4 ${cfg.bgColor} ${cfg.borderColor}`}
     >
-      <div className={`rounded-full p-2 bg-white/60 dark:bg-black/20`}>
+      <div className="rounded-full p-2 bg-white/60 dark:bg-black/20">
         <Icon className={`size-5 ${cfg.textColor}`} />
       </div>
       <div>
@@ -160,8 +182,8 @@ function StatCard({
 // Member presence card
 // ──────────────────────────────────────────────────────────────
 
-function MemberCard({ member }: { member: MemberPresence }) {
-  const cfg = STATUS_CONFIG[member.status];
+function MemberCard({ member, status }: { member: TeamMemberPresence; status: PresenceStatus }) {
+  const cfg = STATUS_CONFIG[status];
   const Icon = cfg.icon;
 
   return (
@@ -190,61 +212,71 @@ function MemberCard({ member }: { member: MemberPresence }) {
           </div>
 
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {member.designation || member.department || "—"}
+            {member.designation?.title || member.department?.name || "—"}
           </p>
 
           <div className="mt-3 space-y-1.5">
-            {/* Sign in time */}
             {member.signIn && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <LogIn className="size-3 shrink-0" />
-                <span>In: <span className="font-medium text-foreground">{formatTime(member.signIn)}</span></span>
+                <span>
+                  In: <span className="font-medium text-foreground">{formatTime(member.signIn)}</span>
+                </span>
                 {member.isLate && (
                   <Badge variant="destructive" className="h-4 px-1 text-[10px]">Late</Badge>
                 )}
               </div>
             )}
 
-            {/* Sign out time */}
             {member.signOut && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <LogOut className="size-3 shrink-0" />
-                <span>Out: <span className="font-medium text-foreground">{formatTime(member.signOut)}</span></span>
-              </div>
-            )}
-
-            {/* Worked hours */}
-            {member.status === "present" && typeof member.workedMinutes === "number" && member.workedMinutes > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="size-3 shrink-0" />
-                <span>Worked: <span className="font-medium text-foreground">{formatDuration(member.workedMinutes)}</span></span>
-              </div>
-            )}
-
-            {/* Break info */}
-            {member.status === "on_break" && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Timer className="size-3 shrink-0" />
                 <span>
-                  {member.breakType
-                    ? member.breakType.charAt(0) + member.breakType.slice(1).toLowerCase()
-                    : "Break"}{" "}
-                  since{" "}
-                  <span className="font-medium text-foreground">{formatTime(member.breakSince)}</span>
+                  Out: <span className="font-medium text-foreground">{formatTime(member.signOut)}</span>
                 </span>
               </div>
             )}
 
-            {/* Leave type */}
-            {member.status === "on_leave" && member.leaveType && (
+            {status === "present" && member.workedMinutes > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Plane className="size-3 shrink-0" />
-                <span className="font-medium text-foreground">{member.leaveType}</span>
+                <Clock className="size-3 shrink-0" />
+                <span>
+                  Worked:{" "}
+                  <span className="font-medium text-foreground">{formatDuration(member.workedMinutes)}</span>
+                </span>
               </div>
             )}
 
-            {/* Absent */}
-            {member.status === "absent" && (
+            {status === "on_break" && member.activeBreak && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Timer className="size-3 shrink-0" />
+                <span>
+                  {member.activeBreak.breakType.charAt(0) +
+                    member.activeBreak.breakType.slice(1).toLowerCase().replace(/_/g, " ")}{" "}
+                  since{" "}
+                  <span className="font-medium text-foreground">
+                    {formatTime(member.activeBreak.startTime)}
+                  </span>
+                </span>
+                {typeof member.activeBreak.durationMinutes === "number" && (
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1 text-[10px] border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400"
+                  >
+                    {formatDuration(member.activeBreak.durationMinutes)}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {status === "on_leave" && member.leave?.leaveType && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Plane className="size-3 shrink-0" />
+                <span className="font-medium text-foreground">{member.leave.leaveType.name}</span>
+              </div>
+            )}
+
+            {status === "absent" && (
               <p className="text-xs text-muted-foreground">Not signed in today</p>
             )}
           </div>
@@ -261,81 +293,37 @@ function MemberCard({ member }: { member: MemberPresence }) {
 export function TeamPresenceTab() {
   const queryClient = useQueryClient();
 
-  const {
-    data: subordinates,
-    isLoading: isSubordinatesLoading,
-  } = useManagerSubordinates();
-
-  const today = getTodayString();
-
-  // Fetch today's attendance for each subordinate in parallel
-  const attendanceQueries = useQueries({
-    queries: (subordinates ?? []).map((sub) => ({
-      queryKey: ["attendance", "manager", "subordinate", sub.userId, "today", today],
-      queryFn: async () => {
-        if (!sub.userId) return null;
-        const result = await getSubordinateAttendance(sub.userId, {
-          startDate: toStartOfDayISO(today),
-          endDate: toEndOfDayISO(today),
-          limit: "1",
-        });
-        return result.data?.[0] ?? null;
-      },
-      enabled: Boolean(sub.userId),
-      refetchInterval: 2 * 60 * 1000, // Auto-refresh every 2 minutes
-      staleTime: 60_000,
-    })),
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["attendance", "manager", "team", "presence"],
+    queryFn: getTeamPresence,
+    refetchInterval: 2 * 60 * 1000,
+    staleTime: 60_000,
   });
 
-  const isAttendanceLoading = attendanceQueries.some((q) => q.isLoading);
-
-  const members: MemberPresence[] = useMemo(() => {
-    if (!subordinates) return [];
-    return subordinates.map((sub, idx) => {
-      const record = (attendanceQueries[idx]?.data as ExtendedAttendanceRecord | null | undefined) ?? null;
-      const status = resolveStatus(record);
-      return {
-        id: sub.id,
-        userId: sub.userId ?? sub.id,
-        firstName: sub.firstName,
-        lastName: sub.lastName,
-        designation: sub.designation?.name ?? sub.designation?.title ?? "",
-        department: sub.department?.name ?? "",
-        status,
-        signIn: record?.signIn ?? null,
-        signOut: record?.signOut ?? null,
-        isLate: record?.isLate ?? false,
-        breakType: record?.activeBreak ? (record as any).activeBreakType ?? null : null,
-        breakSince: record?.activeBreak?.startTime ?? null,
-        leaveType: record?.leave?.leaveType?.name ?? null,
-        workedMinutes: record?.workedMinutes,
-      };
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subordinates, attendanceQueries.map((q) => q.dataUpdatedAt).join(",")]);
+  const membersWithStatus = useMemo(() => {
+    if (!data?.data) return [];
+    return data.data.map((m) => ({ ...m, status: resolveStatus(m) }));
+  }, [data]);
 
   const counts = useMemo(
     () =>
-      members.reduce(
+      membersWithStatus.reduce(
         (acc, m) => {
           acc[m.status]++;
           return acc;
         },
         { present: 0, on_break: 0, on_leave: 0, absent: 0 } as Record<PresenceStatus, number>,
       ),
-    [members],
+    [membersWithStatus],
   );
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({
-      predicate: (q) =>
-        Array.isArray(q.queryKey) &&
-        q.queryKey[0] === "attendance" &&
-        q.queryKey[2] === "subordinate",
+      queryKey: ["attendance", "manager", "team", "presence"],
     });
   };
 
-  if (isSubordinatesLoading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -352,7 +340,7 @@ export function TeamPresenceTab() {
     );
   }
 
-  if (!subordinates || subordinates.length === 0) {
+  if (!membersWithStatus.length) {
     return (
       <Card>
         <CardHeader>
@@ -365,16 +353,14 @@ export function TeamPresenceTab() {
     );
   }
 
-  const total = members.length;
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const total = membersWithStatus.length;
+  const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  // Group members by status for ordered display
-  const grouped: MemberPresence[] = [
-    ...members.filter((m) => m.status === "present"),
-    ...members.filter((m) => m.status === "on_break"),
-    ...members.filter((m) => m.status === "on_leave"),
-    ...members.filter((m) => m.status === "absent"),
+  const grouped = [
+    ...membersWithStatus.filter((m) => m.status === "present"),
+    ...membersWithStatus.filter((m) => m.status === "on_break"),
+    ...membersWithStatus.filter((m) => m.status === "on_leave"),
+    ...membersWithStatus.filter((m) => m.status === "absent"),
   ];
 
   return (
@@ -392,10 +378,10 @@ export function TeamPresenceTab() {
           variant="outline"
           size="sm"
           onClick={handleRefresh}
-          disabled={isAttendanceLoading}
+          disabled={isFetching}
           className="gap-2"
         >
-          <RefreshCw className={`size-3.5 ${isAttendanceLoading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
@@ -408,20 +394,15 @@ export function TeamPresenceTab() {
         <StatCard status="absent" count={counts.absent} total={total} />
       </div>
 
+      {/* Break status banner */}
+      <BreakStatusBanner members={grouped} />
+
       {/* Member cards */}
-      {isAttendanceLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {subordinates.map((s) => (
-            <Skeleton key={s.id} className="h-36 w-full rounded-xl" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {grouped.map((member) => (
-            <MemberCard key={member.id} member={member} />
-          ))}
-        </div>
-      )}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {grouped.map((member) => (
+          <MemberCard key={member.employeeId} member={member} status={member.status} />
+        ))}
+      </div>
     </div>
   );
 }
