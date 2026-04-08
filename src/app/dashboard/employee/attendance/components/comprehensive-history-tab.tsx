@@ -117,7 +117,7 @@ function DateRangeFilter({
   const rangeLabel = useMemo(() => {
     const { startDate, endDate } = effectiveRange;
     if (startDate === endDate) return formatDateInDhaka(startDate, "long");
-    return `${formatDateInDhaka(startDate, "medium")} – ${formatDateInDhaka(endDate, "medium")}`;
+    return `${formatDateInDhaka(startDate, "long")} – ${formatDateInDhaka(endDate, "long")}`;
   }, [effectiveRange]);
 
   const days = useMemo(
