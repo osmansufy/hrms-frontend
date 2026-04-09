@@ -19,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import {
     Table,
     TableBody,
@@ -289,19 +290,17 @@ export function AttendanceRecordsTab() {
                         </SelectContent>
                     </Select>
 
-                    <Select value={employeeId} onValueChange={handleEmployeeChange}>
-                        <SelectTrigger className="h-9 w-full sm:w-[180px]">
-                            <SelectValue placeholder="Employee" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Employees</SelectItem>
-                            {employees?.map(emp => (
-                                <SelectItem key={emp.userId} value={emp.userId || ""}>
-                                    {emp.name} ({emp.employeeCode})
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <EmployeeCombobox
+                        className="h-9 w-full sm:w-[180px]"
+                        value={employeeId}
+                        onValueChange={handleEmployeeChange}
+                        allLabel="All Employees"
+                        options={(employees ?? []).map(emp => ({
+                            value: emp.userId || "",
+                            label: emp.name,
+                            code: emp.employeeCode,
+                        }))}
+                    />
 
                     <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
                         <SelectTrigger className="h-9 w-full sm:w-[140px]">

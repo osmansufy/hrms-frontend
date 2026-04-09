@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import { useAssignAsset } from "@/lib/queries/asset";
 import { useEmployees } from "@/lib/queries/employees";
 import type { Asset } from "@/lib/api/asset";
@@ -79,19 +80,16 @@ export function AssignAssetDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Employee *</Label>
-            <Select value={employeeId} onValueChange={setEmployeeId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select employee" />
-              </SelectTrigger>
-              <SelectContent>
-                {employeeList.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id}>
-                    {emp.name}
-                    {emp.employeeCode ? ` (${emp.employeeCode})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EmployeeCombobox
+              value={employeeId}
+              onValueChange={setEmployeeId}
+              placeholder="Select employee"
+              options={(employeeList ?? []).map((emp) => ({
+                value: emp.id,
+                label: emp.name,
+                code: emp.employeeCode,
+              }))}
+            />
           </div>
           <div className="space-y-2">
             <Label>Condition at assignment</Label>

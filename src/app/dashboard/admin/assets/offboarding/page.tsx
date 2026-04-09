@@ -5,13 +5,7 @@ import Link from "next/link";
 import { Package, UserMinus, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import {
   Table,
   TableBody,
@@ -114,23 +108,16 @@ export default function AssetOffboardingPage() {
         <CardContent className="space-y-6">
           <div className="space-y-2 max-w-md">
             <label className="text-sm font-medium">Employee</label>
-            <Select
-              value={employeeId}
-              onValueChange={setEmployeeId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select employee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Select employee</SelectItem>
-                {employeeList.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id}>
-                    {emp.name}
-                    {emp.employeeCode ? ` (${emp.employeeCode})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EmployeeCombobox
+              value={employeeId === "__none__" ? "" : employeeId}
+              onValueChange={(val) => setEmployeeId(val || "__none__")}
+              placeholder="Select employee"
+              options={(employeeList ?? []).map((emp) => ({
+                value: emp.id,
+                label: emp.name,
+                code: emp.employeeCode,
+              }))}
+            />
           </div>
 
           {employeeId && employeeId !== "__none__" && (

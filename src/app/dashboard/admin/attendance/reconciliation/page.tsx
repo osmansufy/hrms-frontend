@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -372,19 +373,16 @@ export default function AttendanceReconciliationAdminPage() {
                             {/* Employee & Department Filters */}
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Employee</label>
-                                <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-                                    <SelectTrigger className="h-10">
-                                        <SelectValue placeholder="All employees" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All employees</SelectItem>
-                                        {employees.filter((e) => e.userId).map((emp) => (
-                                            <SelectItem key={emp.userId!} value={emp.userId!}>
-                                                {emp.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <EmployeeCombobox
+                                    value={employeeFilter}
+                                    onValueChange={setEmployeeFilter}
+                                    allLabel="All employees"
+                                    options={employees.filter((e) => e.userId).map((emp) => ({
+                                        value: emp.userId!,
+                                        label: emp.name,
+                                        code: emp.employeeCode,
+                                    }))}
+                                />
                             </div>
 
                             <div className="space-y-2">

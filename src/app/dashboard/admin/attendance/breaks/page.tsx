@@ -28,6 +28,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import {
     Table,
     TableBody,
@@ -548,19 +549,18 @@ export default function BreaksManagementPage() {
                     </SelectContent>
                 </Select>
 
-                <Select value={employeeId} onValueChange={handleEmployeeChange}>
-                    <SelectTrigger className="w-64">
-                        <SelectValue placeholder="Employee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Employees</SelectItem>
-                        {employees?.map((emp) => (
-                            <SelectItem key={emp.userId} value={emp.userId || ""}>
-                                {emp.firstName} {emp.lastName} ({emp.employeeCode})
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <EmployeeCombobox
+                    className="w-64"
+                    value={employeeId}
+                    onValueChange={handleEmployeeChange}
+                    allLabel="All Employees"
+                    options={(employees ?? []).map((emp) => ({
+                        value: emp.userId || "",
+                        label: `${emp.firstName} ${emp.lastName}`,
+                        code: emp.employeeCode,
+                        department: emp.department?.name,
+                    }))}
+                />
 
                 <Select
                     value={breakTypeFilter}

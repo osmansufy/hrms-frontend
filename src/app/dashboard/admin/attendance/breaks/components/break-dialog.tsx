@@ -32,6 +32,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 
 import {
     adminCreateBreak,
@@ -286,27 +287,22 @@ export function BreakDialog({
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Employee *</FormLabel>
-                                            <Select
-                                                onValueChange={(value) => {
-                                                    field.onChange(value);
-                                                    handleUserChange(value);
-                                                }}
-                                                value={field.value}
-                                            >
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select an employee" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {employees.map((emp: any) => (
-                                                        <SelectItem key={emp.userId} value={emp.userId || ""}>
-                                                            {emp.firstName} {emp.lastName} ({emp.employeeCode})
-                                                            {emp.department && ` - ${emp.department.name}`}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <FormControl>
+                                                <EmployeeCombobox
+                                                    value={field.value || ""}
+                                                    onValueChange={(value) => {
+                                                        field.onChange(value);
+                                                        handleUserChange(value);
+                                                    }}
+                                                    placeholder="Select an employee"
+                                                    options={employees.map((emp: any) => ({
+                                                        value: emp.userId || "",
+                                                        label: `${emp.firstName} ${emp.lastName}`,
+                                                        code: emp.employeeCode,
+                                                        department: emp.department?.name,
+                                                    }))}
+                                                />
+                                            </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
