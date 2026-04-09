@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { History, Clock, TrendingDown } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Coffee, Clock } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyBreaks } from "@/lib/queries/attendance";
@@ -13,79 +13,35 @@ import {
     calculateBreakSummary,
     type AttendanceBreak,
 } from "@/lib/api/attendance";
+import { cn } from "@/lib/utils";
 
-/**
- * BreakHistoryCard Component
- * 
- * Displays today's break history with comprehensive statistics
- * - List of all breaks taken today
- * - Duration and status for each break
- * - Total break time and count
- * - Visual indicators for policy compliance
- * 
- * Features:
- * - Real-time updates
- * - Active break highlighting
- * - Break history display
- * - Empty state handling
- * - Responsive layout
- */
 export function BreakHistoryCard() {
-    // Get today's date in local timezone (not UTC) for filtering
     const today = useMemo(() => {
-        const date = new Date();
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
     }, []);
 
-    // Fetch today's breaks
-    const { data: response, isLoading } = useMyBreaks({
-        startDate: today,
-        endDate: today,
-    });
+    const { data: response, isLoading } = useMyBreaks({ startDate: today, endDate: today });
 
-    const breaks = response?.data || [];
+    const breaks  = response?.data || [];
     const summary = useMemo(() => calculateBreakSummary(breaks), [breaks]);
 
-    // Loading state
     if (isLoading) {
         return (
             <Card>
                 <CardHeader>
-                    <Skeleton className="h-6 w-32" />
-                    <Skeleton className="h-4 w-48 mt-2" />
+                    <Skeleton className="h-5 w-32" />
                 </CardHeader>
                 <CardContent className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="h-20 w-full" />
-                    ))}
-                </CardContent>
-            </Card>
-        );
-    }
-
-    // Empty state
-    if (breaks.length === 0) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <History className="h-5 w-5" />
-                        Today's Breaks
-                    </CardTitle>
-                    <CardDescription>No breaks recorded today</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <div className="rounded-full bg-muted p-4 mb-4">
-                            <Clock className="h-8 w-8 text-muted-foreground" />
+                    {[1, 2].map((i) => (
+                        <div key={i} className="flex items-start gap-3">
+                            <Skeleton className="mt-1 size-3 shrink-0 rounded-full" />
+                            <Skeleton className="h-14 flex-1 rounded-lg" />
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                            You haven't taken any breaks today. Remember to take regular breaks for better productivity!
-                        </p>
-                    </div>
+                    ))}
                 </CardContent>
             </Card>
         );
@@ -93,58 +49,63 @@ export function BreakHistoryCard() {
 
     return (
         <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle className="flex items-center gap-2">
-                            <History className="h-5 w-5" />
-                            Today's Breaks
-                        </CardTitle>
-                        <CardDescription>
-                            {summary.totalBreaks} break{summary.totalBreaks !== 1 ? "s" : ""} • {formatBreakDuration(summary.totalMinutes)} total
-                        </CardDescription>
+                    <div className="flex items-center gap-2">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                            <Coffee className="size-4 text-muted-foreground" />
+                        </div>
+                        <CardTitle className="text-base font-semibold">Today&apos;s Breaks</CardTitle>
                     </div>
-                    <Badge variant="secondary">
-                        <TrendingDown className="mr-1 h-3 w-3" />
-                        {summary.totalMinutes}m
-                    </Badge>
+
+                    {breaks.length > 0 && (
+                        <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="gap-1 font-medium">
+                                <Clock className="size-3" />
+                                {formatBreakDuration(summary.totalMinutes)}
+                            </Badge>
+                            <Badge variant="outline" className="font-medium">
+                                {summary.totalBreaks}×
+                            </Badge>
+                        </div>
+                    )}
                 </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-                {/* Break list */}
-                <div className="space-y-2">
-                    {breaks.map((breakRecord) => (
-                        <BreakListItem key={breakRecord.id} breakRecord={breakRecord} />
-                    ))}
-                </div>
 
-                {/* Summary statistics */}
-                <div className="grid grid-cols-2 gap-3 pt-3 border-t">
-                    <div className="rounded-lg bg-muted p-3">
-                        <div className="text-xs text-muted-foreground mb-1">Total Breaks</div>
-                        <div className="text-2xl font-bold">{summary.totalBreaks}</div>
+            <CardContent>
+                {breaks.length === 0 ? (
+                    /* ── Empty state ── */
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="mb-3 flex size-14 items-center justify-center rounded-full bg-muted">
+                            <Coffee className="size-6 text-muted-foreground/60" />
+                        </div>
+                        <p className="text-sm font-medium text-muted-foreground">No breaks yet today</p>
+                        <p className="mt-1 text-xs text-muted-foreground/70">
+                            Regular breaks improve focus and well-being.
+                        </p>
                     </div>
-                    <div className="rounded-lg bg-muted p-3">
-                        <div className="text-xs text-muted-foreground mb-1">Total Time</div>
-                        <div className="text-2xl font-bold">{formatBreakDuration(summary.totalMinutes)}</div>
-                    </div>
-                </div>
+                ) : (
+                    /* ── Timeline list ── */
+                    <div className="relative pl-5">
+                        {/* Vertical timeline rail */}
+                        <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
 
-                {/* Break type breakdown */}
-                {summary.totalBreaks > 0 && (
-                    <div className="rounded-lg bg-muted p-3 space-y-2">
-                        <div className="text-xs font-medium text-muted-foreground">Breakdown by Type</div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                            {Object.entries(summary.byType)
-                                .filter(([_, data]) => data.count > 0)
-                                .map(([type, data]) => (
-                                    <div key={type} className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">
-                                            {getBreakTypeIcon(type as any)} {getBreakTypeLabel(type as any)}:
+                        <div className="space-y-3">
+                            {breaks.map((breakRecord) => (
+                                <div key={breakRecord.id} className="relative flex items-start gap-3">
+                                    {/* Timeline dot */}
+                                    {breakRecord.endTime === null ? (
+                                        <span className="relative mt-3.5 flex size-3 shrink-0">
+                                            <span className="absolute inline-flex size-full animate-ping rounded-full bg-orange-400 opacity-60" />
+                                            <span className="relative inline-flex size-3 rounded-full border-2 border-background bg-orange-500 ring-2 ring-orange-300 dark:ring-orange-700" />
                                         </span>
-                                        <span className="font-medium">{data.count}×</span>
-                                    </div>
-                                ))}
+                                    ) : (
+                                        <span className="mt-3.5 size-3 shrink-0 rounded-full border-2 border-background bg-muted-foreground/40 ring-1 ring-border" />
+                                    )}
+
+                                    <BreakListItem breakRecord={breakRecord} />
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -153,60 +114,71 @@ export function BreakHistoryCard() {
     );
 }
 
-/**
- * Individual break list item component
- */
 function BreakListItem({ breakRecord }: { breakRecord: AttendanceBreak }) {
     const isActive = breakRecord.endTime === null;
 
-    // Calculate duration
     const duration = useMemo(() => {
-        if (breakRecord.durationMinutes) {
-            return breakRecord.durationMinutes;
-        }
+        if (breakRecord.durationMinutes) return breakRecord.durationMinutes;
         if (isActive) {
-            const start = new Date(breakRecord.startTime);
-            const now = new Date();
-            return Math.floor((now.getTime() - start.getTime()) / 60000);
+            return Math.floor((Date.now() - new Date(breakRecord.startTime).getTime()) / 60000);
         }
         return 0;
     }, [breakRecord.durationMinutes, breakRecord.startTime, isActive]);
 
-    const startTime = new Date(breakRecord.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    const endTime = breakRecord.endTime ? new Date(breakRecord.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : "In Progress";
+    const startTime = new Date(breakRecord.startTime).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
+    const endTime = breakRecord.endTime
+        ? new Date(breakRecord.endTime).toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        })
+        : null;
 
     return (
-        <div
-            className={`rounded-lg border p-3 transition-colors ${isActive ? "border-orange-300 bg-orange-50/50" : "border-border bg-card"
-                }`}
-        >
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{getBreakTypeIcon(breakRecord.breakType)}</span>
-                        <span className="font-medium text-sm">{getBreakTypeLabel(breakRecord.breakType)}</span>
+        <div className={cn(
+            "flex-1 rounded-lg border px-3 py-2.5 transition-colors",
+            isActive
+                ? "border-orange-200 bg-orange-50/60 dark:border-orange-900 dark:bg-orange-950/20"
+                : "border-border bg-card",
+        )}>
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-base leading-none">{getBreakTypeIcon(breakRecord.breakType)}</span>
+                        <span className="text-sm font-medium">{getBreakTypeLabel(breakRecord.breakType)}</span>
                         {isActive && (
-                            <Badge variant="default" className="text-xs">
-                                Active
+                            <Badge className="h-4 bg-orange-500 px-1.5 text-[10px] text-white hover:bg-orange-600">
+                                Live
                             </Badge>
                         )}
                     </div>
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                        <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                                {startTime} → {endTime}
-                            </span>
-                        </div>
-                        {breakRecord.notes && (
-                            <div className="mt-1 text-foreground/70 italic truncate">
-                                &quot;{breakRecord.notes}&quot;
-                            </div>
-                        )}
+
+                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="size-3 shrink-0" />
+                        <span>
+                            {startTime}
+                            {endTime ? <> → {endTime}</> : " → now"}
+                        </span>
                     </div>
+
+                    {breakRecord.reason && (
+                        <div className="mt-1.5 truncate text-xs italic text-foreground/60">
+                            &ldquo;{breakRecord.reason}&rdquo;
+                        </div>
+                    )}
                 </div>
-                <div className="text-right shrink-0">
-                    <div className="font-bold text-sm">{formatBreakDuration(duration)}</div>
+
+                <div className="shrink-0 text-right">
+                    <span className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        isActive ? "text-orange-600" : "",
+                    )}>
+                        {formatBreakDuration(duration)}
+                    </span>
                 </div>
             </div>
         </div>

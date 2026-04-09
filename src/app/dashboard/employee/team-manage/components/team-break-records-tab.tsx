@@ -282,7 +282,7 @@ export function TeamBreakRecordsTab() {
                       ? formatBreakDuration(b.durationMinutes)
                       : "—";
                   const breakType = (b.breakType as BreakType) ?? BreakType.OTHER;
-                  const reason = b.reason ?? b.notes ?? "—";
+                  const reason = b.reason ?? "—";
                   return (
                     <TableRow key={b.id}>
                       <TableCell>

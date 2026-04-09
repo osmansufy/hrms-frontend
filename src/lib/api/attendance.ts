@@ -91,7 +91,8 @@ export type AttendanceBreak = {
   startTime: string; // ISO DateTime
   endTime: string | null; // ISO DateTime or null if still active
   durationMinutes: number | null; // Calculated on backend when endTime is set
-  notes: string | null;
+  reason: string | null;
+  location: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -774,7 +775,7 @@ export type AttendanceReconciliationRequestResponse = {
  */
 export async function startBreak(payload: {
   breakType: BreakType;
-  notes?: string;
+  reason?: string;
 }): Promise<AttendanceBreakResponse> {
   const response = await apiClient.post<AttendanceBreakResponse>(
     "/attendance/my/breaks/start",

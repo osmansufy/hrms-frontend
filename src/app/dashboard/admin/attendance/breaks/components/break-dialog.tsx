@@ -130,8 +130,8 @@ export function BreakDialog({
                 startTime: format(new Date(breakData.startTime), "yyyy-MM-dd'T'HH:mm"),
                 endTime: breakData.endTime ? format(new Date(breakData.endTime), "yyyy-MM-dd'T'HH:mm") : "",
                 breakType: breakData.breakType,
-                location: breakData.notes || "",
-                reason: breakData.notes || "",
+                location: breakData.location || "",
+                reason: breakData.reason || "",
             });
             setSelectedUserId(breakData.userId);
             setSelectedDate(format(new Date(breakData.startTime), "yyyy-MM-dd"));

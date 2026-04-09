@@ -449,7 +449,7 @@ export function useActiveBreak() {
  */
 export function useMyBreaks(params?: { startDate?: string; endDate?: string }) {
   return useQuery({
-    queryKey: ["my-breaks"],
+    queryKey: ["my-breaks", params?.startDate, params?.endDate],
     queryFn: () => getMyBreaks(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -495,7 +495,7 @@ export function useStartBreak(userId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: { breakType: BreakType; notes?: string }) =>
+    mutationFn: (payload: { breakType: BreakType; reason?: string }) =>
       startBreak(payload),
     onSuccess: () => {
       // Invalidate active break query to refetch
