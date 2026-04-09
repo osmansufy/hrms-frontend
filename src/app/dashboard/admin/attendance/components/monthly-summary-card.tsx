@@ -1,5 +1,6 @@
 "use client";
 
+import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEmployeeMonthlySummary } from "@/lib/api/attendance";
 import { useMonthlyAttendanceSummary } from "@/lib/queries/attendance";
@@ -85,7 +86,7 @@ export function MonthlySummaryCard({ year, month, departmentId, userId }: Monthl
           Monthly Attendance Summary
         </CardTitle>
         <CardDescription>
-          {new Date(year, month - 1).toLocaleString("default", { month: "long" })} {year}
+          {format(new Date(year, month - 1), "MMMM")} {year}
           {departmentId && " • Filtered by Department"}
           {userId && " • Employee View"}
         </CardDescription>

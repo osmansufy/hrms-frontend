@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import {
   Card,
   CardContent,
@@ -36,7 +37,6 @@ import {
   formatMinutesToHours,
   toStartOfDayISO,
   toEndOfDayISO,
-  toLocalDateStr,
   formatTimeInTimezone,
   formatInDhakaTimezone,
   formatDateInDhaka,
@@ -68,16 +68,17 @@ function daysBetween(a: string, b: string) {
 
 /** Returns the current month as "YYYY-MM" */
 function currentMonthValue() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return format(new Date(), "yyyy-MM");
 }
 
 /** Converts "YYYY-MM" → { startDate, endDate } as "YYYY-MM-DD" strings */
 function monthToRange(ym: string): { startDate: string; endDate: string } {
   const [y, m] = ym.split("-").map(Number) as [number, number];
-  const start = new Date(y, m - 1, 1);
-  const end   = new Date(y, m, 0);          // last day of month
-  return { startDate: toLocalDateStr(start), endDate: toLocalDateStr(end) };
+  const ref = new Date(y, m - 1, 1);
+  return {
+    startDate: format(startOfMonth(ref), "yyyy-MM-dd"),
+    endDate: format(endOfMonth(ref), "yyyy-MM-dd"),
+  };
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ function DateRangeFilter({
   selectedMonth: string;
   setSelectedMonth: (m: string) => void;
 }) {
-  const today        = new Date().toISOString().split("T")[0]!;
+  const today        = format(new Date(), "yyyy-MM-dd");
   const maxMonth     = currentMonthValue();
 
   const effectiveRange = filterMode === "monthly" ? monthToRange(selectedMonth) : dateRange;

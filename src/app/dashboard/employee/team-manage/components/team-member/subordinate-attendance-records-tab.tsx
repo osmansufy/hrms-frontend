@@ -39,6 +39,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { toStartOfDayISO, toEndOfDayISO, formatDateInDhaka } from "@/lib/utils";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subDays, startOfYear, endOfYear } from "date-fns";
 
 interface SubordinateAttendanceRecordsTabProps {
   userId: string;
@@ -66,12 +67,9 @@ type FilterAction =
 
 const getInitialState = (): FilterState => {
   const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  
   return {
-    startDate: firstDay.toISOString().split("T")[0],
-    endDate: lastDay.toISOString().split("T")[0],
+    startDate: format(startOfMonth(now), "yyyy-MM-dd"),
+    endDate: format(endOfMonth(now), "yyyy-MM-dd"),
     page: 1,
     limit: 20,
     isLate: undefined,
@@ -158,8 +156,9 @@ export function SubordinateAttendanceRecordsTab({
   );
 
   // Separate query for monthly view
-  const monthlyStartDate = new Date(selectedYear, selectedMonth, 1).toISOString().split("T")[0];
-  const monthlyEndDate = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split("T")[0];
+  const monthlyRef = new Date(selectedYear, selectedMonth, 1);
+  const monthlyStartDate = format(startOfMonth(monthlyRef), "yyyy-MM-dd");
+  const monthlyEndDate = format(endOfMonth(monthlyRef), "yyyy-MM-dd");
   
   const { data: monthlyData, isLoading: monthlyLoading } = useSubordinateAttendance(
     userId,
@@ -250,21 +249,13 @@ export function SubordinateAttendanceRecordsTab({
     let newEndDate: string;
 
     if (type === "current") {
-      // Current week (Monday to Sunday)
-      const dayOfWeek = now.getDay();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-      newStartDate = monday.toISOString().split("T")[0];
-      newEndDate = now.toISOString().split("T")[0];
+      newStartDate = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      newEndDate = format(now, "yyyy-MM-dd");
     } else {
       // Last week (Monday to Sunday)
-      const dayOfWeek = now.getDay();
-      const lastMonday = new Date(now);
-      lastMonday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) - 7);
-      const lastSunday = new Date(lastMonday);
-      lastSunday.setDate(lastMonday.getDate() + 6);
-      newStartDate = lastMonday.toISOString().split("T")[0];
-      newEndDate = lastSunday.toISOString().split("T")[0];
+      const lastWeek = subDays(now, 7);
+      newStartDate = format(startOfWeek(lastWeek, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      newEndDate = format(endOfWeek(lastWeek, { weekStartsOn: 1 }), "yyyy-MM-dd");
     }
 
     dispatch({
@@ -274,26 +265,24 @@ export function SubordinateAttendanceRecordsTab({
   };
 
   const handleMonthFilter = (month: number, year: number) => {
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 0);
+    const ref = new Date(year, month, 1);
     dispatch({
       type: "SET_DATE_RANGE",
       payload: {
-        startDate: monthStart.toISOString().split("T")[0],
-        endDate: monthEnd.toISOString().split("T")[0],
+        startDate: format(startOfMonth(ref), "yyyy-MM-dd"),
+        endDate: format(endOfMonth(ref), "yyyy-MM-dd"),
         preset: "monthly",
       },
     });
   };
 
   const handleYearFilter = (year: number) => {
-    const yearStart = new Date(year, 0, 1);
-    const yearEnd = new Date(year, 11, 31);
+    const ref = new Date(year, 0, 1);
     dispatch({
       type: "SET_DATE_RANGE",
       payload: {
-        startDate: yearStart.toISOString().split("T")[0],
-        endDate: yearEnd.toISOString().split("T")[0],
+        startDate: format(startOfYear(ref), "yyyy-MM-dd"),
+        endDate: format(endOfYear(ref), "yyyy-MM-dd"),
         preset: "yearly",
       },
     });

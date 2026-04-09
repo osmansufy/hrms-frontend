@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { format } from "date-fns";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -25,14 +26,8 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import { useEmployees } from "@/lib/queries/employees";
 import { useCreateAttendanceRecord } from "@/lib/queries/attendance";
 import { AxiosError } from "axios";
@@ -59,7 +54,7 @@ export function CreateRecordDialog() {
         resolver: zodResolver(formSchema),
         defaultValues: {
             userId: "",
-            date: new Date().toISOString().split("T")[0],
+            date: format(new Date(), "yyyy-MM-dd"),
             signIn: "09:00",
             signOut: "",
             signInLocation: "Office",
@@ -122,23 +117,18 @@ export function CreateRecordDialog() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Employee</FormLabel>
-                                    <Select
-                                        onValueChange={field.onChange}
-                                        defaultValue={field.value}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select employee" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {employees?.map((employee) => (
-                                                <SelectItem key={employee.id} value={employee.userId || employee.id}>
-                                                    {employee.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormControl>
+                                        <EmployeeCombobox
+                                            value={field.value}
+                                            onValueChange={field.onChange}
+                                            placeholder="Select employee"
+                                            options={(employees ?? []).map((emp) => ({
+                                                value: emp.userId || emp.id,
+                                                label: emp.name,
+                                                code: emp.employeeCode,
+                                            }))}
+                                        />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

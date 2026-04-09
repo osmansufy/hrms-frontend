@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -120,7 +121,7 @@ export function LostHoursTab() {
                                 <Input
                                     type="date"
                                     value={dateRange.startDate}
-                                    max={new Date().toISOString().split("T")[0]}
+                                    max={format(new Date(), "yyyy-MM-dd")}
                                     onChange={(e) => setCustomRange({ startDate: e.target.value })}
                                 />
                             </div>
@@ -129,7 +130,7 @@ export function LostHoursTab() {
                                 <Input
                                     type="date"
                                     value={dateRange.endDate}
-                                    max={new Date().toISOString().split("T")[0]}
+                                    max={format(new Date(), "yyyy-MM-dd")}
                                     onChange={(e) => setCustomRange({ endDate: e.target.value })}
                                 />
                             </div>

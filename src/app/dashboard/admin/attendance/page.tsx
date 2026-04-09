@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { Download, Loader2, ClipboardList, Clock, Coffee, TrendingDown, GitMerge } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,25 +24,22 @@ const NAV_LINKS = [
 export default function AdminAttendancePage() {
     const exportMutation = useExportAttendanceReport();
 
-    const todayLabel = useMemo(() =>
-        new Date().toLocaleDateString("en-US", {
-            weekday: "long", month: "long", day: "numeric", year: "numeric",
-        }), []);
+    const todayLabel = useMemo(() => format(new Date(), "EEEE, MMMM d, yyyy"), []);
 
     const handleExport = async () => {
         try {
             const today = new Date();
-            const start = new Date(today.getFullYear(), today.getMonth(), 1);
-            const end   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            const start = startOfMonth(today);
+            const end   = endOfMonth(today);
             const blob  = await exportMutation.mutateAsync({
-                startDate: start.toISOString().split("T")[0]!,
-                endDate:   end.toISOString().split("T")[0]!,
+                startDate: format(start, "yyyy-MM-dd"),
+                endDate:   format(end, "yyyy-MM-dd"),
                 format:    "csv",
             });
             const url = URL.createObjectURL(blob);
             const a   = document.createElement("a");
             a.href     = url;
-            a.download = `attendance-${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}.csv`;
+            a.download = `attendance-${format(today, "yyyy-MM")}.csv`;
             a.click();
             URL.revokeObjectURL(url);
             toast.success("Report downloaded");

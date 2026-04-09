@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { Search, Edit, Trash2, ArrowLeft, ArrowRight, CalendarDays, MapPin, Loader2, CalendarRange, LayoutGrid, LogIn, LogOut } from "lucide-react";
 import { useAttendanceRecords, useUpdateAttendanceRecord, useDeleteAttendanceRecord } from "@/lib/queries/attendance";
 import { useDepartments } from "@/lib/queries/departments";
@@ -75,8 +76,7 @@ const LIMITS_OPTIONS = LIMITS.map((limit) => ({
 type FilterMode = "preset" | "monthly";
 
 function currentMonthValue() {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+    return format(new Date(), "yyyy-MM");
 }
 
 function monthToRange(ym: string) {
@@ -154,23 +154,26 @@ export function AttendanceRecordsTab() {
         record?: ExtendedAttendanceRecord;
     } | null>(null);
 
-    // Extract year and month from date range for monthly summary
+    // Use the record's own date for the monthly summary so it matches
+    // what the admin is actually viewing, not the outer date range filter.
     const summaryYear = useMemo(() => {
-        const date = new Date(dateRange.startDate);
-        return date.getFullYear();
-    }, [dateRange.startDate]);
+        const dateStr = selectedEmployee?.record?.date ?? dateRange.startDate;
+        const [y] = dateStr.split("-").map(Number);
+        return y;
+    }, [selectedEmployee?.record?.date, dateRange.startDate]);
 
     const summaryMonth = useMemo(() => {
-        const date = new Date(dateRange.startDate);
-        return date.getMonth() + 1; // getMonth() returns 0-11, we need 1-12
-    }, [dateRange.startDate]);
+        const dateStr = selectedEmployee?.record?.date ?? dateRange.startDate;
+        const [, m] = dateStr.split("-").map(Number);
+        return m;
+    }, [selectedEmployee?.record?.date, dateRange.startDate]);
 
 
 
     // Month label for the monthly chip
     const monthLabel = useMemo(() => {
         const [y, m] = selectedMonth.split("-").map(Number) as [number, number];
-        return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        return format(new Date(y, m - 1, 1), "MMMM yyyy");
     }, [selectedMonth]);
 
     return (
@@ -246,11 +249,11 @@ export function AttendanceRecordsTab() {
                             <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3 sm:max-w-sm">
                                 <div className="space-y-1">
                                     <label className="text-xs font-medium text-muted-foreground">From</label>
-                                    <Input type="date" value={dateRange.startDate} max={new Date().toISOString().split("T")[0]} className="h-8 text-sm" onChange={(e) => { setCustomRange({ startDate: e.target.value }); setPage(1); }} />
+                                    <Input type="date" value={dateRange.startDate} max={format(new Date(), "yyyy-MM-dd")} className="h-8 text-sm" onChange={(e) => { setCustomRange({ startDate: e.target.value }); setPage(1); }} />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-xs font-medium text-muted-foreground">To</label>
-                                    <Input type="date" value={dateRange.endDate} max={new Date().toISOString().split("T")[0]} className="h-8 text-sm" onChange={(e) => { setCustomRange({ endDate: e.target.value }); setPage(1); }} />
+                                    <Input type="date" value={dateRange.endDate} max={format(new Date(), "yyyy-MM-dd")} className="h-8 text-sm" onChange={(e) => { setCustomRange({ endDate: e.target.value }); setPage(1); }} />
                                 </div>
                             </div>
                         )}
@@ -505,70 +508,38 @@ export function AttendanceRecordsTab() {
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <div className="text-sm font-medium text-muted-foreground mb-2">Sign In</div>
-                                                <div className="space-y-2">
-                                                    <div className="text-sm">{formatTime(selectedEmployee.record.signIn)}</div>
-                                                    {selectedEmployee.record.signInAddress && (
-                                                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                                                            <MapPin className="h-3.5 w-3.5 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
-                                                            <span>{selectedEmployee.record.signInAddress}</span>
-                                                        </div>
-                                                    )}
-                                                    {selectedEmployee.record.signInLocation && !selectedEmployee.record.signInAddress && (
-                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                            <MapPin className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
-                                                            <span>{selectedEmployee.record.signInLocation}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm font-medium text-muted-foreground mb-2">Sign Out</div>
-                                                <div className="space-y-2">
-                                                    <div className="text-sm">{formatTime(selectedEmployee.record.signOut) || "—"}</div>
-                                                    {selectedEmployee.record.signOutAddress && (
-                                                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                                                            <MapPin className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 mt-0.5 shrink-0" />
-                                                            <span>{selectedEmployee.record.signOutAddress}</span>
-                                                        </div>
-                                                    )}
-                                                    {selectedEmployee.record.signOutLocation && !selectedEmployee.record.signOutAddress && (
-                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                            <MapPin className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 shrink-0" />
-                                                            <span>{selectedEmployee.record.signOutLocation}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            <SignSection
+                                                label="Sign In"
+                                                time={formatTime(selectedEmployee.record.signIn)}
+                                                address={selectedEmployee.record.signInAddress}
+                                                location={selectedEmployee.record.signInLocation}
+                                                pinColor="green"
+                                            />
+                                            <SignSection
+                                                label="Sign Out"
+                                                time={formatTime(selectedEmployee.record.signOut) || "—"}
+                                                address={selectedEmployee.record.signOutAddress}
+                                                location={selectedEmployee.record.signOutLocation}
+                                                pinColor="orange"
+                                            />
                                         </div>
 
                                         {/* Time Metrics */}
                                         <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                                            <div>
-                                                <div className="text-sm font-medium text-muted-foreground mb-1">Lost Time</div>
-                                                <div className="text-lg font-semibold text-red-600 dark:text-red-400">
-                                                    {selectedEmployee.record.lostMinutes != null
-                                                        ? `${Math.floor(selectedEmployee.record.lostMinutes / 60)}h ${selectedEmployee.record.lostMinutes % 60}m`
-                                                        : "—"}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm font-medium text-muted-foreground mb-1">Overtime</div>
-                                                <div className="text-lg font-semibold text-green-600 dark:text-green-400">
-                                                    {selectedEmployee.record.overtimeMinutes != null
-                                                        ? `${Math.floor(selectedEmployee.record.overtimeMinutes / 60)}h ${selectedEmployee.record.overtimeMinutes % 60}m`
-                                                        : "—"}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm font-medium text-muted-foreground mb-1">Worked</div>
-                                                <div className="text-lg font-semibold">
-                                                    {selectedEmployee.record.workedMinutes != null
-                                                        ? `${Math.floor(selectedEmployee.record.workedMinutes / 60)}h ${selectedEmployee.record.workedMinutes % 60}m`
-                                                        : "—"}
-                                                </div>
-                                            </div>
+                                            <TimeMetric
+                                                label="Lost Time"
+                                                minutes={selectedEmployee.record.lostMinutes}
+                                                colorClass="text-red-600 dark:text-red-400"
+                                            />
+                                            <TimeMetric
+                                                label="Overtime"
+                                                minutes={selectedEmployee.record.overtimeMinutes}
+                                                colorClass="text-green-600 dark:text-green-400"
+                                            />
+                                            <TimeMetric
+                                                label="Worked"
+                                                minutes={selectedEmployee.record.workedMinutes}
+                                            />
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -594,6 +565,58 @@ export function AttendanceRecordsTab() {
                 </SheetContent>
             </Sheet>
         </>
+    );
+}
+
+function SignSection({
+    label,
+    time,
+    address,
+    location,
+    pinColor,
+}: {
+    label: string;
+    time: string;
+    address?: string | null;
+    location?: string | null;
+    pinColor: "green" | "orange";
+}) {
+    const pinClass = pinColor === "green"
+        ? "text-green-600 dark:text-green-400"
+        : "text-orange-600 dark:text-orange-400";
+    const display = address || location;
+    return (
+        <div>
+            <div className="text-sm font-medium text-muted-foreground mb-2">{label}</div>
+            <div className="space-y-2">
+                <div className="text-sm">{time}</div>
+                {display && (
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <MapPin className={`h-3.5 w-3.5 ${pinClass} mt-0.5 shrink-0`} />
+                        <span>{display}</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function TimeMetric({
+    label,
+    minutes,
+    colorClass = "",
+}: {
+    label: string;
+    minutes?: number | null;
+    colorClass?: string;
+}) {
+    return (
+        <div>
+            <div className="text-sm font-medium text-muted-foreground mb-1">{label}</div>
+            <div className={`text-lg font-semibold ${colorClass}`}>
+                {minutes != null ? formatMinutesToHours(minutes) : "—"}
+            </div>
+        </div>
     );
 }
 

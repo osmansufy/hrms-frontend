@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -464,7 +465,7 @@ export default function BreaksManagementPage() {
                                 <Input
                                     type="date"
                                     value={dateRange.startDate}
-                                    max={new Date().toISOString().split("T")[0]}
+                                    max={format(new Date(), "yyyy-MM-dd")}
                                     className="h-8 text-sm"
                                     onChange={(e) => {
                                         setCustomRange({ startDate: e.target.value });
@@ -479,7 +480,7 @@ export default function BreaksManagementPage() {
                                 <Input
                                     type="date"
                                     value={dateRange.endDate}
-                                    max={new Date().toISOString().split("T")[0]}
+                                    max={format(new Date(), "yyyy-MM-dd")}
                                     className="h-8 text-sm"
                                     onChange={(e) => {
                                         setCustomRange({ endDate: e.target.value });

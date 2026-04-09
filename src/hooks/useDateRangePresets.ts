@@ -1,5 +1,14 @@
 import { useState, useMemo } from "react";
-import { toLocalDateStr } from "@/lib/utils";
+import {
+  format,
+  subDays,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  startOfYear,
+} from "date-fns";
 
 export type DateRangePreset =
   | "today"
@@ -53,79 +62,59 @@ export function useDateRangePresets(
 
 export function getDateRangeForPreset(preset: DateRangePreset): DateRange {
   const now = new Date();
+  const fmt = (d: Date) => format(d, "yyyy-MM-dd");
 
   switch (preset) {
     case "today": {
-      const today = toLocalDateStr(now);
+      const today = fmt(now);
       return { startDate: today, endDate: today };
     }
 
     case "yesterday": {
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const date = toLocalDateStr(yesterday);
+      const date = fmt(subDays(now, 1));
       return { startDate: date, endDate: date };
     }
 
-    case "this-week": {
-      const startOfWeek = new Date(now);
-      const day = startOfWeek.getDay(); // local day of week (0=Sun)
-      const diff = day === 0 ? -6 : 1 - day; // back to Monday
-      startOfWeek.setDate(startOfWeek.getDate() + diff);
+    case "this-week":
       return {
-        startDate: toLocalDateStr(startOfWeek),
-        endDate: toLocalDateStr(now),
+        startDate: fmt(startOfWeek(now, { weekStartsOn: 1 })),
+        endDate: fmt(now),
       };
-    }
 
     case "last-week": {
-      const lastWeekEnd = new Date(now);
-      const day = lastWeekEnd.getDay();
-      const diffToMonday = day === 0 ? -6 : 1 - day;
-      lastWeekEnd.setDate(lastWeekEnd.getDate() + diffToMonday - 1); // Sunday of last week
-
-      const lastWeekStart = new Date(lastWeekEnd);
-      lastWeekStart.setDate(lastWeekEnd.getDate() - 6); // Monday of last week
-
+      const lastWeek = subDays(now, 7);
       return {
-        startDate: toLocalDateStr(lastWeekStart),
-        endDate: toLocalDateStr(lastWeekEnd),
+        startDate: fmt(startOfWeek(lastWeek, { weekStartsOn: 1 })),
+        endDate: fmt(endOfWeek(lastWeek, { weekStartsOn: 1 })),
       };
     }
 
-    case "this-month": {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    case "this-month":
       return {
-        startDate: toLocalDateStr(startOfMonth),
-        endDate: toLocalDateStr(now),
+        startDate: fmt(startOfMonth(now)),
+        endDate: fmt(now),
       };
-    }
 
     case "last-month": {
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      const lastMonth = subMonths(now, 1);
       return {
-        startDate: toLocalDateStr(lastMonth),
-        endDate: toLocalDateStr(lastMonthEnd),
+        startDate: fmt(startOfMonth(lastMonth)),
+        endDate: fmt(endOfMonth(lastMonth)),
       };
     }
 
-    case "this-year": {
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
+    case "this-year":
       return {
-        startDate: toLocalDateStr(startOfYear),
-        endDate: toLocalDateStr(now),
+        startDate: fmt(startOfYear(now)),
+        endDate: fmt(now),
       };
-    }
 
     case "custom":
-    default: {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    default:
       return {
-        startDate: toLocalDateStr(startOfMonth),
-        endDate: toLocalDateStr(now),
+        startDate: fmt(startOfMonth(now)),
+        endDate: fmt(now),
       };
-    }
   }
 }
 

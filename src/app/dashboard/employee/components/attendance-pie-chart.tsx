@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Loader2 } from "lucide-react";
 import { useSession } from "@/components/auth/session-provider";
 import { useMyAttendanceRecords } from "@/lib/queries/attendance";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend } from "date-fns";
 import { toStartOfDayISO, toEndOfDayISO, formatInDhakaTimezone } from "@/lib/utils";
 
 const COLORS = {
@@ -20,15 +21,14 @@ export function AttendancePieChart() {
     const userId = session?.user.id;
 
     // Get current month's attendance
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    const queryParams = useMemo(() => ({
-        startDate: toStartOfDayISO(startOfMonth.toISOString().split("T")[0]),
-        endDate: toEndOfDayISO(endOfMonth.toISOString().split("T")[0]),
-        limit: "100", // Get all records for the month
-    }), []);
+    const queryParams = useMemo(() => {
+        const now = new Date();
+        return {
+            startDate: toStartOfDayISO(format(startOfMonth(now), "yyyy-MM-dd")),
+            endDate: toEndOfDayISO(format(endOfMonth(now), "yyyy-MM-dd")),
+            limit: "100", // Get all records for the month
+        };
+    }, []);
 
     const { data, isLoading } = useMyAttendanceRecords(userId, queryParams);
 
@@ -43,18 +43,10 @@ export function AttendancePieChart() {
 
         // Calculate ACTUAL working days up to today (not entire month)
         const today = new Date();
-        let workingDaysCount = 0;
-
-        // Count working days from start of month to today
-        const tempDate = new Date(startOfMonth);
-        while (tempDate <= today) {
-            const dayOfWeek = tempDate.getDay();
-            // Count if it's a weekday (Monday = 1 to Friday = 5)
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                workingDaysCount++;
-            }
-            tempDate.setDate(tempDate.getDate() + 1);
-        }
+        const workingDaysCount = eachDayOfInterval({
+            start: startOfMonth(today),
+            end: today,
+        }).filter(day => !isWeekend(day)).length;
 
         const presentDays = onTimeCount + lateCount;
         const absentDays = Math.max(0, workingDaysCount - presentDays);
@@ -86,7 +78,7 @@ export function AttendancePieChart() {
         }
 
         return dataPoints;
-    }, [data, startOfMonth]);
+    }, [data]);
 
     const monthName = useMemo(() => {
         return formatInDhakaTimezone(new Date(), { month: "long", year: "numeric" });
@@ -111,7 +103,7 @@ export function AttendancePieChart() {
                     </CardTitle>
                     <CardDescription>{monthName}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex items-center justify-center h[300px]">
+                <CardContent className="flex items-center justify-center h-[300px]">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </CardContent>
             </Card>
