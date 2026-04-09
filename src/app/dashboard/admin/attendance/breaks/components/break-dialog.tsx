@@ -44,6 +44,7 @@ import {
 } from "@/lib/api/attendance";
 import { listEmployees } from "@/lib/api/employees";
 import { getAttendanceRecords } from "@/lib/api/attendance";
+import { format } from "date-fns";
 import { toLocalDateStr } from "@/lib/utils";
 
 interface BreakDialogProps {
@@ -63,57 +64,6 @@ interface BreakFormData {
     reason?: string;
 }
 
-// Helper function to format ISO DateTime to datetime-local input format
-function formatToDatetimeLocal(isoString: string): string {
-    const date = new Date(isoString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-// Helper function to format date only
-function formatDateOnly(isoString: string): string {
-    const date = new Date(isoString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-}
-
-// Helper function to format display date
-function formatDisplayDate(date: Date): string {
-    const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-    ];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    return `${month} ${day}, ${year}`;
-}
-
-// Helper function to format display time
-function formatDisplayTime(date: Date): string {
-    let hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const ampm = hours >= 12 ? "pm" : "am";
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
-    return `${hours}:${minutes} ${ampm}`;
-}
 
 export function BreakDialog({
     open,
@@ -174,20 +124,17 @@ export function BreakDialog({
             setSelectedUserId("");
             setSelectedDate(toLocalDateStr());
         } else if (open && mode === "edit" && breakData) {
-            const startDate = new Date(breakData.startTime);
-            const endDate = breakData.endTime ? new Date(breakData.endTime) : null;
-
             form.reset({
                 userId: breakData.userId,
                 attendanceId: breakData.attendanceId,
-                startTime: formatToDatetimeLocal(breakData.startTime),
-                endTime: endDate && breakData.endTime ? formatToDatetimeLocal(breakData.endTime) : "",
+                startTime: format(new Date(breakData.startTime), "yyyy-MM-dd'T'HH:mm"),
+                endTime: breakData.endTime ? format(new Date(breakData.endTime), "yyyy-MM-dd'T'HH:mm") : "",
                 breakType: breakData.breakType,
                 location: breakData.notes || "",
                 reason: breakData.notes || "",
             });
             setSelectedUserId(breakData.userId);
-            setSelectedDate(formatDateOnly(breakData.startTime));
+            setSelectedDate(format(new Date(breakData.startTime), "yyyy-MM-dd"));
         }
     }, [open, mode, breakData, form]);
 
@@ -345,9 +292,9 @@ export function BreakDialog({
                                                             : null;
                                                         return (
                                                             <SelectItem key={record.id} value={record.id}>
-                                                                {formatDisplayDate(recordDate)} -{" "}
+                                                                {format(recordDate, "MMM d, yyyy")} -{" "}
                                                                 {signInTime
-                                                                    ? formatDisplayTime(signInTime)
+                                                                    ? format(signInTime, "h:mm a").toLowerCase()
                                                                     : "Not signed in"}
                                                             </SelectItem>
                                                         );
@@ -409,7 +356,7 @@ export function BreakDialog({
                                         <Input
                                             type="datetime-local"
                                             {...field}
-                                            max={new Date().toISOString().slice(0, 16)}
+                                            max={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                                         />
                                     </FormControl>
                                     <FormDescription>
@@ -432,7 +379,7 @@ export function BreakDialog({
                                         <Input
                                             type="datetime-local"
                                             {...field}
-                                            max={new Date().toISOString().slice(0, 16)}
+                                            max={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                                         />
                                     </FormControl>
                                     <FormDescription>
