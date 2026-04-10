@@ -1,17 +1,19 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { 
-  ArrowLeft, 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight, 
-  Clock, 
-  Key, 
-  Mail, 
-  MoreVertical, 
-  Phone, 
+  ArrowLeft,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Key,
+  Mail,
+  MoreVertical,
+  Phone,
   Smartphone,
-  Trash2, 
+  ShieldOff,
+  Settings2,
+  Trash2,
   UserCog,
   User,
   Briefcase,
@@ -411,8 +413,8 @@ export default function AdminEmployeeDetailPage() {
                 }
               />
               <DropdownMenuItem onClick={() => setShowUserMetaDialog(true)}>
-                <Smartphone className="mr-2 size-4" />
-                Access settings (mobile sign-in)
+                <Settings2 className="mr-2 size-4" />
+                Access settings
               </DropdownMenuItem>
               <AssignManagerDialog
                 employeeId={id || ""}
@@ -508,7 +510,7 @@ export default function AdminEmployeeDetailPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <CardTitle className="flex items-center gap-2">
-                    <Smartphone className="size-5" />
+                    <Settings2 className="size-5" />
                     Access settings
                   </CardTitle>
                   <Button
@@ -552,6 +554,11 @@ export default function AdminEmployeeDetailPage() {
                       label="Require geo-fence"
                       value={meta.requireGeoFence ? "Yes" : "No"}
                       icon={<MapPin className="size-4" />}
+                    />
+                    <InfoRow
+                      label="Attendance exempt"
+                      value={meta.attendanceExempt ? "Yes — excluded from records" : "No"}
+                      icon={<ShieldOff className="size-4" />}
                     />
                   </>
                 ) : (

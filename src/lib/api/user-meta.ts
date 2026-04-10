@@ -7,6 +7,7 @@ export interface UserMeta {
   requireGeoFence: boolean;
   allowWebSignIn: boolean;
   allowAssetRequest: boolean;
+  attendanceExempt: boolean;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -16,6 +17,7 @@ export interface UpdateUserMetaPayload {
   requireGeoFence?: boolean;
   allowWebSignIn?: boolean;
   allowAssetRequest?: boolean;
+  attendanceExempt?: boolean;
 }
 
 export const userMetaApi = {

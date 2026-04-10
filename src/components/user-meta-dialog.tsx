@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, Smartphone } from "lucide-react";
+import { Loader2, Smartphone, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,6 +31,7 @@ export function UserMetaDialog({
   const updateMutation = useUpdateUserMeta(userId);
   const [allowMobileSignIn, setAllowMobileSignIn] = useState(true);
   const [allowAssetRequest, setAllowAssetRequest] = useState(true);
+  const [attendanceExempt, setAttendanceExempt] = useState(false);
   const isDirtyRef = useRef(false);
   const prevOpenRef = useRef(false);
 
@@ -45,6 +46,7 @@ export function UserMetaDialog({
     if (open && !isDirtyRef.current) {
       setAllowMobileSignIn(meta?.allowMobileSignIn ?? true);
       setAllowAssetRequest(meta?.allowAssetRequest ?? true);
+      setAttendanceExempt(meta?.attendanceExempt ?? false);
     }
     prevOpenRef.current = open;
   }, [open, meta]);
@@ -57,9 +59,13 @@ export function UserMetaDialog({
     isDirtyRef.current = true;
     setAllowAssetRequest(value);
   };
+  const handleAttendanceExemptChange = (value: boolean) => {
+    isDirtyRef.current = true;
+    setAttendanceExempt(value);
+  };
 
   const handleSave = async () => {
-    await updateMutation.mutateAsync({ allowMobileSignIn, allowAssetRequest });
+    await updateMutation.mutateAsync({ allowMobileSignIn, allowAssetRequest, attendanceExempt });
     onOpenChange(false);
   };
 
@@ -111,6 +117,22 @@ export function UserMetaDialog({
                 id="allow-asset-request"
                 checked={allowAssetRequest}
                 onCheckedChange={handleAllowAssetRequestChange}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="attendance-exempt" className="text-base flex items-center gap-2">
+                  <ShieldOff className="h-4 w-4 text-muted-foreground" />
+                  Attendance exempt
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Exclude this user from attendance statistics and records (e.g. directors who do not follow sign-in/sign-out).
+                </p>
+              </div>
+              <Switch
+                id="attendance-exempt"
+                checked={attendanceExempt}
+                onCheckedChange={handleAttendanceExemptChange}
               />
             </div>
           </div>
