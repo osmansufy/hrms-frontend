@@ -196,7 +196,7 @@ export async function listDesignations() {
 
 export async function searchManagers(search?: string) {
   const response = await apiClient.get<ApiEmployee[]>("/employees/admin/search", {
-    params: search ? { search } : undefined,
+    params: search ? { q: search } : undefined,
   });
   return response.data;
 }
