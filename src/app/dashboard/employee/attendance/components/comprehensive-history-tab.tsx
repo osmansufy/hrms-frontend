@@ -350,6 +350,11 @@ export function ComprehensiveHistoryTab() {
     myData?.totalOvertimeMinutes ?? 0,
   );
 
+  const netLostMinutes = Math.max(
+    (myData?.totalLostMinutes ?? 0) - coveredLostHours,
+    0,
+  );
+
   const dailyRecords = useMemo(
     () =>
       records.map((record) => ({
@@ -397,7 +402,7 @@ export function ComprehensiveHistoryTab() {
       </Card>
 
       {/* ── Summary metrics ── */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
         <MetricCard
           label="Days Worked"
           value={String(myData?.days ?? 0)}
@@ -415,19 +420,11 @@ export function ComprehensiveHistoryTab() {
         />
         <MetricCard
           label="Lost Hours"
-          value={formatMinutesToHours(myData?.totalLostMinutes ?? 0)}
+          value={formatMinutesToHours(netLostMinutes)}
           icon={TrendingDown}
           iconColor="text-red-500"
-          valueColor={(myData?.totalLostMinutes ?? 0) > 0 ? "text-red-600 dark:text-red-400" : ""}
-          loading={isLoading}
-        />
-        <MetricCard
-          label="Covered by OT"
-          value={formatMinutesToHours(coveredLostHours)}
-          icon={TrendingUp}
-          iconColor="text-violet-500"
-          valueColor="text-violet-700 dark:text-violet-400"
-          tooltip="Lost hours offset by overtime worked in the same period. Cannot exceed actual lost hours."
+          valueColor={netLostMinutes > 0 ? "text-red-600 dark:text-red-400" : ""}
+          tooltip="Lost hours after deducting overtime worked in the same period. Will never be negative."
           loading={isLoading}
         />
       </div>

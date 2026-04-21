@@ -177,6 +177,8 @@ export function SubordinateAttendanceRecordsTab({
     if (!monthlyData?.data) return null;
 
     const records = monthlyData.data;
+    let totalLostMinutes = 0;
+    let totalOvertimeMinutes = 0;
     const stats = {
       totalDays: 0,
       presentDays: 0,
@@ -195,7 +197,11 @@ export function SubordinateAttendanceRecordsTab({
       stats.totalDays++;
 
       if (typeof record.lostMinutes === "number") {
-        stats.totalLostHours += record.lostMinutes / 60;
+        totalLostMinutes += record.lostMinutes;
+      }
+
+      if (typeof record.overtimeMinutes === "number") {
+        totalOvertimeMinutes += record.overtimeMinutes;
       }
 
       if (record.isWeekend) {
@@ -225,6 +231,10 @@ export function SubordinateAttendanceRecordsTab({
     if (workingDays > 0) {
       stats.attendanceRate = ((stats.presentDays + stats.leaveDays) / workingDays) * 100;
     }
+
+    const coveredLostMinutes = Math.min(totalLostMinutes, totalOvertimeMinutes);
+    const netLostMinutes = Math.max(totalLostMinutes - coveredLostMinutes, 0);
+    stats.totalLostHours = netLostMinutes / 60;
 
     return stats;
   }, [monthlyData]);
