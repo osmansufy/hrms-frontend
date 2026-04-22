@@ -727,6 +727,7 @@ export type LedgerEntry = {
     email: string;
   };
   createdAt: string;
+  isReversed?: boolean;
 };
 
 // Leave Balance API Functions
