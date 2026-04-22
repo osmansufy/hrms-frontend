@@ -565,12 +565,13 @@ import {
   getAdminLedgerHistory,
   type SubordinateLedgerParams,
   type AdminLedgerParams,
+  type MyLedgerParams,
 } from "@/lib/api/leave";
 
 export const ledgerKeys = {
   all: ["leave-ledger"] as const,
-  myLedger: (leaveTypeId: string) =>
-    ["leave-ledger", "my", leaveTypeId] as const,
+  myLedger: (leaveTypeId: string, params?: MyLedgerParams) =>
+    ["leave-ledger", "my", leaveTypeId, params ?? {}] as const,
   subordinateLedger: (
     subordinateUserId: string,
     leaveTypeId: string,
@@ -587,10 +588,10 @@ export const ledgerKeys = {
     ["leave-ledger", "admin", "history", params ?? {}] as const,
 };
 
-export function useMyLedgerHistory(leaveTypeId: string) {
+export function useMyLedgerHistory(leaveTypeId: string, params?: MyLedgerParams) {
   return useQuery({
-    queryKey: ledgerKeys.myLedger(leaveTypeId),
-    queryFn: () => getMyLedgerHistory(leaveTypeId),
+    queryKey: ledgerKeys.myLedger(leaveTypeId, params),
+    queryFn: () => getMyLedgerHistory(leaveTypeId, params),
     enabled: Boolean(leaveTypeId),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -627,6 +628,25 @@ export function useAdminLedgerHistory(params?: AdminLedgerParams) {
     queryKey: ledgerKeys.adminHistory(params),
     queryFn: () => getAdminLedgerHistory(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useReverseLedgerEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      ledgerEntryId,
+      reason,
+    }: {
+      ledgerEntryId: string;
+      reason: string;
+    }) => {
+      const { reverseLedgerEntry } = await import("@/lib/api/leave");
+      return reverseLedgerEntry(ledgerEntryId, reason);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ledgerKeys.all });
+    },
   });
 }
 

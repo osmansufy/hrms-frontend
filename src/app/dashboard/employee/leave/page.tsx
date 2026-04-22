@@ -393,11 +393,11 @@ export default function LeavePage() {
         ...values,
         supportingDocumentUrl: documentUrl,
       });
-      
+
       toast.success("Leave request submitted", {
         description: "Your leave request has been submitted for approval"
       });
-      
+
       // Reset form and state
       form.reset();
       setSelectedLeaveTypeId("");
@@ -469,497 +469,497 @@ export default function LeavePage() {
 
         <TabsContent value={LEAVE_TAB_APPLY} className="mt-4">
           <Card>
-          <CardHeader>
-            <CardTitle>Apply for leave</CardTitle>
-            <CardDescription>Select a type and choose your dates.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Warning for pending leaves */}
-            {(() => {
-              if (pendingLeaves.length > 0) {
-                const pendingLeave = pendingLeaves[0];
-                const leaveTypeName = pendingLeave.leaveType?.name || 'Leave';
-                const dateRange = formatRange(pendingLeave.startDate, pendingLeave.endDate);
-                return (
-                  <Alert variant="warning" className="my-2">
-                    <AlertTriangle className="size-4" />
-                    <AlertDescription>
-                      You have a {pendingLeave.status.toLowerCase()} {leaveTypeName} request from {dateRange}.
-                      Please wait for it to be processed before applying for a new leave.
-                    </AlertDescription>
-                  </Alert>
-                );
-              }
-              return null;
-            })()}
-            {
-              pendingLeaves.length <= 0 && (
-                <Form {...form}>
-                  <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-                    <FormField
-                      control={form.control}
-                      name="leaveTypeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Leave type</FormLabel>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              setSelectedLeaveTypeId(value);
-                            }}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={typesLoading ? "Loading..." : "Select type"} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {(leaveTypes ?? []).map((lt) => (
-                                <SelectItem key={lt.id} value={lt.id}>
-                                  {lt.name} ({lt.code})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                          {/* Show leave notice rule in small text if available */}
-                          {leavePolicy?.noticeRules && leavePolicy.noticeRules.length > 0 && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {leavePolicy.noticeRules.map((rule, idx) => (
-                                <div key={idx}>
-                                  {rule.minLength && rule.maxLength
-                                    ? `For ${rule.minLength}-${rule.maxLength} days: `
-                                    : rule.minLength
-                                      ? `For ${rule.minLength}+ days: `
-                                      : ''}
-                                  {`Requires ${rule.noticeDays} day${rule.noticeDays > 1 ? 's' : ''} notice`}
-                                </div>
-                              ))}
+            <CardHeader>
+              <CardTitle>Apply for leave</CardTitle>
+              <CardDescription>Select a type and choose your dates.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Warning for pending leaves */}
+              {(() => {
+                if (pendingLeaves.length > 0) {
+                  const pendingLeave = pendingLeaves[0];
+                  const leaveTypeName = pendingLeave.leaveType?.name || 'Leave';
+                  const dateRange = formatRange(pendingLeave.startDate, pendingLeave.endDate);
+                  return (
+                    <Alert variant="warning" className="my-2">
+                      <AlertTriangle className="size-4" />
+                      <AlertDescription>
+                        You have a {pendingLeave.status.toLowerCase()} {leaveTypeName} request from {dateRange}.
+                        Please wait for it to be processed before applying for a new leave.
+                      </AlertDescription>
+                    </Alert>
+                  );
+                }
+                return null;
+              })()}
+              {
+                pendingLeaves.length <= 0 && (
+                  <Form {...form}>
+                    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                      <FormField
+                        control={form.control}
+                        name="leaveTypeId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Leave type</FormLabel>
+                            <Select
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                setSelectedLeaveTypeId(value);
+                              }}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={typesLoading ? "Loading..." : "Select type"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {(leaveTypes ?? []).map((lt) => (
+                                  <SelectItem key={lt.id} value={lt.id}>
+                                    {lt.name} ({lt.code})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            {/* Show leave notice rule in small text if available */}
+                            {leavePolicy?.noticeRules && leavePolicy.noticeRules.length > 0 && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {leavePolicy.noticeRules.map((rule, idx) => (
+                                  <div key={idx}>
+                                    {rule.minLength && rule.maxLength
+                                      ? `For ${rule.minLength}-${rule.maxLength} days: `
+                                      : rule.minLength
+                                        ? `For ${rule.minLength}+ days: `
+                                        : ''}
+                                    {`Requires ${rule.noticeDays} day${rule.noticeDays > 1 ? 's' : ''} notice`}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Balance Display */}
+                      {/* Progressive disclosure: show balance only after dates are selected */}
+                      {selectedBalance && watchedValues.startDate && watchedValues.endDate ? (
+                        <div className="rounded border bg-muted/50 p-2 mt-2">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Leave balance (subject to policy)</span>
+                            <span className="font-semibold">{Math.round(selectedBalance.available)} days</span>
+                          </div>
+                          {selectedBalance.carried > 0 && (
+                            <div className="text-xs text-muted-foreground">
+                              Includes {Math.round(selectedBalance.carried)} carried forward days
                             </div>
                           )}
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Balance Display */}
-                    {/* Progressive disclosure: show balance only after dates are selected */}
-                    {selectedBalance && watchedValues.startDate && watchedValues.endDate ? (
-                      <div className="rounded border bg-muted/50 p-2 mt-2">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Leave balance (subject to policy)</span>
-                          <span className="font-semibold">{Math.round(selectedBalance.available)} days</span>
                         </div>
-                        {selectedBalance.carried > 0 && (
-                          <div className="text-xs text-muted-foreground">
-                            Includes {Math.round(selectedBalance.carried)} carried forward days
-                          </div>
-                        )}
+                      ) : selectedBalance ? (
+                        <div className="text-xs text-muted-foreground mt-2">Leave balance available</div>
+                      ) : null}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <FormField
+                          control={form.control}
+                          name="startDate"
+                          render={({ field }) => {
+                            // For sick leave: can only select past/current dates (not future)
+                            // For other leave: can select from today onwards
+                            const twoWeeksAgo = 14 * 24 * 60 * 60 * 1000;
+                            const minDate = isSickLeave
+                              ? toLocalDateStr(new Date(Date.now() - twoWeeksAgo))  // Sick leave: allow past 2 weeks
+                              : today;
+                            const maxDateValue = isSickLeave
+                              ? today // Sick leave: max today
+                              : (leavePolicy?.allowAdvance ? maxDate : today);
+
+                            return (
+                              <FormItem>
+                                <FormLabel>Start date</FormLabel>
+                                <FormControl>
+                                  <Input type="date" min={minDate} max={maxDateValue} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="endDate"
+                          render={({ field }) => {
+                            const minDate = watchedValues.startDate || today;
+                            const maxDateValue = isSickLeave
+                              ? today // Sick leave: max today
+                              : (leavePolicy?.allowAdvance ? maxDate : today);
+
+                            return (
+                              <FormItem>
+                                <FormLabel>End date</FormLabel>
+                                <FormControl>
+                                  <Input type="date" min={minDate} max={maxDateValue} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
                       </div>
-                    ) : selectedBalance ? (
-                      <div className="text-xs text-muted-foreground mt-2">Leave balance available</div>
-                    ) : null}
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <FormField
                         control={form.control}
-                        name="startDate"
-                        render={({ field }) => {
-                          // For sick leave: can only select past/current dates (not future)
-                          // For other leave: can select from today onwards
-                          const twoWeeksAgo = 14 * 24 * 60 * 60 * 1000;
-                          const minDate = isSickLeave
-                            ? toLocalDateStr(new Date(Date.now() - twoWeeksAgo))  // Sick leave: allow past 2 weeks
-                            : today;
-                          const maxDateValue = isSickLeave
-                            ? today // Sick leave: max today
-                            : (leavePolicy?.allowAdvance ? maxDate : today);
-
-                          return (
-                            <FormItem>
-                              <FormLabel>Start date</FormLabel>
-                              <FormControl>
-                                <Input type="date" min={minDate} max={maxDateValue} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          );
-                        }}
+                        name="reason"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Reason</FormLabel>
+                            <FormControl>
+                              <Textarea rows={3} placeholder="Short reason for your manager" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                      <FormField
-                        control={form.control}
-                        name="endDate"
-                        render={({ field }) => {
-                          const minDate = watchedValues.startDate || today;
-                          const maxDateValue = isSickLeave
-                            ? today // Sick leave: max today
-                            : (leavePolicy?.allowAdvance ? maxDate : today);
 
-                          return (
-                            <FormItem>
-                              <FormLabel>End date</FormLabel>
-                              <FormControl>
-                                <Input type="date" min={minDate} max={maxDateValue} {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          );
-                        }}
-                      />
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="reason"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Reason</FormLabel>
-                          <FormControl>
-                            <Textarea rows={3} placeholder="Short reason for your manager" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      {/* Document Upload for Sick Leave (3+ days) */}
+                      {isSickLeave && requestedDays > 0 && (
+                        <div className="space-y-2">
+                          <FormLabel>
+                            Medical Certificate
+                            {documentRequired && <span className="text-destructive ml-1">*</span>}
+                          </FormLabel>
+                          {documentRequired && (
+                            <FormDescription className="text-xs">
+                              Required for sick leave of {requestedDays} days
+                            </FormDescription>
+                          )}
+                          {!documentRequired && requestedDays > 0 && (
+                            <FormDescription className="text-xs">
+                              Optional for sick leave under 3 days
+                            </FormDescription>
+                          )}
 
-                    {/* Document Upload for Sick Leave (3+ days) */}
-                    {isSickLeave && requestedDays > 0 && (
-                      <div className="space-y-2">
-                        <FormLabel>
-                          Medical Certificate
-                          {documentRequired && <span className="text-destructive ml-1">*</span>}
-                        </FormLabel>
-                        {documentRequired && (
-                          <FormDescription className="text-xs">
-                            Required for sick leave of {requestedDays} days
-                          </FormDescription>
-                        )}
-                        {!documentRequired && requestedDays > 0 && (
-                          <FormDescription className="text-xs">
-                            Optional for sick leave under 3 days
-                          </FormDescription>
-                        )}
-
-                        {!selectedFile && (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={handleFileChange}
-                              disabled={applyMutation.isPending || isUploading}
-                              className="cursor-pointer"
-                            />
-                          </div>
-                        )}
-
-                        {selectedFile && (
-                          <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3">
-                            <FileText className="size-4 text-blue-600" />
-                            <div className="flex-1">
-                              <span className="text-sm text-blue-700">
-                                {selectedFile.name}
-                              </span>
-                              <p className="text-xs text-blue-600">
-                                {(selectedFile.size / 1024).toFixed(2)} KB • Ready to upload
-                              </p>
+                          {!selectedFile && (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={handleFileChange}
+                                disabled={applyMutation.isPending || isUploading}
+                                className="cursor-pointer"
+                              />
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleRemoveFile}
-                              disabled={applyMutation.isPending || isUploading}
-                              className="size-6 p-0"
-                            >
-                              <X className="size-4" />
-                            </Button>
-                          </div>
-                        )}
+                          )}
 
-                        {documentRequired && !selectedFile && (
-                          <p className="text-xs text-destructive">
-                            Please select a medical certificate to proceed
-                          </p>
-                        )}
-                      </div>
-                    )}
+                          {selectedFile && (
+                            <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+                              <FileText className="size-4 text-blue-600" />
+                              <div className="flex-1">
+                                <span className="text-sm text-blue-700">
+                                  {selectedFile.name}
+                                </span>
+                                <p className="text-xs text-blue-600">
+                                  {(selectedFile.size / 1024).toFixed(2)} KB • Ready to upload
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleRemoveFile}
+                                disabled={applyMutation.isPending || isUploading}
+                                className="size-6 p-0"
+                              >
+                                <X className="size-4" />
+                              </Button>
+                            </div>
+                          )}
 
-                    {/* Notice Period Info */}
-                    {leavePolicy && noticeCheck.requiredDays > 0 && requestedDays > 0 && (
-                      <Alert variant="info">
-                        <Info className="size-4" />
-                        <AlertDescription>
-                          This leave type requires {noticeCheck.requiredDays} days notice for {requestedDays} day{requestedDays > 1 ? 's' : ''} leave.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {/* Requested Days Display */}
-                    {requestedDays > 0 && (
-                      <div className="rounded-lg border-2 border-dashed bg-muted/30 p-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Requested Days</span>
-                          <span className="text-lg font-bold">{requestedDays} days</span>
+                          {documentRequired && !selectedFile && (
+                            <p className="text-xs text-destructive">
+                              Please select a medical certificate to proceed
+                            </p>
+                          )}
                         </div>
-                      </div>
-                    )}
-
-                    {/* Notice Period Error */}
-                    {noticeCheck.error && (
-                      <Alert variant="destructive">
-                        <AlertTriangle className="size-4" />
-                        <AlertDescription>{noticeCheck.error}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    {/* Notice Period Warning */}
-                    {noticeCheck.warning && !noticeCheck.error && (
-                      <Alert variant="warning">
-                        <Info className="size-4" />
-                        <AlertDescription>{noticeCheck.warning}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    {/* Overlap Error */}
-                    {overlapCheck.error && (
-                      <Alert variant="destructive">
-                        <AlertTriangle className="size-4" />
-                        <AlertDescription>{overlapCheck.error}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    {/* Balance Error Alert */}
-                    {balanceCheck.error && (
-                      <Alert variant="destructive">
-                        <AlertTriangle className="size-4" />
-                        <AlertDescription>{balanceCheck.error}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    {/* Balance Warning Alert */}
-                    {balanceCheck.warning && !balanceCheck.error && (
-                      <Alert variant="warning">
-                        <Info className="size-4" />
-                        <AlertDescription>{balanceCheck.warning}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={
-                        applyMutation.isPending ||
-                        isUploading ||
-                        !balanceCheck.sufficient ||
-                        !noticeCheck.valid ||
-                        overlapCheck.hasOverlap ||
-                        hasPendingLeaves
-                      }
-                    >
-                      {(applyMutation.isPending || isUploading) ? (
-                        <>
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                          {isUploading ? 'Uploading document...' : 'Submitting...'}
-                        </>
-                      ) : (
-                        <>
-                          <Send className="mr-2 size-4" />
-                          Submit request {requestedDays > 0 && `(${requestedDays} days)`}
-                        </>
                       )}
-                    </Button>
-                  </form>
-                </Form>
-              )
-            }
-          </CardContent>
-        </Card>
+
+                      {/* Notice Period Info */}
+                      {leavePolicy && noticeCheck.requiredDays > 0 && requestedDays > 0 && (
+                        <Alert variant="info">
+                          <Info className="size-4" />
+                          <AlertDescription>
+                            This leave type requires {noticeCheck.requiredDays} days notice for {requestedDays} day{requestedDays > 1 ? 's' : ''} leave.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Requested Days Display */}
+                      {requestedDays > 0 && (
+                        <div className="rounded-lg border-2 border-dashed bg-muted/30 p-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Requested Days</span>
+                            <span className="text-lg font-bold">{requestedDays} days</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Notice Period Error */}
+                      {noticeCheck.error && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="size-4" />
+                          <AlertDescription>{noticeCheck.error}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Notice Period Warning */}
+                      {noticeCheck.warning && !noticeCheck.error && (
+                        <Alert variant="warning">
+                          <Info className="size-4" />
+                          <AlertDescription>{noticeCheck.warning}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Overlap Error */}
+                      {overlapCheck.error && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="size-4" />
+                          <AlertDescription>{overlapCheck.error}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Balance Error Alert */}
+                      {balanceCheck.error && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="size-4" />
+                          <AlertDescription>{balanceCheck.error}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Balance Warning Alert */}
+                      {balanceCheck.warning && !balanceCheck.error && (
+                        <Alert variant="warning">
+                          <Info className="size-4" />
+                          <AlertDescription>{balanceCheck.warning}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={
+                          applyMutation.isPending ||
+                          isUploading ||
+                          !balanceCheck.sufficient ||
+                          !noticeCheck.valid ||
+                          overlapCheck.hasOverlap ||
+                          hasPendingLeaves
+                        }
+                      >
+                        {(applyMutation.isPending || isUploading) ? (
+                          <>
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                            {isUploading ? 'Uploading document...' : 'Submitting...'}
+                          </>
+                        ) : (
+                          <>
+                            <Send className="mr-2 size-4" />
+                            Submit request {requestedDays > 0 && `(${requestedDays} days)`}
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </Form>
+                )
+              }
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value={LEAVE_TAB_REQUESTS} className="mt-4">
           <Card>
-          <CardHeader>
-            <CardTitle>My leave requests</CardTitle>
-            <CardDescription>Track approvals and dates.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {leavesLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Loading leave history...
-              </div>
-            ) : sortedLeaves.length === 0 ? (
-              <div className="flex items-center gap-2 rounded-md border px-3 py-3 text-sm text-muted-foreground">
-                <NotebookPen className="size-4" />
-                No leave requests yet.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Period</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead className="w-25">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedLeaves.map((leave) => (
-                    <TableRow key={leave.id} className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        <Link
-                          href={`/dashboard/employee/leave/${leave.id}`}
-                          className="flex items-center gap-2 hover:underline"
-                        >
-                          {leave.leaveType?.name || leave.leaveTypeId}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        {formatRange(leave.startDate, leave.endDate)}
-                      </TableCell>
-                      <TableCell>
-                        <LeaveStatusBadge status={leave.status} />
-                      </TableCell>
-                                                <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
-                                                      <TableCell>
-                                                        <div className="flex items-center gap-1">
-                                                          {leave.status === "APPROVED" && (
-                                                            <>
-                                                              <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-blue-600 hover:text-blue-700"
-                                                                onClick={(e) => {
-                                                                  e.preventDefault();
-                                                                  setAmendmentLeave(leave);
-                                                                  setAmendmentMode("AMEND");
-                                                                }}
-                                                              >
-                                                                <span title="Amend"><Pencil className="size-4" /></span>
-                                                              </Button>
-                                                              <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-red-600 hover:text-red-700"
-                                                                onClick={(e) => {
-                                                                  e.preventDefault();
-                                                                  setAmendmentLeave(leave);
-                                                                  setAmendmentMode("CANCEL");
-                                                                }}
-                                                              >
-                                                                <span title="Cancel leave"><XCircle className="size-4" /></span>
-                                                              </Button>
-                                                            </>
-                                                          )}
-                                                          <Link href={`/dashboard/employee/leave/${leave.id}`}>
-                                                            <Button variant="ghost" size="sm">
-                                                              <ExternalLink className="size-4" />
-                                                            </Button>
-                                                          </Link>
-                                                        </div>
-                                                      </TableCell>
-                                                    </TableRow>
-                                                  ))}
-                                                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-        </TabsContent>
-
-        <TabsContent value={LEAVE_TAB_AMENDMENTS} className="mt-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>My amendment requests</CardTitle>
-            <CardDescription>
-              Amend or cancel requests for approved leaves. Track status here until manager and HR review.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {amendmentsLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
-                <Loader2 className="size-4 animate-spin" />
-                Loading amendment requests...
-              </div>
-            ) : !myAmendments?.length ? (
-              <div className="flex items-center gap-2 rounded-md border px-3 py-3 text-sm text-muted-foreground">
-                <NotebookPen className="size-4" />
-                No amendment requests yet. Use &quot;Amend leave&quot; or &quot;Cancel leave&quot; on an approved leave above.
-              </div>
-            ) : (
-              <div className="rounded-md border overflow-hidden">
+            <CardHeader>
+              <CardTitle>My leave requests</CardTitle>
+              <CardDescription>Track approvals and dates.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {leavesLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading leave history...
+                </div>
+              ) : sortedLeaves.length === 0 ? (
+                <div className="flex items-center gap-2 rounded-md border px-3 py-3 text-sm text-muted-foreground">
+                  <NotebookPen className="size-4" />
+                  No leave requests yet.
+                </div>
+              ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <TableRow>
                       <TableHead>Type</TableHead>
-                      <TableHead>Original leave</TableHead>
-                      <TableHead>New dates</TableHead>
-                      <TableHead>Reason</TableHead>
+                      <TableHead>Period</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Requested</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead className="w-25">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {myAmendments.map((amendment) => {
-                      const original = amendment.originalLeave;
-                      const originalDates =
-                        original?.startDate && original?.endDate
-                          ? formatRange(original.startDate, original.endDate)
-                          : "—";
-                      const newDates =
-                        amendment.changeType === "AMEND" &&
-                        amendment.newStartDate &&
-                        amendment.newEndDate
-                          ? formatRange(amendment.newStartDate, amendment.newEndDate)
-                          : amendment.changeType === "CANCEL"
-                            ? "—"
+                    {sortedLeaves.map((leave) => (
+                      <TableRow key={leave.id} className="cursor-pointer hover:bg-muted/50">
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/dashboard/employee/leave/${leave.id}`}
+                            className="flex items-center gap-2 hover:underline"
+                          >
+                            {leave.leaveType?.name || leave.leaveTypeId}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          {formatRange(leave.startDate, leave.endDate)}
+                        </TableCell>
+                        <TableCell>
+                          <LeaveStatusBadge status={leave.status} />
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {leave.status === "APPROVED" && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-blue-600 hover:text-blue-700"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setAmendmentLeave(leave);
+                                    setAmendmentMode("AMEND");
+                                  }}
+                                >
+                                  <span title="Amend"><Pencil className="size-4" /></span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setAmendmentLeave(leave);
+                                    setAmendmentMode("CANCEL");
+                                  }}
+                                >
+                                  <span title="Cancel leave"><XCircle className="size-4" /></span>
+                                </Button>
+                              </>
+                            )}
+                            <Link href={`/dashboard/employee/leave/${leave.id}`}>
+                              <Button variant="ghost" size="sm">
+                                <ExternalLink className="size-4" />
+                              </Button>
+                            </Link>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value={LEAVE_TAB_AMENDMENTS} className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>My amendment requests</CardTitle>
+              <CardDescription>
+                Amend or cancel requests for approved leaves. Track status here until manager and HR review.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {amendmentsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading amendment requests...
+                </div>
+              ) : !myAmendments?.length ? (
+                <div className="flex items-center gap-2 rounded-md border px-3 py-3 text-sm text-muted-foreground">
+                  <NotebookPen className="size-4" />
+                  No amendment requests yet. Use &quot;Amend leave&quot; or &quot;Cancel leave&quot; on an approved leave above.
+                </div>
+              ) : (
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead>Type</TableHead>
+                        <TableHead>Original leave</TableHead>
+                        <TableHead>New dates</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Requested</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {myAmendments.map((amendment) => {
+                        const original = amendment.originalLeave;
+                        const originalDates =
+                          original?.startDate && original?.endDate
+                            ? formatRange(original.startDate, original.endDate)
                             : "—";
-                      const requestedDate = amendment.createdAt
-                        ? formatInDhakaTimezone(amendment.createdAt, {
+                        const newDates =
+                          amendment.changeType === "AMEND" &&
+                            amendment.newStartDate &&
+                            amendment.newEndDate
+                            ? formatRange(amendment.newStartDate, amendment.newEndDate)
+                            : amendment.changeType === "CANCEL"
+                              ? "—"
+                              : "—";
+                        const requestedDate = amendment.createdAt
+                          ? formatInDhakaTimezone(amendment.createdAt, {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
                           })
-                        : "—";
-                      return (
-                        <TableRow key={amendment.id}>
-                          <TableCell>
-                            <Badge variant={amendment.changeType === "CANCEL" ? "destructive" : "secondary"}>
-                              {amendment.changeType === "CANCEL" ? "Cancel" : "Amend dates"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {original ? (
-                              <Link
-                                href={`/dashboard/employee/leave/${original.id}`}
-                                className="text-blue-600 hover:underline"
-                              >
-                                {original.leaveType?.name || original.leaveTypeId} ({originalDates})
-                              </Link>
-                            ) : (
-                              originalDates
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {newDates}
-                          </TableCell>
-                          <TableCell className="max-w-[200px] truncate text-sm">
-                            {amendment.reason || "—"}
-                          </TableCell>
-                          <TableCell>
-                            <LeaveStatusBadge status={amendment.status} />
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {requestedDate}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                          : "—";
+                        return (
+                          <TableRow key={amendment.id}>
+                            <TableCell>
+                              <Badge variant={amendment.changeType === "CANCEL" ? "destructive" : "secondary"}>
+                                {amendment.changeType === "CANCEL" ? "Cancel" : "Amend dates"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {original ? (
+                                <Link
+                                  href={`/dashboard/employee/leave/${original.id}`}
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  {original.leaveType?.name || original.leaveTypeId} ({originalDates})
+                                </Link>
+                              ) : (
+                                originalDates
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {newDates}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate text-sm">
+                              {amendment.reason || "—"}
+                            </TableCell>
+                            <TableCell>
+                              <LeaveStatusBadge status={amendment.status} />
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {requestedDate}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value={LEAVE_TAB_DEDUCTIONS} className="mt-4">
@@ -967,24 +967,24 @@ export default function LeavePage() {
         </TabsContent>
       </Tabs>
 
-        {/* Amendment dialog (for approved leaves from list) */}
-        {amendmentLeave && (
-          <LeaveAmendmentDialog
-            leave={amendmentLeave}
-            mode={amendmentMode}
-            open={!!amendmentLeave}
-            onOpenChange={(open) => !open && setAmendmentLeave(null)}
-            onSuccess={() => {
-              setAmendmentLeave(null);
-              toast.success(
-                amendmentMode === "AMEND"
-                  ? "Amendment request submitted"
-                  : "Cancellation request submitted",
-                { description: "Your manager and HR will review the request." }
-              );
-            }}
-          />
-        )}
+      {/* Amendment dialog (for approved leaves from list) */}
+      {amendmentLeave && (
+        <LeaveAmendmentDialog
+          leave={amendmentLeave}
+          mode={amendmentMode}
+          open={!!amendmentLeave}
+          onOpenChange={(open) => !open && setAmendmentLeave(null)}
+          onSuccess={() => {
+            setAmendmentLeave(null);
+            toast.success(
+              amendmentMode === "AMEND"
+                ? "Amendment request submitted"
+                : "Cancellation request submitted",
+              { description: "Your manager and HR will review the request." }
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

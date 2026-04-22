@@ -21,6 +21,17 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useAdminLedgerHistory, useLeaveTypesAdmin } from "@/lib/queries/leave";
 import { useDepartments } from "@/lib/queries/departments";
 import { useDebounce } from "@/lib/hooks/use-debounce";
@@ -34,7 +45,16 @@ import {
   ChevronRight,
   ListOrdered,
   AlertTriangle,
+  RotateCcw,
+  Info,
 } from "lucide-react";
+import { ReverseLedgerEntryDialog } from "./reverse-ledger-entry-dialog";
+
+// Transaction types that are themselves reversals — cannot be reversed again
+const NON_REVERSIBLE_TYPES = new Set([
+  "ADMIN_CORRECTION_REVERSAL",
+  "RECONCILIATION_REVERSAL",
+]);
 
 const currentYear = new Date().getUTCFullYear();
 
@@ -56,6 +76,7 @@ export function LeaveLedgerTab() {
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [reverseEntry, setReverseEntry] = useState<LedgerEntry | null>(null);
 
   const debouncedSearch = useDebounce(search.trim(), 500);
 
@@ -98,6 +119,18 @@ export function LeaveLedgerTab() {
 
   const entries: LedgerEntry[] = data?.data ?? [];
   const pagination = data?.pagination;
+
+  // Build set of entry IDs that have been reversed on this page
+  // so we can badge the originals as "Reversed"
+  const reversedEntryIds = new Set(
+    entries
+      .filter(
+        (e) =>
+          e.transactionType === "ADMIN_CORRECTION_REVERSAL" &&
+          e.referenceId,
+      )
+      .map((e) => e.referenceId as string),
+  );
 
   if (!entries.length) {
     return (
@@ -200,6 +233,9 @@ export function LeaveLedgerTab() {
                 <SelectItem value="AMENDMENT_CREDIT">Amendment Credit</SelectItem>
                 <SelectItem value="RECONCILIATION_REVERSAL">
                   Reconciliation Reversal
+                </SelectItem>
+                <SelectItem value="ADMIN_CORRECTION_REVERSAL">
+                  Admin Correction Reversal
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -304,13 +340,21 @@ export function LeaveLedgerTab() {
                   <TableHead>Description</TableHead>
                   <TableHead>Reference</TableHead>
                   <TableHead>Created By</TableHead>
+                  <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {entries.map((entry: LedgerEntry) => {
                   const isDebit = entry.days < 0;
+                  const isAdminReversal =
+                    entry.transactionType === "ADMIN_CORRECTION_REVERSAL";
+                  const isReversed = reversedEntryIds.has(entry.id);
+                  const meta = entry.metadata as Record<string, any> | null;
                   return (
-                    <TableRow key={entry.id}>
+                    <TableRow
+                      key={entry.id}
+                      className={isReversed ? "opacity-50" : undefined}
+                    >
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="text-sm">
@@ -347,12 +391,87 @@ export function LeaveLedgerTab() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={isDebit ? "destructive" : "secondary"}
-                          className="text-xs"
-                        >
-                          {entry.transactionType}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant={isDebit ? "destructive" : "secondary"}
+                              className="text-xs"
+                            >
+                              {entry.transactionType}
+                            </Badge>
+                            {isAdminReversal && meta?.originalTransactionType && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button className="text-muted-foreground hover:text-foreground transition-colors">
+                                    <Info className="h-3.5 w-3.5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  side="right"
+                                  align="start"
+                                  className="w-72 text-sm"
+                                >
+                                  <div className="space-y-2">
+                                    <p className="font-semibold text-orange-600 flex items-center gap-1.5">
+                                      <RotateCcw className="h-3.5 w-3.5" />
+                                      Reversal Details
+                                    </p>
+                                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                                      <span className="text-muted-foreground">Reversed type</span>
+                                      <span className="font-mono font-semibold">
+                                        {meta.originalTransactionType}
+                                      </span>
+                                      <span className="text-muted-foreground">Original days</span>
+                                      <span
+                                        className={
+                                          meta.originalDays > 0
+                                            ? "text-green-600 font-semibold"
+                                            : "text-red-600 font-semibold"
+                                        }
+                                      >
+                                        {meta.originalDays > 0 ? "+" : ""}
+                                        {meta.originalDays}
+                                      </span>
+                                      {meta.originalEffectiveDate && (
+                                        <>
+                                          <span className="text-muted-foreground">Original date</span>
+                                          <span>
+                                            {formatDateInDhaka(
+                                              meta.originalEffectiveDate,
+                                              "long",
+                                            )}
+                                          </span>
+                                        </>
+                                      )}
+                                      {meta.originalEntryId && (
+                                        <>
+                                          <span className="text-muted-foreground">Entry ID</span>
+                                          <span className="font-mono text-xs break-all">
+                                            {meta.originalEntryId}
+                                          </span>
+                                        </>
+                                      )}
+                                      {meta.reason && (
+                                        <>
+                                          <span className="text-muted-foreground">Reason</span>
+                                          <span className="break-words">{meta.reason}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                          {isReversed && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs w-fit border-orange-400 text-orange-600"
+                            >
+                              Reversed
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <span
@@ -375,10 +494,22 @@ export function LeaveLedgerTab() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col text-xs text-muted-foreground">
-                          <span>{entry.referenceType || "—"}</span>
-                          <span className="font-mono">{entry.referenceId || ""}</span>
-                        </div>
+                        {isAdminReversal && meta?.originalEntryId ? (
+                          <div className="flex flex-col text-xs">
+                            <span className="text-muted-foreground">MANUAL</span>
+                            <span
+                              className="font-mono text-orange-600 truncate max-w-[120px]"
+                              title={`Reverses: ${meta.originalEntryId}`}
+                            >
+                              ↩ {meta.originalEntryId.slice(0, 8)}…
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col text-xs text-muted-foreground">
+                            <span>{entry.referenceType || "—"}</span>
+                            <span className="font-mono">{entry.referenceId || ""}</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         {entry.createdBy ? (
@@ -392,6 +523,29 @@ export function LeaveLedgerTab() {
                           <span className="text-sm text-muted-foreground">System</span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        {NON_REVERSIBLE_TYPES.has(entry.transactionType) ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                  onClick={() => setReverseEntry(entry)}
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="left">
+                                Reverse this entry
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -400,6 +554,14 @@ export function LeaveLedgerTab() {
           </div>
         </CardContent>
       </Card>
+
+      <ReverseLedgerEntryDialog
+        entry={reverseEntry}
+        open={reverseEntry !== null}
+        onOpenChange={(open) => {
+          if (!open) setReverseEntry(null);
+        }}
+      />
     </div>
   );
 }

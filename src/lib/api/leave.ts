@@ -742,11 +742,20 @@ export async function getBalanceDetails(leaveTypeId: string) {
   return response.data;
 }
 
+export type MyLedgerParams = {
+  page?: number;
+  pageSize?: number;
+  leaveYear?: number;
+  transactionType?: string;
+};
+
 export async function getMyLedgerHistory(
   leaveTypeId: string,
+  params?: MyLedgerParams,
 ): Promise<PaginatedLedgerResponse> {
   const response = await apiClient.get<PaginatedLedgerResponse>(
     `/leave/my/ledger/${leaveTypeId}`,
+    { params },
   );
   return response.data;
 }
@@ -1220,6 +1229,33 @@ export async function getAdminLedgerHistory(
     { params },
   );
   return response.data;
+}
+
+export type ReverseLedgerEntryResult = {
+  reversal: LedgerEntry;
+  original: Pick<
+    LedgerEntry,
+    | "id"
+    | "transactionType"
+    | "days"
+    | "effectiveDate"
+    | "description"
+    | "leaveYear"
+    | "user"
+    | "leaveType"
+  >;
+};
+
+export async function reverseLedgerEntry(
+  ledgerEntryId: string,
+  reason: string,
+): Promise<ReverseLedgerEntryResult> {
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data: ReverseLedgerEntryResult;
+  }>(`/leave/admin/ledger/${ledgerEntryId}/reverse`, { reason });
+  return response.data.data;
 }
 
 /**
