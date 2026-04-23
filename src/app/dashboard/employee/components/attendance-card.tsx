@@ -1,7 +1,6 @@
 "use client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,19 +11,18 @@ import {
   MapPin,
   Monitor,
   Loader2,
-  Coffee
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatTimeInTimezone } from "@/lib/utils";
 import {
   detectDevice,
-  isDeviceAllowedForAttendance,
   getDeviceRestrictionMessage,
 } from "@/lib/utils/device-detection";
 import { LocationPermissionAlert } from "./location-permission-alert";
 import { GeolocationStatusAlerts } from "./geolocation-status-alerts";
-import type { GeolocationData, GeolocationStatus, LocationPermissionStatus } from "../hooks/use-geolocation";
+import { AttendanceActionButtons } from "./attendance-action-buttons";
+import type { GeolocationStatus, LocationPermissionStatus } from "../hooks/use-geolocation";
 
 interface AttendanceCardProps {
   todayAttendance: any;
@@ -70,31 +68,9 @@ export function AttendanceCard({
   location,
   onLocationChange,
 }: AttendanceCardProps) {
-
-  // Determine if the button should be completely disabled
   const hasSignedInToday = Boolean(todayAttendance?.signIn);
-  const isButtonDisabled =
-    attendanceLoading ||
-    signInMutation.isPending ||
-    signOutMutation.isPending ||
-    Boolean(todayAttendance?.signOut) ||
-    !isDeviceAllowed ||
-    (captureEmployeeLocation && !isLocationReady) ||
-    (Boolean(activeBreak) && hasSignedInToday); // Disable if on break
-
-  // Determine the reason for being blocked (for label/icon)
-  const getBlockReason = (): "device" | "location" | "break" | null => {
-    if (!isDeviceAllowed) return "device";
-    if (captureEmployeeLocation && !isLocationReady) return "location";
-    if (activeBreak && hasSignedInToday) return "break";
-    return null;
-  };
-  const blockReason = getBlockReason();
-
-  // When blocked by location: permission can be granted but coords not yet available
+  const hasSignedOutToday = Boolean(todayAttendance?.signOut);
   const isLocationPermissionGranted = locationPermissionStatus === "granted";
-  const isWaitingForCoordinates =
-    blockReason === "location" && isLocationPermissionGranted;
 
   const attendanceStatus = attendanceLoading
     ? "Checking status…"
@@ -150,17 +126,17 @@ export function AttendanceCard({
           geolocationError={geolocationError}
         />
 
-        {/* Enhanced Circular Button Design */}
-        <div className={cn(
-          "relative rounded-xl p-6 transition-all duration-300",
-          blockReason !== null
-            ? "bg-muted/30 border border-muted"
-            : !todayAttendance?.signIn
-              ? "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/50"
-              : todayAttendance && !todayAttendance.signOut
+        {/* Action Buttons Container */}
+        <div
+          className={cn(
+            "relative rounded-xl p-6 transition-all duration-300",
+            hasSignedOutToday
+              ? "bg-muted/30 border border-muted"
+              : hasSignedInToday
                 ? "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50"
-                : "bg-muted/30 border border-muted"
-        )}>
+                : "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/50"
+          )}
+        >
           <div className="flex flex-col items-center justify-center">
             {/* Time Display */}
             {(todayAttendance?.signIn || todayAttendance?.signOut) && (
@@ -186,78 +162,21 @@ export function AttendanceCard({
               </div>
             )}
 
-            {/* Enhanced Circular Toggle Button */}
-            <Button
-              onClick={!todayAttendance?.signIn ? onSignIn : onSignOut}
-              disabled={isButtonDisabled}
-              className={cn(
-                "rounded-full w-24 h-24 p-0 transition-all duration-300",
-                "shadow-2xl hover:shadow-2xl hover:scale-110 active:scale-95",
-                "ring-4",
-                blockReason !== null
-                  ? "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
-                  : !todayAttendance?.signIn
-                    ? "bg-green-600 hover:bg-green-700 shadow-green-500/50 dark:shadow-green-900/50 ring-green-200/50 dark:ring-green-900/30"
-                    : todayAttendance && !todayAttendance.signOut
-                      ? "bg-red-600 hover:bg-red-700 shadow-red-500/50 dark:shadow-red-900/50 ring-red-200/50 dark:ring-red-900/30"
-                      : "bg-muted hover:bg-muted cursor-not-allowed ring-muted shadow-none"
-              )}
-            >
-              {attendanceLoading || signInMutation.isPending || signOutMutation.isPending ? (
-                <Loader2 className="size-7 animate-spin text-white" />
-              ) : blockReason === "device" ? (
-                <Monitor className="size-7 text-muted-foreground" />
-              ) : blockReason === "location" ? (
-                isWaitingForCoordinates && isGettingLocation ? (
-                  <Loader2 className="size-7 animate-spin text-muted-foreground" />
-                ) : (
-                  <MapPin className="size-7 text-muted-foreground" />
-                )
-              ) : blockReason === "break" ? (
-                <Coffee className="size-7 text-orange-500" />
-              ) : !todayAttendance?.signIn ? (
-                <CheckCircle2 className="size-7 text-white" />
-              ) : todayAttendance?.signOut ? (
-                <CheckCircle2 className="size-7 text-muted-foreground" />
-              ) : (
-                <LogOut className="size-7 text-white" />
-              )}
-            </Button>
-
-            {/* Button Label */}
-            <p className={cn(
-              "mt-4 text-base font-semibold transition-colors",
-              blockReason === "break"
-                ? "text-orange-600 dark:text-orange-400"
-                : blockReason !== null
-                  ? "text-muted-foreground"
-                  : !todayAttendance?.signIn
-                    ? "text-green-700 dark:text-green-300"
-                    : todayAttendance && !todayAttendance.signOut
-                      ? "text-red-700 dark:text-red-300"
-                      : "text-muted-foreground"
-            )}>
-              {blockReason === "device"
-                ? "Desktop Required"
-                : blockReason === "location"
-                  ? isWaitingForCoordinates
-                    ? isGettingLocation
-                      ? "Getting location…"
-                      : "Waiting for GPS…"
-                    : "Location Required"
-                  : blockReason === "break"
-                    ? "End Break First"
-                    : !todayAttendance?.signIn
-                      ? "Sign In"
-                      : todayAttendance?.signOut
-                        ? "Signed Out"
-                        : "Sign Out"}
-            </p>
-            {blockReason === "break" && (
-              <p className="mt-1 text-xs text-orange-600/80 dark:text-orange-400/80">
-                Finish your break to sign out
-              </p>
-            )}
+            <AttendanceActionButtons
+              hasSignedInToday={hasSignedInToday}
+              hasSignedOutToday={hasSignedOutToday}
+              isSignInPending={Boolean(signInMutation.isPending)}
+              isSignOutPending={Boolean(signOutMutation.isPending)}
+              attendanceLoading={attendanceLoading}
+              isDeviceAllowed={isDeviceAllowed}
+              captureEmployeeLocation={captureEmployeeLocation}
+              isLocationReady={isLocationReady}
+              isGettingLocation={isGettingLocation}
+              isLocationPermissionGranted={isLocationPermissionGranted}
+              activeBreak={activeBreak}
+              onSignIn={onSignIn}
+              onSignOut={onSignOut}
+            />
           </div>
         </div>
 
