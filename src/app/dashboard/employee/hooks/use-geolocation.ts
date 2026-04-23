@@ -331,7 +331,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
               ? DESKTOP_HIGH_ACCURACY_TIMEOUT
               : DESKTOP_LOW_ACCURACY_TIMEOUT
             : highAccuracy
-              ? MOBILE_HIGH_ACCURACY_TIMEO
+              ? MOBILE_HIGH_ACCURACY_TIMEOUT
               : MOBILE_LOW_ACCURACY_TIMEOUT;
 
         const tryGetPosition = (highAccuracy: boolean) => {
