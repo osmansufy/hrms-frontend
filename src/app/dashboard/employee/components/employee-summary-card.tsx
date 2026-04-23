@@ -25,8 +25,12 @@ export function EmployeeSummaryCard({ userId }: EmployeeSummaryCardProps) {
     const present = monthlySummary?.totalPresentDays ?? 0;
     const late = monthlySummary?.totalLateDays ?? 0;
     const absent = monthlySummary?.totalAbsentDays ?? 0;
+    const onLeaveDays = monthlySummary?.totalOnLeaveDays ?? 0;
     const workingDays = monthlySummary?.totalWorkingDays ?? 0;
-    const attendancePercent = (monthlySummary?.totalUtilization ?? 0) * 100;
+    // Attendance rate is based on days, not hours utilization (which can exceed 100% with overtime).
+    const attendancePercentRaw =
+        workingDays > 0 ? ((present + onLeaveDays) / workingDays) * 100 : 0;
+    const attendancePercent = Math.min(100, Math.max(0, attendancePercentRaw));
 
     const displayName = useMemo(() => {
         const parts = [employee?.firstName, employee?.middleName, employee?.lastName]

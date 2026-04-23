@@ -21,7 +21,7 @@ import {
 } from "@/lib/utils/device-detection";
 import { LocationPermissionAlert } from "./location-permission-alert";
 import { GeolocationStatusAlerts } from "./geolocation-status-alerts";
-import { AttendanceActionButtons } from "./attendance-action-buttons";
+import { AttendanceActionButtons, type AttendanceBlockReason } from "./attendance-action-buttons";
 import type { GeolocationStatus, LocationPermissionStatus } from "../hooks/use-geolocation";
 
 interface AttendanceCardProps {
@@ -71,6 +71,13 @@ export function AttendanceCard({
   const hasSignedInToday = Boolean(todayAttendance?.signIn);
   const hasSignedOutToday = Boolean(todayAttendance?.signOut);
   const isLocationPermissionGranted = locationPermissionStatus === "granted";
+  const blockReason: AttendanceBlockReason = !isDeviceAllowed
+    ? "device"
+    : captureEmployeeLocation && !isLocationReady
+      ? "location"
+      : activeBreak && hasSignedInToday && !hasSignedOutToday
+        ? "break"
+        : null;
 
   const attendanceStatus = attendanceLoading
     ? "Checking status…"
@@ -130,7 +137,7 @@ export function AttendanceCard({
         <div
           className={cn(
             "relative rounded-xl p-6 transition-all duration-300",
-            hasSignedOutToday
+            blockReason !== null || hasSignedOutToday
               ? "bg-muted/30 border border-muted"
               : hasSignedInToday
                 ? "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50"
