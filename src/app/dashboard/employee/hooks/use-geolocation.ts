@@ -34,24 +34,13 @@ export interface GeolocationData {
   timestamp?: number;
 }
 
-export type GeolocationStatus =
-  | "checking"
-  | "available"
-  | "denied"
-  | "unavailable"
-  | null;
-export type LocationPermissionStatus =
-  | "granted"
-  | "denied"
-  | "prompt"
-  | "unavailable"
-  | null;
+export type GeolocationStatus = "checking" | "available" | "denied" | "unavailable" | null;
+export type LocationPermissionStatus = "granted" | "denied" | "prompt" | "unavailable" | null;
 
 export function useGeolocation(captureEmployeeLocation: boolean) {
   const [geolocation, setGeolocation] = useState<GeolocationData>({});
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
-  const [geolocationStatus, setGeolocationStatus] =
-    useState<GeolocationStatus>(null);
+  const [geolocationStatus, setGeolocationStatus] = useState<GeolocationStatus>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationPermissionStatus, setLocationPermissionStatus] =
     useState<LocationPermissionStatus>(null);
@@ -65,11 +54,13 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
   // LOW-1: pending resolvers resolved when watchPosition fires, avoiding polling loops
   const pendingLocationResolversRef = useRef<
     Array<
-      (geo: {
-        latitude: number;
-        longitude: number;
-        address?: string;
-      } | null) => void
+      (
+        geo: {
+          latitude: number;
+          longitude: number;
+          address?: string;
+        } | null,
+      ) => void
     >
   >([]);
 
@@ -87,8 +78,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
   // Computed: Is location access blocked (denied or unavailable)?
   const isLocationBlocked =
     captureEmployeeLocation &&
-    (locationPermissionStatus === "denied" ||
-      locationPermissionStatus === "unavailable");
+    (locationPermissionStatus === "denied" || locationPermissionStatus === "unavailable");
 
   /**
    * Address reverse-geocoding intentionally disabled.
@@ -162,10 +152,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           const permissionStatus = await navigator.permissions.query({
             name: "geolocation" as PermissionName,
           });
-          const currentState = permissionStatus.state as
-            | "granted"
-            | "denied"
-            | "prompt";
+          const currentState = permissionStatus.state as "granted" | "denied" | "prompt";
           setLocationPermissionStatus(currentState);
 
           // If already granted, proactively fetch location
@@ -175,10 +162,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
 
           // MEDIUM-3: onchange now references stable callbacks — safe across re-runs
           permissionStatus.onchange = () => {
-            const newState = permissionStatus.state as
-              | "granted"
-              | "denied"
-              | "prompt";
+            const newState = permissionStatus.state as "granted" | "denied" | "prompt";
             setLocationPermissionStatus(newState);
 
             if (newState === "granted") {
@@ -256,9 +240,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         },
         {
           enableHighAccuracy: !desktop,
-          timeout: desktop
-            ? DESKTOP_HIGH_ACCURACY_TIMEOUT
-            : MOBILE_HIGH_ACCURACY_TIMEOUT,
+          timeout: desktop ? DESKTOP_HIGH_ACCURACY_TIMEOUT : MOBILE_HIGH_ACCURACY_TIMEOUT,
           maximumAge: LOCATION_CACHE_DURATION,
         },
       );
@@ -310,10 +292,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
               pendingLocationResolversRef.current.splice(idx, 1);
               const geo = geolocationRef.current;
               // HIGH-1: undefined check
-              if (
-                geo.latitude !== undefined &&
-                geo.longitude !== undefined
-              ) {
+              if (geo.latitude !== undefined && geo.longitude !== undefined) {
                 resolve({
                   latitude: geo.latitude,
                   longitude: geo.longitude,
@@ -352,7 +331,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
               ? DESKTOP_HIGH_ACCURACY_TIMEOUT
               : DESKTOP_LOW_ACCURACY_TIMEOUT
             : highAccuracy
-              ? MOBILE_HIGH_ACCURACY_TIMEOUT
+              ? MOBILE_HIGH_ACCURACY_TIMEO
               : MOBILE_LOW_ACCURACY_TIMEOUT;
 
         const tryGetPosition = (highAccuracy: boolean) => {
@@ -409,10 +388,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
                   {
                     const cachedGeo = geolocationRef.current;
                     // HIGH-1: undefined check
-                    if (
-                      cachedGeo.latitude !== undefined &&
-                      cachedGeo.longitude !== undefined
-                    ) {
+                    if (cachedGeo.latitude !== undefined && cachedGeo.longitude !== undefined) {
                       isGettingLocationRef.current = false; // MEDIUM-1
                       setIsGettingLocation(false);
                       resolve({
@@ -506,10 +482,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     // Return immediately if location is already available
     const currentGeo = geolocationRef.current;
     // HIGH-1: undefined check
-    if (
-      currentGeo.latitude !== undefined &&
-      currentGeo.longitude !== undefined
-    ) {
+    if (currentGeo.latitude !== undefined && currentGeo.longitude !== undefined) {
       return {
         latitude: currentGeo.latitude,
         longitude: currentGeo.longitude,
@@ -548,11 +521,11 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     locationPermissionStatus,
     isLocationReady,
     isLocationBlocked,
-    geolocationRef,       // kept: used by page.tsx and attendance-handlers.ts
+    geolocationRef, // kept: used by page.tsx and attendance-handlers.ts
     getCurrentLocation,
     requestLocationAccess,
     waitForGeolocation,
-    setGeolocation,       // kept: used by page.tsx
-    setGeolocationError,  // kept: used by page.tsx
+    setGeolocation, // kept: used by page.tsx
+    setGeolocationError, // kept: used by page.tsx
   };
 }
