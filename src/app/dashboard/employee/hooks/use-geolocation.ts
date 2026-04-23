@@ -22,7 +22,7 @@ const PERMISSION_FALLBACK_TIMEOUT = 15_000;
 function isLikelyDesktop(): boolean {
   if (typeof navigator === "undefined") return true;
   const ua = (navigator.userAgent || "").toLowerCase();
-  return !/android.*mobile|iphone|ipod|ipad|blackberry|iemobile|opera mini|mobile/i.test(
+  return !/android.*mobile|iphone|ipod|ipad|blackberry|windows phone|iemobile|opera mini|mobile/i.test(
     ua,
   );
 }
