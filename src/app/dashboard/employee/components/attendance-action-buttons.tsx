@@ -48,33 +48,51 @@ export function AttendanceActionButtons({
   const isWaitingForCoordinates =
     blockReason === "location" && isLocationPermissionGranted;
 
+  const showSignIn = !hasSignedInToday && !hasSignedOutToday;
+  const showSignOut = hasSignedInToday && !hasSignedOutToday;
+
   return (
     <div className="flex flex-col items-center">
-      <div className="flex items-start justify-center gap-8">
-        <SignInButton
-          hasSignedInToday={hasSignedInToday}
-          hasSignedOutToday={hasSignedOutToday}
-          isPending={isSignInPending}
-          isOtherMutationPending={isSignOutPending}
-          attendanceLoading={attendanceLoading}
-          isDeviceAllowed={isDeviceAllowed}
-          captureEmployeeLocation={captureEmployeeLocation}
-          isLocationReady={isLocationReady}
-          onSignIn={onSignIn}
-        />
-
-        <SignOutButton
-          hasSignedInToday={hasSignedInToday}
-          hasSignedOutToday={hasSignedOutToday}
-          isPending={isSignOutPending}
-          isOtherMutationPending={isSignInPending}
-          attendanceLoading={attendanceLoading}
-          isDeviceAllowed={isDeviceAllowed}
-          captureEmployeeLocation={captureEmployeeLocation}
-          isLocationReady={isLocationReady}
-          activeBreak={activeBreak}
-          onSignOut={onSignOut}
-        />
+      <div className="flex items-start justify-center">
+        {showSignIn ? (
+          <SignInButton
+            hasSignedInToday={hasSignedInToday}
+            hasSignedOutToday={hasSignedOutToday}
+            isPending={isSignInPending}
+            isOtherMutationPending={isSignOutPending}
+            attendanceLoading={attendanceLoading}
+            isDeviceAllowed={isDeviceAllowed}
+            captureEmployeeLocation={captureEmployeeLocation}
+            isLocationReady={isLocationReady}
+            onSignIn={onSignIn}
+          />
+        ) : showSignOut ? (
+          <SignOutButton
+            hasSignedInToday={hasSignedInToday}
+            hasSignedOutToday={hasSignedOutToday}
+            isPending={isSignOutPending}
+            isOtherMutationPending={isSignInPending}
+            attendanceLoading={attendanceLoading}
+            isDeviceAllowed={isDeviceAllowed}
+            captureEmployeeLocation={captureEmployeeLocation}
+            isLocationReady={isLocationReady}
+            activeBreak={activeBreak}
+            onSignOut={onSignOut}
+          />
+        ) : (
+          <SignOutButton
+            hasSignedInToday={hasSignedInToday}
+            hasSignedOutToday={hasSignedOutToday}
+            isPending={false}
+            isOtherMutationPending={isSignInPending || isSignOutPending}
+            attendanceLoading={attendanceLoading}
+            isDeviceAllowed={isDeviceAllowed}
+            captureEmployeeLocation={captureEmployeeLocation}
+            isLocationReady={isLocationReady}
+            activeBreak={activeBreak}
+            onSignOut={onSignOut}
+          />
+        )}
       </div>
 
       {/* Contextual status message (device / location / break) */}

@@ -4,6 +4,29 @@ import { toast } from "sonner";
 const LOCATION_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache duration
 const LOCATION_STALE_THRESHOLD = 30 * 1000; // 30 seconds - consider refreshing if older
 
+// Desktop machines (especially Macs) have no GPS. CoreLocation / Chrome's
+// Google location backend needs far more time than mobile GPS on a cold call,
+// and high-accuracy mode frequently returns POSITION_UNAVAILABLE on Ethernet,
+// VPN, or corporate Wi-Fi. These tunables give desktop a realistic budget and
+// prefer low-accuracy mode which is far more reliable on no-GPS hardware.
+const DESKTOP_HIGH_ACCURACY_TIMEOUT = 25_000;
+const DESKTOP_LOW_ACCURACY_TIMEOUT = 12_000;
+const MOBILE_HIGH_ACCURACY_TIMEOUT = 15_000;
+const MOBILE_LOW_ACCURACY_TIMEOUT = 8_000;
+const WATCH_POSITION_TIMEOUT = 20_000;
+const PERMISSION_FALLBACK_TIMEOUT = 15_000;
+
+// Best-effort desktop detection. Mirrors the heuristic used in
+// `@/lib/utils/device-detection` but kept local to avoid a circular dep and to
+// keep the hook framework-agnostic. Treats UA-unknown as desktop (safer).
+function isLikelyDesktop(): boolean {
+  if (typeof navigator === "undefined") return true;
+  const ua = (navigator.userAgent || "").toLowerCase();
+  return !/android.*mobile|iphone|ipod|ipad|blackberry|iemobile|opera mini|mobile/i.test(
+    ua,
+  );
+}
+
 export interface GeolocationData {
   latitude?: number;
   longitude?: number;
@@ -88,6 +111,11 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
   const startWatchingPosition = useCallback(() => {
     if (watchIdRef.current !== null) return; // Already watching
 
+    // Desktops (esp. Macs) have no GPS; high-accuracy forces a slow Wi-Fi
+    // BSSID scan that frequently fails on wired/VPN networks. Low-accuracy
+    // is dramatically more reliable and still street-level precise.
+    const useHighAccuracy = !isLikelyDesktop();
+
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -112,8 +140,8 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         }
       },
       {
-        enableHighAccuracy: true,
-        timeout: 15000,
+        enableHighAccuracy: useHighAccuracy,
+        timeout: WATCH_POSITION_TIMEOUT,
         maximumAge: LOCATION_STALE_THRESHOLD,
       },
     );
@@ -183,7 +211,11 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
             setLocationPermissionStatus("prompt");
           }
         },
-        { timeout: 5000, maximumAge: LOCATION_CACHE_DURATION },
+        {
+          enableHighAccuracy: !isLikelyDesktop(),
+          timeout: PERMISSION_FALLBACK_TIMEOUT,
+          maximumAge: LOCATION_CACHE_DURATION,
+        },
       );
     };
 
@@ -203,6 +235,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     hasAutoPromptedRef.current = true;
 
     const timeoutId = setTimeout(() => {
+      const desktop = isLikelyDesktop();
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -222,8 +255,10 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           }
         },
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
+          enableHighAccuracy: !desktop,
+          timeout: desktop
+            ? DESKTOP_HIGH_ACCURACY_TIMEOUT
+            : MOBILE_HIGH_ACCURACY_TIMEOUT,
           maximumAge: LOCATION_CACHE_DURATION,
         },
       );
@@ -305,7 +340,21 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
         setIsGettingLocation(true);
         setGeolocationStatus("checking");
 
-        // LOW-5: try high accuracy first, fall back to low accuracy on timeout
+        // Desktop machines (esp. Macs) have no GPS. Starting in high-accuracy
+        // mode triggers a slow Wi-Fi BSSID scan that frequently fails on
+        // Ethernet/VPN/corporate networks, returning POSITION_UNAVAILABLE.
+        // Start in low-accuracy on desktop; mobile keeps its GPS-first path.
+        const desktop = isLikelyDesktop();
+
+        const timeoutFor = (highAccuracy: boolean) =>
+          desktop
+            ? highAccuracy
+              ? DESKTOP_HIGH_ACCURACY_TIMEOUT
+              : DESKTOP_LOW_ACCURACY_TIMEOUT
+            : highAccuracy
+              ? MOBILE_HIGH_ACCURACY_TIMEOUT
+              : MOBILE_LOW_ACCURACY_TIMEOUT;
+
         const tryGetPosition = (highAccuracy: boolean) => {
           navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -336,8 +385,17 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
                     "Location access denied. Please enable location access to mark attendance.";
                   break;
                 case error.POSITION_UNAVAILABLE:
+                  // On Mac/desktop, high-accuracy mode commonly returns
+                  // POSITION_UNAVAILABLE when Wi-Fi BSSID scanning fails
+                  // (Ethernet, VPN, corporate network). Retry in low-accuracy
+                  // before surfacing an error to the user.
+                  if (highAccuracy) {
+                    tryGetPosition(false);
+                    return;
+                  }
                   setGeolocationStatus("unavailable");
-                  errorMessage = "Location information unavailable";
+                  errorMessage =
+                    "Location information unavailable. Check that Location Services are enabled for your browser in system settings.";
                   break;
                 case error.TIMEOUT:
                   // LOW-5: retry with low accuracy before giving up
@@ -379,13 +437,15 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
             },
             {
               enableHighAccuracy: highAccuracy,
-              timeout: 10000,
+              timeout: timeoutFor(highAccuracy),
               maximumAge: forceRefresh ? 0 : LOCATION_STALE_THRESHOLD,
             },
           );
         };
 
-        tryGetPosition(true);
+        // Desktop starts in low-accuracy (no GPS, faster, more reliable);
+        // mobile starts in high-accuracy to leverage GPS.
+        tryGetPosition(!desktop);
       });
     },
     [locationPermissionStatus],
