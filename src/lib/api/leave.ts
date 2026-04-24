@@ -124,21 +124,15 @@ export type ApplyLeavePayload = {
   supportingDocumentUrl?: string;
 };
 
-export async function uploadLeaveDocument(
-  file: File,
-): Promise<{ url: string }> {
+export async function uploadLeaveDocument(file: File): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await apiClient.post<{ url: string }>(
-    "/leave/my/upload-document",
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+  const response = await apiClient.post<{ url: string }>("/leave/my/upload-document", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
     },
-  );
+  });
   return response.data;
 }
 
@@ -177,7 +171,7 @@ export async function getLeaveDetails(leaveId: string) {
   return response.data;
 }
 
-export async function getMyLeavePolicies(userId: string) {
+export async function getMyLeavePolicies(_userId: string) {
   // Legacy endpoint removed during role-based controller split.
   // Prefer `getLeavePolicy(leaveTypeId)` for policy by type (employee-scoped).
   // Keeping function for API surface stability; call sites should migrate.
@@ -333,9 +327,7 @@ export async function createLeavePolicy(payload: CreateLeavePolicyPayload) {
 }
 
 export async function getLeavePolicy(leaveTypeId: string) {
-  const response = await apiClient.get<LeavePolicy>(
-    `/leave/my/policy/${leaveTypeId}`,
-  );
+  const response = await apiClient.get<LeavePolicy>(`/leave/my/policy/${leaveTypeId}`);
   return response.data;
 }
 
@@ -343,10 +335,7 @@ export async function updateLeavePolicy(
   leaveTypeId: string,
   payload: Partial<CreateLeavePolicyPayload>,
 ) {
-  const response = await apiClient.put<LeavePolicy>(
-    `/leave/admin/policy/${leaveTypeId}`,
-    payload,
-  );
+  const response = await apiClient.put<LeavePolicy>(`/leave/admin/policy/${leaveTypeId}`, payload);
   return response.data;
 }
 
@@ -374,8 +363,7 @@ export type NoticeRuleWithPolicy = LeaveNoticeRule & {
 };
 
 export async function listNoticeRules() {
-  const response =
-    await apiClient.get<NoticeRuleWithPolicy[]>("/leave/admin/notice-rules");
+  const response = await apiClient.get<NoticeRuleWithPolicy[]>("/leave/admin/notice-rules");
   return response.data;
 }
 
@@ -383,10 +371,7 @@ export async function updateNoticeRule(
   id: string,
   payload: { minLength?: number; maxLength?: number; noticeDays: number },
 ) {
-  const response = await apiClient.put<LeaveNoticeRule>(
-    `/leave/admin/notice-rule/${id}`,
-    payload,
-  );
+  const response = await apiClient.put<LeaveNoticeRule>(`/leave/admin/notice-rule/${id}`, payload);
   return response.data;
 }
 
@@ -396,31 +381,21 @@ export async function deleteNoticeRule(id: string) {
 
 // Accrual Rule Management
 export async function createAccrualRule(payload: CreateAccrualRulePayload) {
-  const response = await apiClient.post<LeaveAccrualRule>(
-    "/leave/admin/accrual-rule",
-    payload,
-  );
+  const response = await apiClient.post<LeaveAccrualRule>("/leave/admin/accrual-rule", payload);
   return response.data;
 }
 
 export async function listAccrualRules() {
-  const response = await apiClient.get<LeaveAccrualRule[]>(
-    "/leave/admin/accrual-rules",
-  );
+  const response = await apiClient.get<LeaveAccrualRule[]>("/leave/admin/accrual-rules");
   return response.data;
 }
 
 export async function getAccrualRule(id: string) {
-  const response = await apiClient.get<LeaveAccrualRule>(
-    `/leave/admin/accrual-rule/${id}`,
-  );
+  const response = await apiClient.get<LeaveAccrualRule>(`/leave/admin/accrual-rule/${id}`);
   return response.data;
 }
 
-export async function updateAccrualRule(
-  id: string,
-  payload: Partial<CreateAccrualRulePayload>,
-) {
+export async function updateAccrualRule(id: string, payload: Partial<CreateAccrualRulePayload>) {
   const response = await apiClient.put<LeaveAccrualRule>(
     `/leave/admin/accrual-rule/${id}`,
     payload,
@@ -459,10 +434,7 @@ export async function overrideLeave(
     overrideReason: string;
   },
 ) {
-  const response = await apiClient.patch<LeaveRecord>(
-    `/leave/admin/${id}/override`,
-    payload,
-  );
+  const response = await apiClient.patch<LeaveRecord>(`/leave/admin/${id}/override`, payload);
   return response.data;
 }
 
@@ -475,22 +447,19 @@ export async function overrideLeaveAsManager(
     overrideReason: string;
   },
 ) {
-  const response = await apiClient.patch<LeaveRecord>(
-    `/leave/manager/${id}/override`,
-    payload,
-  );
+  const response = await apiClient.patch<LeaveRecord>(`/leave/manager/${id}/override`, payload);
   return response.data;
 }
 
-export async function bulkApproveLeaves(leaveIds: string[], comment?: string) {
+export async function bulkApproveLeaves(_leaveIds: string[], _comment?: string) {
   throw new Error(
-    "bulkApproveLeaves is deprecated. There is no backend route for /leave/bulk/approve after API refactor."
+    "bulkApproveLeaves is deprecated. There is no backend route for /leave/bulk/approve after API refactor.",
   );
 }
 
-export async function bulkRejectLeaves(leaveIds: string[], comment: string) {
+export async function bulkRejectLeaves(_leaveIds: string[], _comment: string) {
   throw new Error(
-    "bulkRejectLeaves is deprecated. There is no backend route for /leave/bulk/reject after API refactor."
+    "bulkRejectLeaves is deprecated. There is no backend route for /leave/bulk/reject after API refactor.",
   );
 }
 
@@ -498,25 +467,19 @@ export async function bulkRejectLeaves(leaveIds: string[], comment: string) {
 
 // Get pending leaves from subordinates (PENDING status, waiting for manager approval)
 export async function getPendingLeavesForManager() {
-  const response = await apiClient.get<LeaveWithApprovals[]>(
-    "/leave/manager/pending",
-  );
+  const response = await apiClient.get<LeaveWithApprovals[]>("/leave/manager/pending");
   return response.data;
 }
 
 // Get leaves approved by manager, waiting for HR (PROCESSING status)
 export async function getApprovedByManagerPendingHR() {
-  const response = await apiClient.get<LeaveWithApprovals[]>(
-    "/leave/manager/approved-pending-hr",
-  );
+  const response = await apiClient.get<LeaveWithApprovals[]>("/leave/manager/approved-pending-hr");
   return response.data;
 }
 
 // Get all leaves from subordinates (for viewing team leave calendar)
 export async function getSubordinatesLeaves() {
-  const response = await apiClient.get<LeaveWithApprovals[]>(
-    "/leave/manager/subordinates",
-  );
+  const response = await apiClient.get<LeaveWithApprovals[]>("/leave/manager/subordinates");
   return response.data;
 }
 
@@ -550,9 +513,7 @@ export async function getSubordinateLeaves(
 
 // Admin endpoint - kept for backwards compatibility
 export async function getPendingHRApprovals() {
-  const response = await apiClient.get<LeaveWithApprovals[]>(
-    "/leave/manager/approved-pending-hr",
-  );
+  const response = await apiClient.get<LeaveWithApprovals[]>("/leave/manager/approved-pending-hr");
   return response.data;
 }
 
@@ -581,10 +542,7 @@ export async function getAllEmployeeLeaves(params?: {
 
 // Amendment Management
 export async function createAmendment(payload: CreateAmendmentPayload) {
-  const response = await apiClient.post<LeaveAmendment>(
-    "/leave/my/amendment",
-    payload,
-  );
+  const response = await apiClient.post<LeaveAmendment>("/leave/my/amendment", payload);
   return response.data;
 }
 
@@ -594,31 +552,49 @@ export async function listAmendments() {
 }
 
 export async function getAmendment(id: string) {
-  const response = await apiClient.get<LeaveAmendment>(
-    `/leave/my/amendment/${id}`,
-  );
+  const response = await apiClient.get<LeaveAmendment>(`/leave/my/amendment/${id}`);
   return response.data;
 }
 
 export async function approveAmendment(id: string) {
-  const response = await apiClient.patch<LeaveAmendment>(
-    `/leave/manager/amendment/${id}/approve`,
-  );
+  const response = await apiClient.patch<LeaveAmendment>(`/leave/manager/amendment/${id}/approve`);
   return response.data;
 }
 
 export async function rejectAmendment(id: string) {
-  const response = await apiClient.patch<LeaveAmendment>(
-    `/leave/manager/amendment/${id}/reject`,
-  );
+  const response = await apiClient.patch<LeaveAmendment>(`/leave/manager/amendment/${id}/reject`);
+  return response.data;
+}
+
+export async function getPendingAmendmentsForManager() {
+  const response = await apiClient.get<LeaveAmendment[]>("/leave/manager/amendments/pending");
+  return response.data;
+}
+
+// Admin Amendment Management (org-wide)
+export async function listAllAmendmentsAsAdmin() {
+  const response = await apiClient.get<LeaveAmendment[]>("/leave/admin/amendments");
+  return response.data;
+}
+
+export async function getAmendmentAsAdmin(id: string) {
+  const response = await apiClient.get<LeaveAmendment>(`/leave/admin/amendment/${id}`);
+  return response.data;
+}
+
+export async function approveAmendmentAsAdmin(id: string) {
+  const response = await apiClient.patch<LeaveAmendment>(`/leave/admin/amendment/${id}/approve`);
+  return response.data;
+}
+
+export async function rejectAmendmentAsAdmin(id: string) {
+  const response = await apiClient.patch<LeaveAmendment>(`/leave/admin/amendment/${id}/reject`);
   return response.data;
 }
 
 // Accrual Processing
 export async function processAccruals(userId: string, leaveTypeId: string) {
-  const response = await apiClient.post(
-    `/leave/admin/accrual/process/${userId}/${leaveTypeId}`,
-  );
+  const response = await apiClient.post(`/leave/admin/accrual/process/${userId}/${leaveTypeId}`);
   return response.data;
 }
 // Leave Balance Types
@@ -719,7 +695,7 @@ export type LedgerEntry = {
   referenceType?: string;
   referenceId?: string;
   description?: string;
-  metadata?: any;
+  metadata?: unknown;
   createdById?: string;
   createdBy?: {
     id: string;
@@ -737,9 +713,7 @@ export async function getUserBalances() {
 }
 
 export async function getBalanceDetails(leaveTypeId: string) {
-  const response = await apiClient.get<LeaveBalanceDetails>(
-    `/leave/my/balance/${leaveTypeId}`,
-  );
+  const response = await apiClient.get<LeaveBalanceDetails>(`/leave/my/balance/${leaveTypeId}`);
   return response.data;
 }
 
@@ -754,43 +728,34 @@ export async function getMyLedgerHistory(
   leaveTypeId: string,
   params?: MyLedgerParams,
 ): Promise<PaginatedLedgerResponse> {
-  const response = await apiClient.get<PaginatedLedgerResponse>(
-    `/leave/my/ledger/${leaveTypeId}`,
-    { params },
-  );
+  const response = await apiClient.get<PaginatedLedgerResponse>(`/leave/my/ledger/${leaveTypeId}`, {
+    params,
+  });
   return response.data;
 }
 
 export async function getUserLeaveBalance(
-  userId: string,
-  leaveTypeId: string,
-  leaveYear?: string,
+  _userId: string,
+  _leaveTypeId: string,
+  _leaveYear?: string,
 ) {
   throw new Error(
-    "getUserLeaveBalance is deprecated. Use admin leave balance endpoints under /admin/leave-balances."
+    "getUserLeaveBalance is deprecated. Use admin leave balance endpoints under /admin/leave-balances.",
   );
 }
 
 export async function adjustBalance(payload: AdjustBalancePayload) {
-  const response = await apiClient.post<LeaveBalance>(
-    "/leave/admin/balance/adjust",
-    payload,
-  );
+  const response = await apiClient.post<LeaveBalance>("/leave/admin/balance/adjust", payload);
   return response.data;
 }
 
 export async function initializeBalance(payload: InitializeBalancePayload) {
-  const response = await apiClient.post<LeaveBalance>(
-    "/leave/admin/balance/initialize",
-    payload,
-  );
+  const response = await apiClient.post<LeaveBalance>("/leave/admin/balance/initialize", payload);
   return response.data;
 }
 
 export async function getAllUsersBalances() {
-  const response = await apiClient.get<UserBalanceWithEmployee[]>(
-    "/leave/admin/balance/all",
-  );
+  const response = await apiClient.get<UserBalanceWithEmployee[]>("/leave/admin/balance/all");
   return response.data;
 }
 
@@ -1014,11 +979,7 @@ export type AdminAdjustmentHistoryParams = {
 
 export type AdminBalanceAlert = {
   severity: "critical" | "warning" | "info";
-  type:
-    | "negative_balance"
-    | "high_usage"
-    | "unusual_adjustment"
-    | "low_balance";
+  type: "negative_balance" | "high_usage" | "unusual_adjustment" | "low_balance";
   employee: {
     userId: string;
     name: string;
@@ -1151,10 +1112,9 @@ export type AdminLedgerParams = {
  * @returns Paginated list of leave balances with statistics
  */
 export async function getAdminLeaveBalances(params?: AdminLeaveBalancesParams) {
-  const response = await apiClient.get<AdminLeaveBalancesResponse>(
-    "/admin/leave-balances",
-    { params },
-  );
+  const response = await apiClient.get<AdminLeaveBalancesResponse>("/admin/leave-balances", {
+    params,
+  });
   return response.data;
 }
 
@@ -1195,10 +1155,9 @@ export async function getAdminBalanceSummary(year?: number) {
  * @returns Alerts for negative balances, high usage, and unusual adjustments
  */
 export async function getAdminBalanceAlerts(year?: number) {
-  const response = await apiClient.get<AdminBalanceAlertsResponse>(
-    "/admin/leave-balances/alerts",
-    { params: year ? { year } : undefined },
-  );
+  const response = await apiClient.get<AdminBalanceAlertsResponse>("/admin/leave-balances/alerts", {
+    params: year ? { year } : undefined,
+  });
   return response.data;
 }
 
@@ -1207,9 +1166,7 @@ export async function getAdminBalanceAlerts(year?: number) {
  * @param params - Query parameters for filtering
  * @returns Paginated list of adjustment history with before/after values
  */
-export async function getAdminAdjustmentHistory(
-  params?: AdminAdjustmentHistoryParams,
-) {
+export async function getAdminAdjustmentHistory(params?: AdminAdjustmentHistoryParams) {
   const response = await apiClient.get<AdminAdjustmentHistoryResponse>(
     "/admin/leave-balances/adjustments",
     { params },
@@ -1407,10 +1364,7 @@ export type LeaveTypeWithStats = {
  * @returns Created leave type
  */
 export async function createLeaveType(payload: CreateLeaveTypePayload) {
-  const response = await apiClient.post<LeaveTypeWithStats>(
-    "/admin/leave-types",
-    payload,
-  );
+  const response = await apiClient.post<LeaveTypeWithStats>("/admin/leave-types", payload);
   return response.data;
 }
 
@@ -1419,10 +1373,7 @@ export async function createLeaveType(payload: CreateLeaveTypePayload) {
  * @param filters - Filter options (isActive, search)
  * @returns Array of leave types
  */
-export async function listLeaveTypesAdmin(filters?: {
-  isActive?: boolean;
-  search?: string;
-}) {
+export async function listLeaveTypesAdmin(filters?: { isActive?: boolean; search?: string }) {
   const params = new URLSearchParams();
   if (filters?.isActive !== undefined) {
     params.append("isActive", String(filters.isActive));
@@ -1443,9 +1394,7 @@ export async function listLeaveTypesAdmin(filters?: {
  * @returns Leave type details
  */
 export async function getLeaveTypeById(id: string) {
-  const response = await apiClient.get<LeaveTypeWithStats>(
-    `/admin/leave-types/${id}`,
-  );
+  const response = await apiClient.get<LeaveTypeWithStats>(`/admin/leave-types/${id}`);
   return response.data;
 }
 
@@ -1455,9 +1404,7 @@ export async function getLeaveTypeById(id: string) {
  * @returns Leave type with stats and policy
  */
 export async function getLeaveTypeWithDetails(id: string) {
-  const response = await apiClient.get<LeaveTypeWithStats>(
-    `/admin/leave-types/${id}/details`,
-  );
+  const response = await apiClient.get<LeaveTypeWithStats>(`/admin/leave-types/${id}/details`);
   return response.data;
 }
 
@@ -1482,14 +1429,8 @@ export async function getLeaveTypeStats(id: string) {
  * @param payload - Update data
  * @returns Updated leave type
  */
-export async function updateLeaveType(
-  id: string,
-  payload: UpdateLeaveTypePayload,
-) {
-  const response = await apiClient.patch<LeaveTypeWithStats>(
-    `/admin/leave-types/${id}`,
-    payload,
-  );
+export async function updateLeaveType(id: string, payload: UpdateLeaveTypePayload) {
+  const response = await apiClient.patch<LeaveTypeWithStats>(`/admin/leave-types/${id}`, payload);
   return response.data;
 }
 
@@ -1499,9 +1440,7 @@ export async function updateLeaveType(
  * @returns Updated leave type
  */
 export async function deactivateLeaveType(id: string) {
-  const response = await apiClient.delete<LeaveTypeWithStats>(
-    `/admin/leave-types/${id}`,
-  );
+  const response = await apiClient.delete<LeaveTypeWithStats>(`/admin/leave-types/${id}`);
   return response.data;
 }
 

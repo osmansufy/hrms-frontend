@@ -1,4 +1,5 @@
 export { PendingApprovalsTab } from "./pending-approvals-tab";
+export { PendingAmendmentsTab } from "./pending-amendments-tab";
 export { PendingAssetApprovalsTab } from "./pending-asset-approvals-tab";
 export { TeamCalendarTab } from "./team-calendar-tab";
 export { TeamMembersTab } from "./team-members-tab";

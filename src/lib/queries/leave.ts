@@ -1,10 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 // Import these for immediate use
-import {
-  createLeaveType,
-  updateLeaveType,
-  overrideLeave,
-} from "@/lib/api/leave";
+import { createLeaveType, updateLeaveType, overrideLeave } from "@/lib/api/leave";
 import {
   adminBalanceKeys,
   useAdminLeaveBalances,
@@ -29,10 +25,10 @@ import {
   getMyLedgerHistory,
   approveLeave,
   rejectLeave,
+  getPendingAmendmentsForManager,
   type ApplyLeavePayload,
   type AdjustBalancePayload,
   type InitializeBalancePayload,
-  type LedgerEntry,
 } from "@/lib/api/leave";
 
 export const leaveKeys = {
@@ -42,6 +38,7 @@ export const leaveKeys = {
   myAmendments: ["leave", "my-amendments"] as const,
   managerPending: ["leave", "manager", "pending"] as const,
   managerApproved: ["leave", "manager", "approved"] as const,
+  managerPendingAmendments: ["leave", "manager", "amendments", "pending"] as const,
   subordinatesLeaves: ["leave", "subordinates"] as const,
   subordinateLeaves: (userId: string, params?: GetSubordinateLeavesParams) =>
     ["leave", "subordinate", userId, params ?? {}] as const,
@@ -104,6 +101,14 @@ export function useManagerApprovedLeaves() {
   });
 }
 
+export function useManagerPendingAmendments() {
+  return useQuery({
+    queryKey: leaveKeys.managerPendingAmendments,
+    queryFn: () => getPendingAmendmentsForManager(),
+    refetchInterval: 30_000,
+  });
+}
+
 // Line Manager - Get all subordinates' leaves
 export function useSubordinatesLeaves() {
   return useQuery({
@@ -156,19 +161,20 @@ export function useManagerRejectLeave() {
 
 // Admin/HR Hooks
 import {
-  approveAmendment,
+  approveAmendmentAsAdmin,
   approveLeaveAsAdmin,
   createAccrualRule,
   createAmendment,
   createLeavePolicy,
   getAccrualRule,
-  getAmendment,
+  getAmendmentAsAdmin,
   getLeavePolicy,
   getPendingHRApprovals,
   getAllEmployeeLeaves,
   listAccrualRules,
+  listAllAmendmentsAsAdmin,
   listAmendments,
-  rejectAmendment,
+  rejectAmendmentAsAdmin,
   rejectLeaveAsAdmin,
   updateAccrualRule,
   updateLeavePolicy,
@@ -184,8 +190,7 @@ import {
 export const adminLeaveKeys = {
   all: ["admin", "leave"] as const,
   policies: ["admin", "leave", "policies"] as const,
-  policy: (leaveTypeId: string) =>
-    ["admin", "leave", "policy", leaveTypeId] as const,
+  policy: (leaveTypeId: string) => ["admin", "leave", "policy", leaveTypeId] as const,
   accrualRules: ["admin", "leave", "accrual-rules"] as const,
   accrualRule: (id: string) => ["admin", "leave", "accrual-rule", id] as const,
   noticeRules: ["admin", "leave", "notice-rules"] as const,
@@ -206,8 +211,7 @@ export function useLeavePolicy(leaveTypeId: string) {
 export function useCreateLeavePolicy() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateLeavePolicyPayload) =>
-      createLeavePolicy(payload),
+    mutationFn: (payload: CreateLeavePolicyPayload) => createLeavePolicy(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminLeaveKeys.policies });
       queryClient.invalidateQueries({ queryKey: leaveKeys.types });
@@ -249,8 +253,7 @@ export function useAccrualRule(id: string) {
 export function useCreateAccrualRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateAccrualRulePayload) =>
-      createAccrualRule(payload),
+    mutationFn: (payload: CreateAccrualRulePayload) => createAccrualRule(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminLeaveKeys.accrualRules });
     },
@@ -260,8 +263,7 @@ export function useCreateAccrualRule() {
 export function useUpdateAccrualRule(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<CreateAccrualRulePayload>) =>
-      updateAccrualRule(id, payload),
+    mutationFn: (payload: Partial<CreateAccrualRulePayload>) => updateAccrualRule(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: adminLeaveKeys.accrualRule(id),
@@ -399,7 +401,7 @@ export function useOverrideLeave() {
 export function useAmendments(role: string) {
   return useQuery({
     queryKey: adminLeaveKeys.amendments,
-    queryFn: () => listAmendments(),
+    queryFn: () => listAllAmendmentsAsAdmin(),
     refetchInterval: 30_000,
     enabled: role === "admin" || role === "super-admin",
   });
@@ -408,7 +410,7 @@ export function useAmendments(role: string) {
 export function useAmendment(id: string) {
   return useQuery({
     queryKey: adminLeaveKeys.amendment(id),
-    queryFn: () => getAmendment(id),
+    queryFn: () => getAmendmentAsAdmin(id),
     enabled: Boolean(id),
   });
 }
@@ -416,7 +418,7 @@ export function useAmendment(id: string) {
 export function useApproveAmendment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => approveAmendment(id),
+    mutationFn: (id: string) => approveAmendmentAsAdmin(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminLeaveKeys.amendments });
       queryClient.invalidateQueries({ queryKey: leaveKeys.all });
@@ -427,7 +429,7 @@ export function useApproveAmendment() {
 export function useRejectAmendment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => rejectAmendment(id),
+    mutationFn: (id: string) => rejectAmendmentAsAdmin(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminLeaveKeys.amendments });
       queryClient.invalidateQueries({ queryKey: leaveKeys.all });
@@ -468,11 +470,9 @@ export function useCreateAmendment(userId?: string) {
 export const balanceKeys = {
   all: ["leave-balance"] as const,
   userBalances: () => [...balanceKeys.all, "user"] as const,
-  balanceDetails: (leaveTypeId: string) =>
-    [...balanceKeys.all, "details", leaveTypeId] as const,
+  balanceDetails: (leaveTypeId: string) => [...balanceKeys.all, "details", leaveTypeId] as const,
   allUsersBalances: () => [...balanceKeys.all, "all-users"] as const,
-  subordinateBalances: (userId: string) =>
-    [...balanceKeys.all, "subordinate", userId] as const,
+  subordinateBalances: (userId: string) => [...balanceKeys.all, "subordinate", userId] as const,
 };
 
 // Leave Balance Hooks
@@ -517,11 +517,7 @@ export function useSubordinateBalances(
 }
 
 // Hook to get employee leave balance by userId (for admin dashboard)
-export function useEmployeeLeaveBalance(
-  userId: string,
-  leaveTypeId: string,
-  leaveYear?: string,
-) {
+export function useEmployeeLeaveBalance(userId: string, leaveTypeId: string, leaveYear?: string) {
   return useQuery({
     queryKey: ["leave-balance", "employee", userId, leaveTypeId, leaveYear],
     queryFn: async () => {
@@ -551,8 +547,7 @@ export function useAdjustBalance() {
 export function useInitializeBalance() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: InitializeBalancePayload) =>
-      initializeBalance(payload),
+    mutationFn: (payload: InitializeBalancePayload) => initializeBalance(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: balanceKeys.all });
     },
@@ -576,14 +571,7 @@ export const ledgerKeys = {
     subordinateUserId: string,
     leaveTypeId: string,
     params?: SubordinateLedgerParams,
-  ) =>
-    [
-      "leave-ledger",
-      "subordinate",
-      subordinateUserId,
-      leaveTypeId,
-      params,
-    ] as const,
+  ) => ["leave-ledger", "subordinate", subordinateUserId, leaveTypeId, params] as const,
   adminHistory: (params?: AdminLedgerParams) =>
     ["leave-ledger", "admin", "history", params ?? {}] as const,
 };
@@ -603,20 +591,12 @@ export function useSubordinateLedgerHistory(
   params?: SubordinateLedgerParams,
 ) {
   return useQuery({
-    queryKey: ledgerKeys.subordinateLedger(
-      subordinateUserId || "",
-      leaveTypeId || "",
-      params,
-    ),
+    queryKey: ledgerKeys.subordinateLedger(subordinateUserId || "", leaveTypeId || "", params),
     queryFn: () => {
       if (!subordinateUserId || !leaveTypeId) {
         throw new Error("Subordinate user ID and leave type ID required");
       }
-      return getSubordinateLedgerHistory(
-        subordinateUserId,
-        leaveTypeId,
-        params,
-      );
+      return getSubordinateLedgerHistory(subordinateUserId, leaveTypeId, params);
     },
     enabled: Boolean(subordinateUserId) && Boolean(leaveTypeId),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -634,13 +614,7 @@ export function useAdminLedgerHistory(params?: AdminLedgerParams) {
 export function useReverseLedgerEntry() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      ledgerEntryId,
-      reason,
-    }: {
-      ledgerEntryId: string;
-      reason: string;
-    }) => {
+    mutationFn: async ({ ledgerEntryId, reason }: { ledgerEntryId: string; reason: string }) => {
       const { reverseLedgerEntry } = await import("@/lib/api/leave");
       return reverseLedgerEntry(ledgerEntryId, reason);
     },
@@ -663,10 +637,7 @@ export const leaveTypeKeys = {
 /**
  * Hook to fetch all leave types with optional filtering
  */
-export function useLeaveTypesAdmin(filters?: {
-  isActive?: boolean;
-  search?: string;
-}) {
+export function useLeaveTypesAdmin(filters?: { isActive?: boolean; search?: string }) {
   return useQuery({
     queryKey: leaveTypeKeys.list(filters),
     queryFn: async () => {
