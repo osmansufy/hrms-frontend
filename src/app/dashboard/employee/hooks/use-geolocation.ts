@@ -44,6 +44,8 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationPermissionStatus, setLocationPermissionStatus] =
     useState<LocationPermissionStatus>(null);
+  // On desktop, if location is unavailable after all retries, allow user to proceed
+  const [locationUnavailableOnDesktop, setLocationUnavailableOnDesktop] = useState(false);
 
   // Use ref to track latest geolocation for checking in async contexts
   const geolocationRef = useRef(geolocation);
@@ -69,11 +71,14 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
   }, [geolocation]);
 
   // Computed: Is location ready for attendance?
+  // On desktop, if location is genuinely unavailable (e.g., Mac without GPS where
+  // CoreLocation fails), we still allow the user to proceed after permission is granted.
   const isLocationReady =
     !captureEmployeeLocation ||
     (locationPermissionStatus === "granted" &&
       geolocation.latitude !== undefined &&
-      geolocation.longitude !== undefined);
+      geolocation.longitude !== undefined) ||
+    (locationPermissionStatus === "granted" && locationUnavailableOnDesktop);
 
   // Computed: Is location access blocked (denied or unavailable)?
   const isLocationBlocked =
@@ -104,42 +109,114 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
     // Desktops (esp. Macs) have no GPS; high-accuracy forces a slow Wi-Fi
     // BSSID scan that frequently fails on wired/VPN networks. Low-accuracy
     // is dramatically more reliable and still street-level precise.
-    const useHighAccuracy = !isLikelyDesktop();
+    const desktop = isLikelyDesktop();
+    const useHighAccuracy = !desktop;
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setGeolocation((prev) => ({
-          ...prev,
-          latitude,
-          longitude,
-          timestamp: Date.now(),
-        }));
-        setGeolocationStatus("available");
-        setGeolocationError(null);
+    // Track retry state for fallback from high to low accuracy
+    let hasRetriedLowAccuracy = false;
 
-        // LOW-1: resolve pending waiters immediately when position arrives
-        const resolvers = pendingLocationResolversRef.current.splice(0);
-        resolvers.forEach((resolve) => resolve({ latitude, longitude }));
-      },
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          setGeolocationStatus("denied");
-          setLocationPermissionStatus("denied");
-          stopWatchingPosition();
-        }
-      },
-      {
-        enableHighAccuracy: useHighAccuracy,
-        timeout: WATCH_POSITION_TIMEOUT,
-        maximumAge: LOCATION_STALE_THRESHOLD,
-      },
-    );
+    const startWatch = (highAccuracy: boolean) => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setGeolocation((prev) => ({
+            ...prev,
+            latitude,
+            longitude,
+            timestamp: Date.now(),
+          }));
+          setGeolocationStatus("available");
+          setGeolocationError(null);
+
+          // LOW-1: resolve pending waiters immediately when position arrives
+          const resolvers = pendingLocationResolversRef.current.splice(0);
+          resolvers.forEach((resolve) => resolve({ latitude, longitude }));
+        },
+        (error) => {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              setGeolocationStatus("denied");
+              setLocationPermissionStatus("denied");
+              stopWatchingPosition();
+              // Resolve pending waiters with null
+              const deniedResolvers = pendingLocationResolversRef.current.splice(0);
+              deniedResolvers.forEach((resolve) => resolve(null));
+              break;
+            case error.POSITION_UNAVAILABLE:
+            case error.TIMEOUT:
+              // On Mac/desktop, watchPosition frequently fails with POSITION_UNAVAILABLE
+              // due to CoreLocation issues. Retry once with low accuracy before giving up.
+              if (highAccuracy && !hasRetriedLowAccuracy) {
+                hasRetriedLowAccuracy = true;
+                console.log(
+                  "[Geolocation] High-accuracy watch failed, retrying with low accuracy...",
+                );
+                startWatch(false);
+                return;
+              }
+              // On desktop, if we still can't get location, try a one-shot getCurrentPosition
+              // as a final fallback - sometimes it succeeds when watchPosition doesn't
+              if (desktop) {
+                console.log(
+                  "[Geolocation] watchPosition failed, trying one-shot getCurrentPosition...",
+                );
+                navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                    const { latitude, longitude } = position.coords;
+                    setGeolocation((prev) => ({
+                      ...prev,
+                      latitude,
+                      longitude,
+                      timestamp: Date.now(),
+                    }));
+                    setGeolocationStatus("available");
+                    setGeolocationError(null);
+                    const resolvers = pendingLocationResolversRef.current.splice(0);
+                    resolvers.forEach((resolve) => resolve({ latitude, longitude }));
+                  },
+                  () => {
+                    // Final fallback failed - set unavailable but don't block UI
+                    // The user can still proceed without location on desktop
+                    console.warn("[Geolocation] All location attempts failed on desktop");
+                    setGeolocationStatus("unavailable");
+                    setLocationUnavailableOnDesktop(true);
+                    setGeolocationError(
+                      "Unable to get location. Please check that Location Services are enabled in System Settings > Privacy & Security > Location Services.",
+                    );
+                    const resolvers = pendingLocationResolversRef.current.splice(0);
+                    resolvers.forEach((resolve) => resolve(null));
+                  },
+                  {
+                    enableHighAccuracy: false,
+                    timeout: DESKTOP_LOW_ACCURACY_TIMEOUT,
+                    maximumAge: LOCATION_CACHE_DURATION,
+                  },
+                );
+              }
+              break;
+          }
+        },
+        {
+          enableHighAccuracy: highAccuracy,
+          timeout: desktop ? DESKTOP_LOW_ACCURACY_TIMEOUT : WATCH_POSITION_TIMEOUT,
+          maximumAge: LOCATION_STALE_THRESHOLD,
+        },
+      );
+    };
+
+    startWatch(useHighAccuracy);
   }, [stopWatchingPosition]);
 
   // Check geolocation permission status on mount and start watching if granted
   useEffect(() => {
     if (!captureEmployeeLocation) return;
+
+    const desktop = isLikelyDesktop();
+    let desktopTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const checkLocationPermission = async () => {
       if (!navigator.geolocation) {
@@ -158,6 +235,20 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           // If already granted, proactively fetch location
           if (currentState === "granted") {
             startWatchingPosition();
+
+            // On desktop, set a fallback timeout - if no location arrives within
+            // this time, allow user to proceed anyway (they can still sign in/out)
+            if (desktop) {
+              desktopTimeoutId = setTimeout(() => {
+                if (geolocationRef.current.latitude === undefined) {
+                  console.warn(
+                    "[Geolocation] Desktop timeout reached - allowing user to proceed without location",
+                  );
+                  setLocationUnavailableOnDesktop(true);
+                  setGeolocationStatus("unavailable");
+                }
+              }, DESKTOP_HIGH_ACCURACY_TIMEOUT + 5000); // Give a bit more time than the position timeout
+            }
           }
 
           // MEDIUM-3: onchange now references stable callbacks — safe across re-runs
@@ -196,7 +287,7 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
           }
         },
         {
-          enableHighAccuracy: !isLikelyDesktop(),
+          enableHighAccuracy: !desktop,
           timeout: PERMISSION_FALLBACK_TIMEOUT,
           maximumAge: LOCATION_CACHE_DURATION,
         },
@@ -207,6 +298,9 @@ export function useGeolocation(captureEmployeeLocation: boolean) {
 
     return () => {
       stopWatchingPosition();
+      if (desktopTimeoutId) {
+        clearTimeout(desktopTimeoutId);
+      }
     };
   }, [captureEmployeeLocation, startWatchingPosition, stopWatchingPosition]);
 
