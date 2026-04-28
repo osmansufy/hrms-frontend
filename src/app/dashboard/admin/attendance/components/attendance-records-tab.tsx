@@ -917,7 +917,6 @@ function EditRecordDialog({ record }: { record: ExtendedAttendanceRecord }) {
           return;
         }
       }
-      console.log({ signInIso, signOutIso });
 
       await updateMutation.mutateAsync({
         id: record.id,

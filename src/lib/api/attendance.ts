@@ -144,10 +144,8 @@ export type AttendanceListParams = {
 };
 
 // Employee endpoints
-export async function getTodayAttendance(_userId?: string) {
-  const response = await apiClient.get<AttendanceRecord>(
-    `/attendance/my/today`,
-  );
+export async function getTodayAttendance() {
+  const response = await apiClient.get<AttendanceRecord>(`/attendance/my/today`);
   return response.data;
 }
 
@@ -161,10 +159,7 @@ export async function signIn(payload: {
   hasTouchScreen?: boolean;
   timezone?: string;
 }) {
-  const response = await apiClient.post<AttendanceRecord>(
-    "/attendance/my/sign-in",
-    payload,
-  );
+  const response = await apiClient.post<AttendanceRecord>("/attendance/my/sign-in", payload);
   return response.data;
 }
 
@@ -177,14 +172,7 @@ export async function signOut(payload: {
   screenHeight?: number;
   hasTouchScreen?: boolean;
 }) {
-  // Backend validation rejects extra fields on this endpoint (e.g. `timezone`)
-  const { timezone: _timezone, ...cleanPayload } = payload as typeof payload & {
-    timezone?: string;
-  };
-  const response = await apiClient.post<AttendanceRecord>(
-    "/attendance/my/sign-out",
-    cleanPayload,
-  );
+  const response = await apiClient.post<AttendanceRecord>("/attendance/my/sign-out", payload);
   return response.data;
 }
 // Admin endpoints
@@ -291,10 +279,7 @@ export async function createAttendanceRecord(payload: {
   isLate?: boolean;
 }) {
   try {
-    const response = await apiClient.post<AttendanceRecord>(
-      `/attendance/admin/records`,
-      payload,
-    );
+    const response = await apiClient.post<AttendanceRecord>(`/attendance/admin/records`, payload);
     return response.data;
   } catch (error) {
     throw error;
@@ -317,9 +302,7 @@ export async function updateAttendanceRecord(
 }
 
 export async function deleteAttendanceRecord(id: string) {
-  const response = await apiClient.delete<{ message: string }>(
-    `/attendance/admin/records/${id}`,
-  );
+  const response = await apiClient.delete<{ message: string }>(`/attendance/admin/records/${id}`);
   return response.data;
 }
 
@@ -339,9 +322,7 @@ export async function exportAttendanceReport(params: {
 }
 
 export async function getTodayAttendanceForAdmin() {
-  const response = await apiClient.get<AttendanceRecord[]>(
-    `/attendance/admin/today`,
-  );
+  const response = await apiClient.get<AttendanceRecord[]>(`/attendance/admin/today`);
   return response.data;
 }
 
@@ -388,10 +369,9 @@ export type AttendancePolicy = {
 };
 
 export async function getAttendancePolicies(params?: { isActive?: boolean }) {
-  const response = await apiClient.get<AttendancePolicy[]>(
-    `/attendance/admin/policies`,
-    { params },
-  );
+  const response = await apiClient.get<AttendancePolicy[]>(`/attendance/admin/policies`, {
+    params,
+  });
   return response.data;
 }
 
@@ -403,17 +383,11 @@ export async function createAttendancePolicy(
     endTime: string;
   },
 ) {
-  const response = await apiClient.post<AttendancePolicy>(
-    `/attendance/admin/policies`,
-    payload,
-  );
+  const response = await apiClient.post<AttendancePolicy>(`/attendance/admin/policies`, payload);
   return response.data;
 }
 
-export async function updateAttendancePolicy(
-  id: string,
-  payload: Partial<AttendancePolicy>,
-) {
+export async function updateAttendancePolicy(id: string, payload: Partial<AttendancePolicy>) {
   const response = await apiClient.put<AttendancePolicy>(
     `/attendance/admin/policies/${id}`,
     payload,
@@ -450,7 +424,7 @@ export async function getWorkSchedule(id: string) {
   const response = await apiClient.get<
     WorkSchedule & {
       days: WorkScheduleDay[];
-      employees?: any[];
+      employees?: { id: string }[];
       attendancePolicies?: Array<{
         id: string;
         name: string;
@@ -488,35 +462,22 @@ export async function createWorkSchedule(payload: {
   isActive?: boolean;
   days: WorkScheduleDayInput[];
 }) {
-  const response = await apiClient.post<WorkSchedule>(
-    `/work-schedules`,
-    payload,
-  );
+  const response = await apiClient.post<WorkSchedule>(`/work-schedules`, payload);
   return response.data;
 }
 
-export async function updateWorkSchedule(
-  id: string,
-  payload: UpdateWorkSchedulePayload,
-) {
-  const response = await apiClient.patch<WorkSchedule>(
-    `/work-schedules/${id}`,
-    payload,
-  );
+export async function updateWorkSchedule(id: string, payload: UpdateWorkSchedulePayload) {
+  const response = await apiClient.patch<WorkSchedule>(`/work-schedules/${id}`, payload);
   return response.data;
 }
 
 export async function deleteWorkSchedule(id: string) {
-  const response = await apiClient.delete<{ message: string }>(
-    `/work-schedules/${id}`,
-  );
+  const response = await apiClient.delete<{ message: string }>(`/work-schedules/${id}`);
   return response.data;
 }
 
 export async function deleteAttendancePolicy(id: string) {
-  const response = await apiClient.delete<{ message: string }>(
-    `/attendance/admin/policies/${id}`,
-  );
+  const response = await apiClient.delete<{ message: string }>(`/attendance/admin/policies/${id}`);
   return response.data;
 }
 
@@ -541,10 +502,9 @@ export async function getLostHoursReport(params: {
   endDate: string;
   departmentId?: string;
 }) {
-  const response = await apiClient.get<LostHoursRow[]>(
-    `/attendance/admin/reports/lost-hours`,
-    { params },
-  );
+  const response = await apiClient.get<LostHoursRow[]>(`/attendance/admin/reports/lost-hours`, {
+    params,
+  });
   return response.data;
 }
 
@@ -561,10 +521,7 @@ export async function getMyLostHoursReport(
     endDate: string;
   },
 ) {
-  const response = await apiClient.get<LostHoursRow[]>(
-    `/attendance/my/lost-hours`,
-    { params },
-  );
+  const response = await apiClient.get<LostHoursRow[]>(`/attendance/my/lost-hours`, { params });
   return response.data;
 }
 
@@ -574,11 +531,7 @@ export type MonthlyLateCount = {
   year: number;
 };
 
-export async function getMonthlyLateCount(
-  _userId: string,
-  year?: number,
-  month?: number,
-) {
+export async function getMonthlyLateCount(_userId: string, year?: number, month?: number) {
   const params: Record<string, string> = {};
   if (year !== undefined) {
     params.year = year.toString();
@@ -586,19 +539,14 @@ export async function getMonthlyLateCount(
   if (month !== undefined) {
     params.month = month.toString();
   }
-  const response = await apiClient.get<MonthlyLateCount>(
-    `/attendance/my/monthly-late-count`,
-    { params },
-  );
+  const response = await apiClient.get<MonthlyLateCount>(`/attendance/my/monthly-late-count`, {
+    params,
+  });
   return response.data;
 }
 
 // get employee's monthly attendance summary
-export async function getEmployeeMonthlySummary(
-  userId: string,
-  year: number,
-  month: number,
-) {
+export async function getEmployeeMonthlySummary(userId: string, year: number, month: number) {
   const response = await apiClient.get<{
     totalPresentDays: number;
     totalLateDays: number;
@@ -617,10 +565,7 @@ export async function getEmployeeMonthlySummary(
 }
 
 // Attendance History for line manager (all subordinates)
-export async function getManagerAttendanceRecords(
-  userId: string,
-  params: AttendanceListParams,
-) {
+export async function getManagerAttendanceRecords(userId: string, params: AttendanceListParams) {
   const response = await apiClient.get<{
     data: ExtendedAttendanceRecord[];
     total: number;
@@ -788,9 +733,7 @@ export async function startBreak(payload: {
  * End an active break
  * @param breakId - ID of the break to end
  */
-export async function endBreak(
-  breakId: string,
-): Promise<AttendanceBreakResponse> {
+export async function endBreak(breakId: string): Promise<AttendanceBreakResponse> {
   const response = await apiClient.patch<AttendanceBreakResponse>(
     `/attendance/my/breaks/${breakId}/end`,
   );
@@ -801,9 +744,7 @@ export async function endBreak(
  * Get active break for current user
  */
 export async function getActiveBreak(): Promise<AttendanceBreakResponse> {
-  const response = await apiClient.get<AttendanceBreakResponse>(
-    "/attendance/my/breaks/active",
-  );
+  const response = await apiClient.get<AttendanceBreakResponse>("/attendance/my/breaks/active");
   return response.data;
 }
 
@@ -814,10 +755,9 @@ export async function getMyBreaks(params?: {
   startDate?: string; // ISO date string YYYY-MM-DD
   endDate?: string; // ISO date string YYYY-MM-DD
 }): Promise<AttendanceBreakListResponse> {
-  const response = await apiClient.get<AttendanceBreakListResponse>(
-    "/attendance/my/breaks",
-    { params },
-  );
+  const response = await apiClient.get<AttendanceBreakListResponse>("/attendance/my/breaks", {
+    params,
+  });
   return response.data;
 }
 
@@ -859,8 +799,7 @@ export function calculateBreakSummary(breaks: AttendanceBreak[]): BreakSummary {
     if (breakRecord.durationMinutes) {
       summary.totalMinutes += breakRecord.durationMinutes;
       summary.byType[breakRecord.breakType].count += 1;
-      summary.byType[breakRecord.breakType].minutes +=
-        breakRecord.durationMinutes;
+      summary.byType[breakRecord.breakType].minutes += breakRecord.durationMinutes;
     }
   });
 
@@ -959,10 +898,9 @@ export type AdminEmployeeBreaksResponse = {
 export async function adminGetAllBreaks(
   params?: AdminBreakListParams,
 ): Promise<AdminBreakListResponse> {
-  const response = await apiClient.get<AdminBreakListResponse>(
-    "/attendance/admin/breaks",
-    { params },
-  );
+  const response = await apiClient.get<AdminBreakListResponse>("/attendance/admin/breaks", {
+    params,
+  });
   return response.data;
 }
 
@@ -1020,9 +958,7 @@ export async function adminUpdateBreak(
 /**
  * Delete a break record
  */
-export async function adminDeleteBreak(
-  breakId: string,
-): Promise<{ message: string }> {
+export async function adminDeleteBreak(breakId: string): Promise<{ message: string }> {
   const response = await apiClient.delete<{ message: string }>(
     `/attendance/admin/breaks/${breakId}`,
   );
@@ -1080,9 +1016,7 @@ export async function getAttendanceReconciliationRequests(
   params?: GetReconciliationRequestsParams,
 ) {
   const cleaned = params
-    ? Object.fromEntries(
-        Object.entries(params).filter(([, v]) => v !== undefined && v !== ""),
-      )
+    ? Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ""))
     : {};
   const response = await apiClient.get<AttendanceReconciliationListResponse>(
     "/attendance/admin/reconciliation-requests",
