@@ -2,46 +2,41 @@
 "use client";
 
 import { useSession } from "@/components/auth/session-provider";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  useMonthlyLateCount, useMyAttendanceRecords, useMyLostHoursReport, useSignIn,
+  useMonthlyLateCount,
+  useMyAttendanceRecords,
+  useSignIn,
   useSignOut,
   useTodayAttendance,
-  useMyBreaks
+  useMyBreaks,
+  useMyMonthlyAttendanceSummary,
 } from "@/lib/queries/attendance";
-import { useMyLeaves } from "@/lib/queries/leave";
+import { useUserBalances } from "@/lib/queries/leave";
+import { useMyEmployeeProfile } from "@/lib/queries/employees";
 import { useSystemSettings } from "@/lib/queries/system-settings";
 import { useMyUserMeta } from "@/lib/queries/user-meta";
 import { cn, toLocalDateStr, toStartOfDayISO, toEndOfDayISO } from "@/lib/utils";
 import { useTimezoneFormatters } from "@/lib/hooks/use-timezone-formatters";
-import {
-  detectDevice,
-  isDeviceAllowedForAttendance
-} from "@/lib/utils/device-detection";
-import { ClockAlert, Coffee, History } from "lucide-react";
+import { detectDevice, isDeviceAllowedForAttendance } from "@/lib/utils/device-detection";
+import { Coffee, History, LogIn, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AttendanceCard } from "./components/attendance-card";
 import { AttendanceCharts } from "./components/attendance-charts";
-import { EmployeeSummaryCard } from "./components/employee-summary-card";
 import { BreakTracker } from "./attendance/components/break-tracker";
 import { BreakHistoryCard } from "./attendance/components/break-history-card";
 import { useActiveBreak } from "@/lib/queries/attendance";
 import { getBreakTypeLabel, getBreakTypeIcon } from "@/lib/api/attendance";
-import type {
-  ExtendedAttendanceRecord,
-  AttendanceBreak,
-} from "@/lib/api/attendance";
+import type { ExtendedAttendanceRecord, AttendanceBreak } from "@/lib/api/attendance";
 import type { LeaveRecord } from "@/lib/api/leave";
 import { LateAttendanceConfirmationModal } from "./components/late-attendance-confirmation-modal";
 import { LateAttendanceWarningModal } from "./components/late-attendance-warning-modal";
 import { useGeolocation } from "./hooks/use-geolocation";
 import { buildAttendancePayload, getGeolocationForAttendance } from "./utils/attendance-handlers";
-
-
+import { format, parseISO } from "date-fns";
 
 function formatWorkedTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
@@ -50,35 +45,274 @@ function formatWorkedTime(seconds: number) {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-export default function EmployeeDashboard() {
+function formatHM(min: number) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h ${m.toString().padStart(2, "0")}m` : `${m}m`;
+}
 
-  // Session and userId
+/* ─── Now Strip ───────────────────────────────────────────────────── */
+function NowStrip({
+  state,
+  workedSeconds,
+  breakElapsedMinutes,
+  totalBreakMinutes,
+  signedInAt,
+  onSignIn,
+  onSignOut,
+  name,
+  role,
+  isSignInDisabled,
+  isSignOutDisabled,
+  activeBreak,
+}: {
+  state: "out" | "in" | "break";
+  workedSeconds: number;
+  breakElapsedMinutes: number;
+  totalBreakMinutes: number;
+  signedInAt: string | null;
+  onSignIn: () => void;
+  onSignOut: () => void;
+  name: string;
+  role: string;
+  isSignInDisabled: boolean;
+  isSignOutDisabled: boolean;
+  activeBreak: AttendanceBreak | null | undefined;
+}) {
+  const pillLabel = state === "out" ? "Not signed in" : state === "break" ? "On break" : "Working";
+  const pillColor =
+    state === "out"
+      ? "text-muted-foreground border-border bg-secondary"
+      : state === "break"
+        ? "text-orange-700 border-orange-200 bg-orange-50 dark:text-orange-300 dark:border-orange-800 dark:bg-orange-900/20"
+        : "text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-300 dark:border-emerald-800 dark:bg-emerald-900/20";
+  const dotColor =
+    state === "out"
+      ? "bg-muted-foreground"
+      : state === "break"
+        ? "bg-orange-500"
+        : "bg-emerald-500";
+
+  const formattedSignIn = signedInAt
+    ? (() => {
+        try {
+          return format(parseISO(signedInAt), "HH:mm");
+        } catch {
+          return "—";
+        }
+      })()
+    : "—";
+
+  return (
+    <div className="border-border bg-card overflow-hidden rounded-[14px] border shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+        {/* State cell */}
+        <div className="border-border flex flex-col gap-2 border-b bg-emerald-500/[0.04] px-5 py-4 sm:border-r sm:border-b-0 dark:bg-emerald-500/[0.06]">
+          <span
+            className={`inline-flex items-center gap-1.5 self-start rounded border px-2 py-1 text-[10px] font-semibold tracking-[.10em] uppercase ${pillColor}`}
+          >
+            <span
+              className={`inline-block size-1.5 rounded-full ${dotColor} ${state !== "out" ? "animate-pulse" : ""}`}
+            />
+            {pillLabel}
+          </span>
+          <div className="text-lg leading-tight font-semibold tracking-tight">{name}</div>
+          <div className="text-muted-foreground text-[11px]">{role}</div>
+        </div>
+
+        {/* Work today */}
+        <div className="border-border flex flex-col gap-1 border-b px-5 py-4 sm:border-r sm:border-b-0">
+          <div className="text-muted-foreground text-[10px] font-semibold tracking-[.10em] uppercase">
+            Work today
+          </div>
+          <div className="font-mono text-[22px] leading-none font-semibold tracking-tight tabular-nums">
+            {state === "out" ? "00:00:00" : formatWorkedTime(workedSeconds)}
+          </div>
+          <div className="text-muted-foreground text-[11px]">Target 08:00:00</div>
+        </div>
+
+        {/* Break */}
+        <div className="border-border flex flex-col gap-1 border-b px-5 py-4 sm:border-r sm:border-b-0">
+          <div className="text-muted-foreground text-[10px] font-semibold tracking-[.10em] uppercase">
+            Break
+          </div>
+          <div
+            className={`font-mono text-[22px] leading-none font-semibold tracking-tight tabular-nums ${
+              state === "break" ? "text-orange-600 dark:text-orange-400" : ""
+            }`}
+          >
+            {state === "out"
+              ? "—"
+              : state === "break"
+                ? formatHM(breakElapsedMinutes)
+                : formatHM(totalBreakMinutes)}
+          </div>
+          <div className="text-muted-foreground text-[11px]">
+            {state === "break"
+              ? activeBreak
+                ? `${getBreakTypeLabel(activeBreak.breakType)} · started ${format(parseISO(activeBreak.startTime), "HH:mm")}`
+                : "In progress"
+              : totalBreakMinutes > 0
+                ? `${totalBreakMinutes}m taken today`
+                : "No breaks yet"}
+          </div>
+        </div>
+
+        {/* Signed in */}
+        <div className="border-border flex flex-col gap-1 border-b px-5 py-4 sm:border-r sm:border-b-0">
+          <div className="text-muted-foreground text-[10px] font-semibold tracking-[.10em] uppercase">
+            Signed in
+          </div>
+          <div className="font-mono text-[22px] leading-none font-semibold tracking-tight tabular-nums">
+            {formattedSignIn}
+          </div>
+          <div className="text-muted-foreground text-[11px]">
+            {signedInAt ? "Today" : "Not yet signed in"}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="flex items-center justify-center px-5 py-4">
+          {state === "out" && (
+            <Button
+              onClick={onSignIn}
+              disabled={isSignInDisabled}
+              className="gap-1.5 rounded-full bg-emerald-600 px-5 font-semibold text-white hover:bg-emerald-700"
+            >
+              <LogIn size={14} /> Sign In
+            </Button>
+          )}
+          {(state === "in" || state === "break") && (
+            <Button
+              onClick={onSignOut}
+              disabled={isSignOutDisabled}
+              className="gap-1.5 rounded-full bg-red-600 px-5 font-semibold text-white hover:bg-red-700"
+            >
+              <LogOut size={14} /> Sign Out
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── KPI strip ───────────────────────────────────────────────────── */
+function KpiStrip({
+  hoursWorked,
+  targetHours,
+  punctualityPct,
+  lateCount,
+  leaveBalance,
+  isLoading,
+}: {
+  hoursWorked: number;
+  targetHours: number;
+  punctualityPct: number;
+  lateCount: number;
+  leaveBalance: number;
+  isLoading?: boolean;
+}) {
+  const items = [
+    {
+      label: "This Month",
+      value: `${hoursWorked.toFixed(1)}h`,
+      foot: `of ${targetHours}h target`,
+      delta: hoursWorked >= targetHours ? 1 : -1,
+    },
+    {
+      label: "Punctuality",
+      value: `${punctualityPct}%`,
+      foot: "on-time arrivals",
+      delta: punctualityPct >= 90 ? 1 : -1,
+    },
+    {
+      label: "Late count",
+      value: lateCount.toString(),
+      foot: "late arrivals this month",
+      delta: lateCount === 0 ? 1 : -1,
+    },
+    {
+      label: "Leave balance",
+      value: `${leaveBalance}d`,
+      foot: "days available",
+      delta: null,
+    },
+  ];
+
+  return (
+    <div className="divide-border border-border bg-card grid grid-cols-2 divide-x-0 divide-y overflow-hidden rounded-[14px] border shadow-sm lg:grid-cols-4 lg:divide-x lg:divide-y-0">
+      {items.map((item, i) => (
+        <div key={i} className="flex flex-col gap-1 px-5 py-4">
+          <div className="text-muted-foreground text-[10px] font-semibold tracking-[.10em] uppercase">
+            {item.label}
+          </div>
+          <div className="font-mono text-[32px] leading-none font-semibold tracking-tight tabular-nums">
+            {isLoading ? "—" : item.value}
+          </div>
+          <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[11px]">
+            {item.delta !== null && (
+              <span
+                className={
+                  item.delta > 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-600 dark:text-red-400"
+                }
+              >
+                {item.delta > 0 ? "▲" : "▼"}
+              </span>
+            )}
+            {item.foot}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Main dashboard ──────────────────────────────────────────────── */
+export default function EmployeeDashboard() {
   const { session } = useSession();
   const userId = session?.user.id;
   const { formatDate } = useTimezoneFormatters();
 
-  // System settings (late threshold, mobile attendance, location capture)
   const { data: systemSettings } = useSystemSettings();
   const { data: userMeta } = useMyUserMeta();
+  const { data: employeeProfile } = useMyEmployeeProfile();
   const leaveDeductionDay = systemSettings?.leaveDeductionDay ?? 4;
   const allowMobileAttendance = systemSettings?.allowMobileAttendance ?? false;
-  const captureEmployeeLocation =
-    systemSettings?.captureEmployeeLocation ?? true;
+  const captureEmployeeLocation = systemSettings?.captureEmployeeLocation ?? true;
 
-  // Monthly late count
   const { data: monthlyLateCountData } = useMonthlyLateCount(userId);
   const monthlyLateCount = monthlyLateCountData?.lateCount ?? 0;
 
-  // Modal states
+  const now = useMemo(() => new Date(), []);
+  const { data: monthlySummary, isLoading: summaryLoading } = useMyMonthlyAttendanceSummary({
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  });
+  const { data: leaveBalances } = useUserBalances();
+
+  const totalLeaveAvailable = useMemo(
+    () => (leaveBalances ?? []).reduce((sum, b) => sum + Math.max(0, b.available), 0),
+    [leaveBalances],
+  );
+
+  const hoursWorked = monthlySummary?.totalHoursWorked ?? 0;
+  const workingDays = monthlySummary?.totalWorkingDays ?? 22;
+  const targetHours = workingDays * 8;
+  const presentDays = monthlySummary?.totalPresentDays ?? 0;
+  const lateDays = monthlySummary?.totalLateDays ?? 0;
+  const punctualityPct =
+    presentDays > 0 ? Math.round(((presentDays - lateDays) / presentDays) * 100) : 100;
+
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
-  // Check if warning modal has been shown for current month
   const getWarningModalKey = useCallback(() => {
     if (!userId) return null;
-    const now = new Date();
-    const monthYear = `${now.getFullYear()}-${now.getMonth()}`;
-    return `late-attendance-warning-shown-${userId}-${monthYear}`;
+    const n = new Date();
+    return `late-attendance-warning-shown-${userId}-${n.getFullYear()}-${n.getMonth()}`;
   }, [userId]);
 
   const hasWarningBeenShown = useMemo(() => {
@@ -87,7 +321,6 @@ export default function EmployeeDashboard() {
     return localStorage.getItem(key) === "true";
   }, [getWarningModalKey]);
 
-  // Attendance chart data for last 7 days — stable references, computed once on mount
   const { chartDays, chartQueryParams } = useMemo(() => {
     const days: string[] = [];
     const today = new Date();
@@ -105,28 +338,27 @@ export default function EmployeeDashboard() {
       },
     };
   }, []);
-  const { data: attendanceChartData } = useMyAttendanceRecords(
-    userId,
-    chartQueryParams,
-  );
-  const attendanceBarData = useMemo(() =>
-    chartDays.map((dayStr) => {
-      const dateStr = formatDate(dayStr, "short");
-      const rec = attendanceChartData?.data?.find((r: ExtendedAttendanceRecord) => {
-        return toLocalDateStr(new Date(r.date)) === dayStr;
-      });
-      return {
-        date: dateStr,
-        present: rec?.signIn ? 1 : 0,
-        late: rec?.isLate ? 1 : 0,
-        absent: rec?.signIn ? 0 : 1,
-      };
-    }), [chartDays, attendanceChartData?.data, formatDate]);
 
-  // Location state
+  const { data: attendanceChartData } = useMyAttendanceRecords(userId, chartQueryParams);
+  const attendanceBarData = useMemo(
+    () =>
+      chartDays.map((dayStr) => {
+        const dateStr = formatDate(dayStr, "short");
+        const rec = attendanceChartData?.data?.find((r: ExtendedAttendanceRecord) => {
+          return toLocalDateStr(new Date(r.date)) === dayStr;
+        });
+        return {
+          date: dateStr,
+          present: rec?.signIn ? 1 : 0,
+          late: rec?.isLate ? 1 : 0,
+          absent: rec?.signIn ? 0 : 1,
+        };
+      }),
+    [chartDays, attendanceChartData?.data, formatDate],
+  );
+
   const [location, setLocation] = useState("");
 
-  // Geolocation hook - handles all geolocation logic
   const {
     geolocationError,
     geolocationStatus,
@@ -141,27 +373,28 @@ export default function EmployeeDashboard() {
     setGeolocationError,
   } = useGeolocation(captureEmployeeLocation);
 
-  // Device detection for attendance restriction
   const [deviceInfo, setDeviceInfo] = useState<ReturnType<typeof detectDevice> | null>(null);
   const [isDeviceAllowed, setIsDeviceAllowed] = useState(true);
 
   useEffect(() => {
     const device = detectDevice();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDeviceInfo(device);
     if (device.type === "mobile") {
-      // Mobile allowed only when system allows or user meta allows (no row = allow)
       setIsDeviceAllowed(allowMobileAttendance || userMeta?.allowMobileSignIn !== false);
     } else {
       setIsDeviceAllowed(true);
     }
   }, [allowMobileAttendance, userMeta?.allowMobileSignIn]);
 
-  // Attendance queries
-  const { data: todayAttendance, isLoading: attendanceLoading, isFetching: attendanceFetching } = useTodayAttendance(userId);
+  const {
+    data: todayAttendance,
+    isLoading: attendanceLoading,
+    isFetching: attendanceFetching,
+  } = useTodayAttendance(userId);
   const signInMutation = useSignIn(userId);
   const signOutMutation = useSignOut(userId);
 
-  // Attendance handlers - using utility functions
   const performSignIn = useCallback(async () => {
     if (!isDeviceAllowed) {
       const device = detectDevice();
@@ -174,50 +407,56 @@ export default function EmployeeDashboard() {
       toast.error(message);
       return;
     }
-
-    // Location permission check - block if required but not granted
     if (captureEmployeeLocation && locationPermissionStatus !== "granted") {
-      toast.error("Location access is required. Please grant location permission to mark attendance.");
+      toast.error(
+        "Location access is required. Please grant location permission to mark attendance.",
+      );
       return;
     }
-
-    // Get geolocation (should be fast since watchPosition keeps it updated)
     const geoData = await getGeolocationForAttendance(
       captureEmployeeLocation,
       getCurrentLocation,
       waitForGeolocation,
       geolocationRef,
-      false
+      false,
     );
-
-    // Final check - if still no location and it's required, block
     if (!geoData && captureEmployeeLocation) {
-      toast.error("Unable to get your location. Please ensure location access is enabled and try again.");
+      toast.error(
+        "Unable to get your location. Please ensure location access is enabled and try again.",
+      );
       return;
     }
-
     const payload = await buildAttendancePayload(location, geoData);
-
     try {
       const result = await signInMutation.mutateAsync(payload);
       toast.success("Signed in successfully");
       setLocation("");
       setGeolocationError(null);
-
-      if ((result as any)?.leaveDeducted) {
+      if ((result as { leaveDeducted?: boolean })?.leaveDeducted) {
         setShowConfirmationModal(true);
         toast.info("1 day of casual leave has been deducted for late attendance");
       }
-    } catch (err: any) {
-      console.error("Sign-in error:", err);
-      if (err?.response?.status === 403 || err?.message?.includes("desktop") || err?.message?.includes("laptop")) {
-        toast.error(err?.response?.data?.message || "Attendance is only allowed from desktop or laptop computers.");
-      } else if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
+    } catch (err: unknown) {
+      const e = err as {
+        response?: { status?: number; data?: { message?: string } };
+        message?: string;
+        code?: string;
+      };
+      if (
+        e?.response?.status === 403 ||
+        e?.message?.includes("desktop") ||
+        e?.message?.includes("laptop")
+      ) {
+        toast.error(
+          e?.response?.data?.message ||
+            "Attendance is only allowed from desktop or laptop computers.",
+        );
+      } else if (e?.code === "ERR_NETWORK" || e?.message?.includes("Network Error")) {
         toast.error("Network error: Please check if the backend server is running and accessible.");
-      } else if (err?.response?.data?.message) {
-        toast.error(err.response.data.message);
+      } else if (e?.response?.data?.message) {
+        toast.error(e.response.data.message);
       } else {
-        toast.error(err?.message || "Sign-in failed. Please try again.");
+        toast.error(e?.message || "Sign-in failed. Please try again.");
       }
     }
   }, [
@@ -234,131 +473,101 @@ export default function EmployeeDashboard() {
     setGeolocationError,
   ]);
 
-  // Active break status
   const { data: activeBreakResponse } = useActiveBreak();
   const activeBreak = activeBreakResponse?.activeBreak;
   const [breakElapsedMinutes, setBreakElapsedMinutes] = useState(0);
 
-  // Fetch today's breaks for work time calculation
   const today = useMemo(() => toLocalDateStr(new Date()), []);
-  const { data: todayBreaksData } = useMyBreaks({
-    startDate: today,
-    endDate: today,
-  });
+  const { data: todayBreaksData } = useMyBreaks({ startDate: today, endDate: today });
 
-  // Live worked hours clock
+  const totalBreakMinutes = useMemo(() => {
+    let total = 0;
+    const breaks = todayBreaksData?.data;
+    if (breaks) {
+      breaks.forEach((b: AttendanceBreak) => {
+        if (b.endTime) {
+          const start = new Date(b.startTime).getTime();
+          const end = new Date(b.endTime).getTime();
+          total += Math.floor((end - start) / 60000);
+        }
+      });
+    }
+    return total;
+  }, [todayBreaksData]);
+
   const [workedSeconds, setWorkedSeconds] = useState(0);
-  const todayDate = useMemo(() => formatDate(new Date(), "long"), [formatDate]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
-
-    // Calculate total break time in seconds
     const calculateBreakSeconds = () => {
-      let totalBreakSeconds = 0;
-      // Add completed breaks
+      let total = 0;
       if (todayBreaksData?.data) {
-        todayBreaksData.data.forEach((breakRecord: AttendanceBreak) => {
-          if (breakRecord.endTime) {
-            const start = new Date(breakRecord.startTime).getTime();
-            const end = new Date(breakRecord.endTime).getTime();
-            totalBreakSeconds += Math.floor((end - start) / 1000);
+        todayBreaksData.data.forEach((b: AttendanceBreak) => {
+          if (b.endTime) {
+            total += Math.floor(
+              (new Date(b.endTime).getTime() - new Date(b.startTime).getTime()) / 1000,
+            );
           }
         });
       }
-      // Add active break time
       if (activeBreak?.startTime) {
-        const start = new Date(activeBreak.startTime).getTime();
-        const now = Date.now();
-        totalBreakSeconds += Math.floor((now - start) / 1000);
+        total += Math.floor((Date.now() - new Date(activeBreak.startTime).getTime()) / 1000);
       }
-
-      return totalBreakSeconds;
+      return total;
     };
-
     if (todayAttendance?.signIn && !todayAttendance?.signOut) {
       const signIn = new Date(todayAttendance.signIn);
       interval = setInterval(() => {
-        const totalSeconds = Math.floor((Date.now() - signIn.getTime()) / 1000);
-        const breakSeconds = calculateBreakSeconds();
-        setWorkedSeconds(Math.max(0, totalSeconds - breakSeconds));
+        setWorkedSeconds(
+          Math.max(0, Math.floor((Date.now() - signIn.getTime()) / 1000) - calculateBreakSeconds()),
+        );
       }, 1000);
-      // Set initial value
-      const totalSeconds = Math.floor((Date.now() - signIn.getTime()) / 1000);
-      const breakSeconds = calculateBreakSeconds();
-      setWorkedSeconds(Math.max(0, totalSeconds - breakSeconds));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWorkedSeconds(
+        Math.max(0, Math.floor((Date.now() - signIn.getTime()) / 1000) - calculateBreakSeconds()),
+      );
     } else if (todayAttendance?.signIn && todayAttendance?.signOut) {
-      const signIn = new Date(todayAttendance.signIn);
-      const signOut = new Date(todayAttendance.signOut);
-      const totalSeconds = Math.floor((signOut.getTime() - signIn.getTime()) / 1000);
-      const breakSeconds = calculateBreakSeconds();
-      setWorkedSeconds(Math.max(0, totalSeconds - breakSeconds));
+      const total = Math.floor(
+        (new Date(todayAttendance.signOut).getTime() - new Date(todayAttendance.signIn).getTime()) /
+          1000,
+      );
+      setWorkedSeconds(Math.max(0, total - calculateBreakSeconds()));
     } else {
       setWorkedSeconds(0);
     }
     return () => interval && clearInterval(interval);
-  }, [todayAttendance?.signIn, todayAttendance?.signOut, todayBreaksData?.data, activeBreak?.startTime]);
+  }, [
+    todayAttendance?.signIn,
+    todayAttendance?.signOut,
+    todayBreaksData?.data,
+    activeBreak?.startTime,
+  ]);
 
-  // Pie chart data for monthly leaves
-  const { data: leaves } = useMyLeaves(userId);
-  const { currentMonth, currentYear } = useMemo(() => {
-    const now = new Date();
-    return { currentMonth: now.getMonth(), currentYear: now.getFullYear() };
-  }, []);
-  const monthlyLeaves = useMemo(() => (leaves || []).filter((l: LeaveRecord) => {
-    const start = new Date(l.startDate);
-    return start.getMonth() === currentMonth && start.getFullYear() === currentYear;
-  }), [leaves, currentMonth, currentYear]);
-  const leaveTypeMap: Record<string, { name: string; value: number; color: string }> = {};
-  const colors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#8dd1e1", "#a4de6c", "#d0ed57", "#fa8072"];
-  let colorIdx = 0;
-  for (const leave of monthlyLeaves) {
-    const type = leave.leaveType?.name || "Other";
-    if (!leaveTypeMap[type]) {
-      leaveTypeMap[type] = { name: type, value: 0, color: colors[colorIdx % colors.length] };
-      colorIdx++;
-    }
-    leaveTypeMap[type].value += 1;
-  }
-
-
-  // Calculate break elapsed time
   useEffect(() => {
     if (!activeBreak?.startTime) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBreakElapsedMinutes(0);
       return;
     }
-
-    const updateElapsed = () => {
-      const start = new Date(activeBreak.startTime);
-      const now = new Date();
-      const minutes = Math.floor((now.getTime() - start.getTime()) / 60000);
-      setBreakElapsedMinutes(minutes);
-    };
-
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 60_000);
+    const update = () =>
+      setBreakElapsedMinutes(
+        Math.floor((Date.now() - new Date(activeBreak.startTime).getTime()) / 60000),
+      );
+    update();
+    const interval = setInterval(update, 60_000);
     return () => clearInterval(interval);
   }, [activeBreak?.startTime]);
 
-
   const handleSignIn = useCallback(async () => {
-    // Check if late count is (leaveDeductionDay - 1) - show warning modal before sign-in
-    // But only if it hasn't been shown for this month yet
     if (monthlyLateCount === leaveDeductionDay - 1 && !hasWarningBeenShown) {
       setShowWarningModal(true);
-      // Mark as shown in localStorage
       const key = getWarningModalKey();
-      if (key) {
-        localStorage.setItem(key, "true");
-      }
+      if (key) localStorage.setItem(key, "true");
       return;
     }
-
-    // Proceed with sign-in
     await performSignIn();
   }, [monthlyLateCount, leaveDeductionDay, hasWarningBeenShown, getWarningModalKey, performSignIn]);
 
-  // Handle warning modal confirmation - proceed with sign-in
   const handleWarningModalConfirm = useCallback(() => {
     setShowWarningModal(false);
     performSignIn();
@@ -366,7 +575,6 @@ export default function EmployeeDashboard() {
 
   const handleSignOut = useCallback(async () => {
     if (!isDeviceAllowed) {
-      // Use already-computed deviceInfo — avoids re-running UA parsing
       const message =
         allowMobileAttendance && userMeta?.allowMobileSignIn === false
           ? "Your account is not allowed to mark attendance from mobile devices."
@@ -376,254 +584,173 @@ export default function EmployeeDashboard() {
       toast.error(message);
       return;
     }
-
-    // Location permission check - block if required but not granted
     if (captureEmployeeLocation && locationPermissionStatus !== "granted") {
-      toast.error("Location access is required. Please grant location permission to mark attendance.");
+      toast.error(
+        "Location access is required. Please grant location permission to mark attendance.",
+      );
       return;
     }
-
-    // Get fresh geolocation for sign-out
     const geoData = await getGeolocationForAttendance(
       captureEmployeeLocation,
       getCurrentLocation,
       waitForGeolocation,
       geolocationRef,
-      true, // Force refresh for sign-out
+      true,
     );
-
-    // Final check - if still no location and it's required, block
     if (!geoData && captureEmployeeLocation) {
-      toast.error("Unable to get your location. Please ensure location access is enabled and try again.");
+      toast.error(
+        "Unable to get your location. Please ensure location access is enabled and try again.",
+      );
       return;
     }
-
-    const payload = await buildAttendancePayload(location, geoData, {
-      includeTimezone: false,
-    });
-
+    const payload = await buildAttendancePayload(location, geoData, { includeTimezone: false });
     try {
       await signOutMutation.mutateAsync(payload);
       toast.success("Signed out successfully");
       setLocation("");
-      // watchPosition keeps geolocation current — no need to clear it here
       setGeolocationError(null);
-    } catch (err: any) {
-      console.error("Sign-out error:", err);
-      if (err?.response?.status === 403 || err?.message?.includes("desktop") || err?.message?.includes("laptop")) {
-        toast.error(err?.response?.data?.message || "Attendance is only allowed from desktop or laptop computers.");
-      } else if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
+    } catch (err: unknown) {
+      const e = err as {
+        response?: { status?: number; data?: { message?: string } };
+        message?: string;
+        code?: string;
+      };
+      if (
+        e?.response?.status === 403 ||
+        e?.message?.includes("desktop") ||
+        e?.message?.includes("laptop")
+      ) {
+        toast.error(
+          e?.response?.data?.message ||
+            "Attendance is only allowed from desktop or laptop computers.",
+        );
+      } else if (e?.code === "ERR_NETWORK" || e?.message?.includes("Network Error")) {
         toast.error("Network error: Please check if the backend server is running and accessible.");
-      } else if (err?.response?.data?.message) {
-        toast.error(err.response.data.message);
+      } else if (e?.response?.data?.message) {
+        toast.error(e.response.data.message);
       } else {
-        toast.error(err?.message || "Sign-out failed. Please try again.");
+        toast.error(e?.message || "Sign-out failed. Please try again.");
       }
     }
   }, [
     isDeviceAllowed,
     allowMobileAttendance,
     userMeta?.allowMobileSignIn,
-    deviceInfo,           // replaces inline detectDevice() call
+    deviceInfo,
     signOutMutation,
     location,
     captureEmployeeLocation,
     locationPermissionStatus,
     getCurrentLocation,
     waitForGeolocation,
-    // geolocationRef omitted — React refs are stable, never need to be deps
+    geolocationRef,
     setGeolocationError,
-    // setGeolocation omitted — no longer called
   ]);
 
-  // Leave-related queries and calculations removed from dashboard (now only on leave page)
-
-  // Leave status icon/badge helpers removed from dashboard
-
   const hasSignedInToday = Boolean(todayAttendance?.signIn);
+  const hasSignedOut = Boolean(todayAttendance?.signOut);
+  const isOnBreak = Boolean(activeBreak) && hasSignedInToday;
 
-  const isTopAttendanceButtonDisabled =
+  const nowState: "out" | "in" | "break" = !hasSignedInToday ? "out" : isOnBreak ? "break" : "in";
+
+  const isSignInDisabled =
     attendanceLoading ||
     signInMutation.isPending ||
-    signOutMutation.isPending ||
-    Boolean(todayAttendance?.signOut) ||
+    hasSignedInToday ||
     !isDeviceAllowed ||
     (captureEmployeeLocation && !isLocationReady) ||
-    (Boolean(activeBreak) && hasSignedInToday); // Disable if on break
+    isOnBreak;
 
-  const topAttendanceStatus = attendanceLoading
-    ? "Checking status…"
-    : !todayAttendance
-      ? "Not signed in"
-      : todayAttendance.signOut
-        ? "Signed out"
-        : "Signed in";
+  const isSignOutDisabled =
+    attendanceLoading ||
+    signOutMutation.isPending ||
+    hasSignedOut ||
+    !isDeviceAllowed ||
+    (captureEmployeeLocation && !isLocationReady) ||
+    isOnBreak;
+
+  const employeeName = employeeProfile
+    ? `${employeeProfile.firstName} ${employeeProfile.lastName}`
+    : (session?.user?.name ?? "You");
+
+  const employeeRole =
+    (employeeProfile as { designation?: { name?: string } } | null | undefined)?.designation
+      ?.name ??
+    session?.user?.roles?.[0]
+      ?.replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase()) ??
+    "Employee";
 
   return (
-    <div className="container space-y-5">
-      {/* Dashboard Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Welcome back{session?.user?.name ? `, ${session.user.name}` : ""}
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Your daily overview at a glance</p>
+    <div className="container space-y-5 pb-12">
+      {/* ─── Page header ──────────────────────────────────────────── */}
+      <div>
+        <div className="text-muted-foreground mb-1.5 flex items-center gap-2 text-[10px] font-semibold tracking-[.12em] uppercase">
+          <span className="h-px w-3.5 bg-emerald-600 dark:bg-emerald-400" />
+          Welcome back · {format(new Date(), "EEEE, MMMM d")}
         </div>
-        <div className="flex items-center gap-3">
-          {/* Status Chips */}
-          <div className="flex items-center gap-2">
-            {activeBreak && (
-              <Badge className="bg-orange-500/90 hover:bg-orange-600 text-white text-xs gap-1 animate-pulse">
-                <Coffee className="size-3" />
-                On Break
-              </Badge>
-            )}
-            <Badge variant="outline" className="text-xs text-muted-foreground gap-1">
-              {topAttendanceStatus}
-            </Badge>
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <h1 className="text-3xl leading-none font-semibold tracking-tight">
+              Good{" "}
+              {new Date().getHours() < 12
+                ? "morning"
+                : new Date().getHours() < 17
+                  ? "afternoon"
+                  : "evening"}
+              , {employeeProfile?.firstName ?? session?.user?.name?.split(" ")[0] ?? "there"}.
+            </h1>
           </div>
-
-          {/* Date + Sign In/Out */}
-          <div className="text-right text-xs text-muted-foreground hidden sm:block">
-            <div>{todayDate}</div>
-          </div>
-          <div className="relative group">
-            <Button
-              size="sm"
-              disabled={isTopAttendanceButtonDisabled}
-              onClick={() => (!todayAttendance?.signIn ? handleSignIn() : handleSignOut())}
-              className={cn(
-                "rounded-full px-5 py-1.5 text-sm font-semibold shadow-sm transition-all",
-                !todayAttendance?.signIn
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  : todayAttendance?.signOut
-                    ? "bg-muted text-muted-foreground cursor-not-allowed"
-                    : "bg-red-600 hover:bg-red-700 text-white"
-              )}
-            >
-              {!todayAttendance?.signIn
-                ? "Sign In"
-                : todayAttendance?.signOut
-                  ? "Signed Out"
-                  : "Sign Out"}
-            </Button>
-            {activeBreak && hasSignedInToday && (
-              <div className="hidden group-hover:block absolute top-full right-0 mt-2 w-48 p-2 bg-orange-100 border border-orange-300 rounded-md shadow-lg text-xs text-orange-800 z-10">
-                <Coffee className="inline size-3 mr-1" />
-                End your break first to sign out
-              </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/dashboard/employee/leave">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                Request leave
+              </Button>
+            </Link>
+            {hasSignedInToday && (
+              <Link href="/dashboard/employee/attendance/reconciliation">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                  Reconcile
+                </Button>
+              </Link>
             )}
           </div>
         </div>
       </div>
 
-      {userId && <EmployeeSummaryCard userId={userId} />}
+      {/* ─── Now Strip ────────────────────────────────────────────── */}
+      <NowStrip
+        state={nowState}
+        workedSeconds={workedSeconds}
+        breakElapsedMinutes={breakElapsedMinutes}
+        totalBreakMinutes={totalBreakMinutes}
+        signedInAt={todayAttendance?.signIn ?? null}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+        name={employeeName}
+        role={employeeRole}
+        isSignInDisabled={isSignInDisabled}
+        isSignOutDisabled={isSignOutDisabled}
+        activeBreak={activeBreak}
+      />
 
-      {/* Live Counters Row */}
-      <div className="flex flex-wrap gap-3 items-stretch">
-        {/* Work Time Counter */}
-        <Card className="flex-1 min-w-45 border-green-200/60 dark:border-green-800/40">
-          <CardContent className="py-3 px-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40">
-              <span className="text-lg">⏱️</span>
-            </div>
-            <div>
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Work Time</p>
-              <p className="font-mono text-xl font-bold text-green-700 dark:text-green-400 tabular-nums leading-tight">{formatWorkedTime(workedSeconds)}</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ─── KPI strip ────────────────────────────────────────────── */}
+      <KpiStrip
+        hoursWorked={hoursWorked}
+        targetHours={targetHours}
+        punctualityPct={punctualityPct}
+        lateCount={monthlyLateCount}
+        leaveBalance={totalLeaveAvailable}
+        isLoading={summaryLoading}
+      />
 
-        {/* Active Break Counter */}
-        {hasSignedInToday && activeBreak && (
-          <Card className="flex-1 min-w-45 border-orange-200/60 dark:border-orange-800/40 bg-orange-50/30 dark:bg-orange-950/10">
-            <CardContent className="py-3 px-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40">
-                <span className="text-lg">{getBreakTypeIcon(activeBreak.breakType)}</span>
-              </div>
-              <div>
-                <p className="text-[11px] font-medium text-orange-600 dark:text-orange-400 uppercase tracking-wider">{getBreakTypeLabel(activeBreak.breakType)}</p>
-                <p className="font-mono text-xl font-bold text-orange-700 dark:text-orange-400 tabular-nums leading-tight">
-                  {Math.floor(breakElapsedMinutes / 60)}h {breakElapsedMinutes % 60}m
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-      {/* Section Header: Attendance & Breaks */}
+      {/* ─── Attendance & Breaks section ─────────────────────────── */}
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Attendance & Breaks</h2>
-        {hasSignedInToday && (
-          <Link href="/dashboard/employee/attendance/reconciliation">
-            <Button variant="outline" size="sm" className="text-xs">
-              Attendance Reconciliation
-            </Button>
-          </Link>
-        )}
+        <h2 className="text-base font-semibold tracking-tight">Attendance &amp; Breaks</h2>
       </div>
 
-      {!hasSignedInToday && !attendanceLoading && (
-        <Card className="border border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-900/10">
-          <CardContent className="py-3 flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
-              <ClockAlert className="h-4 w-4 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">You haven&apos;t signed in today</p>
-              <p className="text-xs text-muted-foreground">
-                Tap the sign-in button to mark your attendance for today.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Monthly Late Count */}
-      {monthlyLateCount > 0 && (
-        <Card className={cn(
-          "border",
-          monthlyLateCount >= 3
-            ? "border-yellow-500/60 bg-yellow-50/50 dark:bg-yellow-950/20"
-            : "border-orange-200/60"
-        )}>
-          <CardContent className="py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                  monthlyLateCount >= 3 ? "bg-yellow-100 dark:bg-yellow-900/40" : "bg-orange-100 dark:bg-orange-900/40"
-                )}>
-                  <ClockAlert
-                    className={cn(
-                      "h-4 w-4",
-                      monthlyLateCount >= 3 ? "text-yellow-600" : "text-orange-600"
-                    )}
-                  />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Monthly Late Count</p>
-                  <p className="text-xs text-muted-foreground">
-                    {monthlyLateCount >= leaveDeductionDay - 1
-                      ? `Warning: One more late will result in a leave adjustment.`
-                      : `Leave is deducted starting from the ${leaveDeductionDay}th late in a month.`}
-                  </p>
-                </div>
-              </div>
-              <Badge
-                variant={monthlyLateCount >= 3 ? "destructive" : "secondary"}
-                className="text-base px-3 py-0.5 tabular-nums"
-              >
-                {monthlyLateCount}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Row 1: AttendanceCard + BreakTracker side by side */}
-      <div className="grid gap-6 lg:grid-cols-2 items-start">
+      <div className="grid items-start gap-5 lg:grid-cols-2">
         <AttendanceCard
           todayAttendance={todayAttendance}
           attendanceLoading={attendanceLoading}
@@ -650,13 +777,13 @@ export default function EmployeeDashboard() {
         {hasSignedInToday ? (
           <BreakTracker />
         ) : (
-          <Card className="flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 min-h-70">
+          <Card className="border-muted-foreground/20 flex min-h-70 flex-col items-center justify-center border-2 border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Coffee className="h-8 w-8 text-muted-foreground/50" />
+              <div className="bg-muted mb-4 rounded-full p-4">
+                <Coffee className="text-muted-foreground/50 h-8 w-8" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">Break Tracker</p>
-              <p className="text-xs text-muted-foreground/70 mt-1 max-w-50">
+              <p className="text-muted-foreground text-sm font-medium">Break Tracker</p>
+              <p className="text-muted-foreground/70 mt-1 max-w-50 text-xs">
                 Sign in first to start tracking your breaks.
               </p>
             </CardContent>
@@ -664,20 +791,19 @@ export default function EmployeeDashboard() {
         )}
       </div>
 
-      {/* Row 2: AttendanceCharts + BreakHistoryCard side by side */}
-      <div className="grid gap-6 lg:grid-cols-2 items-start">
+      <div className="grid items-start gap-5 lg:grid-cols-2">
         <AttendanceCharts attendanceBarData={attendanceBarData} />
 
         {hasSignedInToday ? (
           <BreakHistoryCard />
         ) : (
-          <Card className="flex flex-col items-center justify-center border-dashed border-2 border-muted-foreground/20 min-h-70">
+          <Card className="border-muted-foreground/20 flex min-h-70 flex-col items-center justify-center border-2 border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <History className="h-8 w-8 text-muted-foreground/50" />
+              <div className="bg-muted mb-4 rounded-full p-4">
+                <History className="text-muted-foreground/50 h-8 w-8" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">Break History</p>
-              <p className="text-xs text-muted-foreground/70 mt-1 max-w-50">
+              <p className="text-muted-foreground text-sm font-medium">Break History</p>
+              <p className="text-muted-foreground/70 mt-1 max-w-50 text-xs">
                 Your break history for today will appear here after you sign in.
               </p>
             </CardContent>
@@ -685,20 +811,17 @@ export default function EmployeeDashboard() {
         )}
       </div>
 
-      {/* Late Attendance Modals */}
       <LateAttendanceWarningModal
         open={showWarningModal}
         onClose={() => setShowWarningModal(false)}
         onConfirm={handleWarningModalConfirm}
         lateCount={monthlyLateCount}
       />
-
       <LateAttendanceConfirmationModal
         open={showConfirmationModal}
         onClose={() => setShowConfirmationModal(false)}
         lateCount={monthlyLateCount}
       />
-
     </div>
   );
 }
