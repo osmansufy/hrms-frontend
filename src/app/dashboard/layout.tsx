@@ -1,7 +1,7 @@
 "use client";
 
 import { Protected } from "@/components/auth/protected";
-import { AppShell } from "@/modules/shared/components/app-shell";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default function DashboardLayout({
   children,

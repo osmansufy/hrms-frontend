@@ -235,17 +235,11 @@ export function getPrimaryRole(roles: Role[]): Role {
   return priority.find((role) => roles.includes(role)) ?? "employee";
 }
 
-export function filterNav(
-  items: NavItem[],
-  roles: Role[],
-  permissions: PermissionKey[]
-) {
+export function filterNav(items: NavItem[], roles: Role[], permissions: PermissionKey[]) {
   return items.filter((item) => {
-    const roleAllowed =
-      !item.roles || item.roles.some((role) => roles.includes(role));
+    const roleAllowed = !item.roles || item.roles.some((role) => roles.includes(role));
     const permAllowed =
-      !item.permissions ||
-      item.permissions.every((perm) => permissions.includes(perm));
+      !item.permissions || item.permissions.every((perm) => permissions.includes(perm));
     return roleAllowed && permAllowed;
   });
 }
