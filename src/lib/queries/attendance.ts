@@ -1,9 +1,4 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  keepPreviousData,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import {
@@ -43,17 +38,16 @@ import {
   getAttendanceBreaks,
   getSubordinateBreaks,
   type BreakType,
+  type AttendancePolicy,
+  type UpdateWorkSchedulePayload,
 } from "@/lib/api/attendance";
+import type { AxiosError } from "axios";
 
 export const attendanceKeys = {
-  today: (userId: string | undefined) =>
-    ["attendance", "today", userId] as const,
-  history: (params?: AttendanceListParams) =>
-    ["attendance", "history", params] as const,
-  list: (params?: AttendanceListParams) =>
-    ["attendance", "list", params] as const,
-  employeeHistory: (userId: string | undefined) =>
-    ["attendance", "employee", userId] as const,
+  today: (userId: string | undefined) => ["attendance", "today", userId] as const,
+  history: (params?: AttendanceListParams) => ["attendance", "history", params] as const,
+  list: (params?: AttendanceListParams) => ["attendance", "list", params] as const,
+  employeeHistory: (userId: string | undefined) => ["attendance", "employee", userId] as const,
   subordinateAttendance: (userId: string, params?: AttendanceListParams) =>
     ["attendance", "subordinate", userId, params ?? {}] as const,
   // Break tracking keys
@@ -82,7 +76,7 @@ export function useTodayAttendance(userId?: string) {
     queryKey: attendanceKeys.today(userId),
     queryFn: () => {
       if (!userId) throw new Error("Missing user id");
-      return getTodayAttendance(userId);
+      return getTodayAttendance();
     },
     enabled: Boolean(userId),
     staleTime: 30_000,
@@ -133,10 +127,7 @@ export function useSubordinateAttendance(
   params?: AttendanceListParams,
 ) {
   return useQuery({
-    queryKey: attendanceKeys.subordinateAttendance(
-      subordinateUserId || "",
-      params,
-    ),
+    queryKey: attendanceKeys.subordinateAttendance(subordinateUserId || "", params),
     queryFn: () => {
       if (!subordinateUserId) throw new Error("Subordinate user ID required");
       return getSubordinateAttendance(subordinateUserId, params || {});
@@ -211,9 +202,7 @@ export function useUpdateAttendanceRecord() {
       toast.success("Attendance record updated");
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update record",
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to update record");
     },
   });
 }
@@ -238,9 +227,7 @@ export function useDeleteAttendanceRecord() {
       toast.success("Attendance record deleted");
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete record",
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to delete record");
     },
   });
 }
@@ -266,7 +253,7 @@ export function useCreateAttendancePolicy() {
 export function useUpdateAttendancePolicy() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: string; payload: any }) =>
+    mutationFn: (v: { id: string; payload: Partial<AttendancePolicy> }) =>
       updateAttendancePolicy(v.id, v.payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance", "policies"] });
@@ -352,7 +339,7 @@ export function useCreateWorkSchedule() {
 export function useUpdateWorkSchedule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: string; payload: any }) =>
+    mutationFn: (v: { id: string; payload: UpdateWorkSchedulePayload }) =>
       updateWorkSchedule(v.id, v.payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["work-schedules"] });
@@ -373,11 +360,7 @@ export function useDeleteWorkSchedule() {
 }
 
 // Monthly late count hook
-export function useMonthlyLateCount(
-  userId: string | undefined,
-  year?: number,
-  month?: number,
-) {
+export function useMonthlyLateCount(userId: string | undefined, year?: number, month?: number) {
   return useQuery({
     queryKey: ["attendance", "monthly-late-count", userId, year, month],
     queryFn: () => {
@@ -405,10 +388,7 @@ export function useMonthlyAttendanceSummary(params: {
 }
 
 // Employee self monthly attendance summary (uses authenticated user on backend)
-export function useMyMonthlyAttendanceSummary(params: {
-  year: number;
-  month: number;
-}) {
+export function useMyMonthlyAttendanceSummary(params: { year: number; month: number }) {
   return useQuery({
     queryKey: ["attendance", "my-monthly-summary", params],
     queryFn: () => getMyMonthlyAttendanceSummary(params),
@@ -495,8 +475,7 @@ export function useStartBreak(userId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: { breakType: BreakType; reason?: string }) =>
-      startBreak(payload),
+    mutationFn: (payload: { breakType: BreakType; reason?: string }) => startBreak(payload),
     onSuccess: () => {
       // Invalidate active break query to refetch
       queryClient.invalidateQueries({
@@ -514,16 +493,13 @@ export function useStartBreak(userId?: string) {
       }
       toast.success("Break started successfully");
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<{ message: string | { message: string } }>) => {
       const errorData = error.response?.data;
       let message = "Failed to start break";
 
       if (errorData?.message) {
         // Handle nested message object from API
-        if (
-          typeof errorData.message === "object" &&
-          errorData.message.message
-        ) {
+        if (typeof errorData.message === "object" && errorData.message.message) {
           message = errorData.message.message;
         } else if (typeof errorData.message === "string") {
           message = errorData.message;
@@ -560,16 +536,13 @@ export function useEndBreak(userId?: string) {
       }
       toast.success("Break ended successfully");
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<{ message: string | { message: string } }>) => {
       const errorData = error.response?.data;
       let message = "Failed to end break";
 
       if (errorData?.message) {
         // Handle nested message object from API
-        if (
-          typeof errorData.message === "object" &&
-          errorData.message.message
-        ) {
+        if (typeof errorData.message === "object" && errorData.message.message) {
           message = errorData.message.message;
         } else if (typeof errorData.message === "string") {
           message = errorData.message;
