@@ -156,13 +156,23 @@ export function BreakDialog({ open, onOpenChange, mode, breakData }: BreakDialog
     },
   });
 
+  // datetime-local inputs give "YYYY-MM-DDTHH:mm" (no timezone). new Date(string)
+  // is browser-dependent for strings without timezone — some treat as UTC, some as local.
+  // new Date(year, month-1, day, hours, minutes) always uses local time in all browsers.
+  const localDatetimeToISO = (datetimeLocal: string): string => {
+    const [datePart, timePart] = datetimeLocal.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hours, minutes] = (timePart || "00:00").split(":").map(Number);
+    return new Date(year, month - 1, day, hours, minutes).toISOString();
+  };
+
   const onSubmit = (data: BreakFormData) => {
     if (mode === "create") {
       createMutation.mutate({
         userId: data.userId,
         attendanceId: data.attendanceId,
-        startTime: new Date(data.startTime).toISOString(),
-        endTime: data.endTime ? new Date(data.endTime).toISOString() : undefined,
+        startTime: localDatetimeToISO(data.startTime),
+        endTime: data.endTime ? localDatetimeToISO(data.endTime) : undefined,
         breakType: data.breakType,
         location: data.location,
         reason: data.reason,
@@ -171,8 +181,8 @@ export function BreakDialog({ open, onOpenChange, mode, breakData }: BreakDialog
       updateMutation.mutate({
         id: breakData.id,
         data: {
-          startTime: new Date(data.startTime).toISOString(),
-          endTime: data.endTime ? new Date(data.endTime).toISOString() : undefined,
+          startTime: localDatetimeToISO(data.startTime),
+          endTime: data.endTime ? localDatetimeToISO(data.endTime) : undefined,
           breakType: data.breakType,
           location: data.location,
           reason: data.reason,
