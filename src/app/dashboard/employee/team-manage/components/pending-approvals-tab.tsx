@@ -2,661 +2,721 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useManagerPendingLeaves, useManagerApproveLeave, useManagerRejectLeave } from "@/lib/queries/leave";
+import {
+  useManagerPendingLeaves,
+  useManagerApproveLeave,
+  useManagerRejectLeave,
+} from "@/lib/queries/leave";
 import { AlertCircle, Check, Loader2, X, User, CheckSquare, History, Edit } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { approveLeave, rejectLeave, overrideLeaveAsManager } from "@/lib/api/leave";
+import {
+  approveLeave,
+  rejectLeave,
+  overrideLeaveAsManager,
+  type LeaveWithApprovals,
+} from "@/lib/api/leave";
 import { EmployeeLeaveHistoryDialog } from "@/components/employee-leave-history-dialog";
 
 import { formatDateInDhaka } from "@/lib/utils";
 
-// Helper function to format dates
+type ApiErrorShape = {
+  response?: {
+    status?: number;
+    data?: {
+      message?: unknown;
+    };
+  };
+  message?: unknown;
+};
+
+type EditableManagerLeave = LeaveWithApprovals & {
+  overrideReason?: string | null;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  const e = error as ApiErrorShape;
+  return (
+    (typeof e?.response?.data?.message === "string" && e.response.data.message) ||
+    (typeof e?.message === "string" && e.message) ||
+    fallback
+  );
+}
+
 function formatDate(dateString: string) {
-    return formatDateInDhaka(dateString, "long");
+  return formatDateInDhaka(dateString, "long");
 }
 
 export function PendingApprovalsTab() {
-    const queryClient = useQueryClient();
-    const { data: pendingLeaves, isLoading } = useManagerPendingLeaves();
-    const approveMutation = useManagerApproveLeave();
-    const rejectMutation = useManagerRejectLeave();
-    const [selectedLeave, setSelectedLeave] = useState<{ id: string; action: "approve" | "reject"; employeeName: string } | null>(null);
-    const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
-    const [showBulkConfirm, setShowBulkConfirm] = useState<{ action: "approve" | "reject" } | null>(null);
-    const [viewHistoryFor, setViewHistoryFor] = useState<{ userId: string; employeeName: string } | null>(null);
-    const [editingLeave, setEditingLeave] = useState<any | null>(null);
-    const [editFormData, setEditFormData] = useState({
-        startDate: "",
-        endDate: "",
-        reason: "",
-        overrideReason: "",
-    });
+  const queryClient = useQueryClient();
+  const { data: pendingLeaves, isLoading } = useManagerPendingLeaves();
+  const approveMutation = useManagerApproveLeave();
+  const rejectMutation = useManagerRejectLeave();
+  const [selectedLeave, setSelectedLeave] = useState<{
+    id: string;
+    action: "approve" | "reject";
+    employeeName: string;
+  } | null>(null);
+  const [selectedLeaveIds, setSelectedLeaveIds] = useState<string[]>([]);
+  const [showBulkConfirm, setShowBulkConfirm] = useState<{ action: "approve" | "reject" } | null>(
+    null,
+  );
+  const [viewHistoryFor, setViewHistoryFor] = useState<{
+    userId: string;
+    employeeName: string;
+  } | null>(null);
+  const [editingLeave, setEditingLeave] = useState<EditableManagerLeave | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    startDate: "",
+    endDate: "",
+    reason: "",
+    overrideReason: "",
+  });
 
-    const bulkApproveMutation = useMutation({
-        mutationFn: async (leaveIds: string[]) => {
-            await Promise.all(leaveIds.map((id) => approveLeave(id)));
-        },
-        onSuccess: (_data, variables) => {
-            toast.success(`${variables.length} leave requests approved`, {
-                description: "All selected leaves have been approved and moved to HR",
-            });
-            setSelectedLeaveIds([]);
-            setShowBulkConfirm(null);
-            queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
-        },
-        onError: (error: any) => {
-            const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve leaves";
-            toast.error("Bulk Approval Failed", { description: errorMessage });
-        }
-    });
+  const bulkApproveMutation = useMutation({
+    mutationFn: async (leaveIds: string[]) => {
+      await Promise.all(leaveIds.map((id) => approveLeave(id)));
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(`${variables.length} leave requests approved`, {
+        description: "All selected leaves have been approved and moved to HR",
+      });
+      setSelectedLeaveIds([]);
+      setShowBulkConfirm(null);
+      queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
+    },
+    onError: (error: unknown) => {
+      toast.error("Bulk Approval Failed", {
+        description: getErrorMessage(error, "Failed to approve leaves"),
+      });
+    },
+  });
 
-    const bulkRejectMutation = useMutation({
-        mutationFn: async ({ leaveIds }: { leaveIds: string[] }) => {
-            await Promise.all(leaveIds.map((id) => rejectLeave(id)));
-        },
-        onSuccess: (_data, variables) => {
-            toast.success(`${variables.leaveIds.length} leave requests rejected`);
-            setSelectedLeaveIds([]);
-            setShowBulkConfirm(null);
-            queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
-        },
-        onError: (error: any) => {
-            const errorMessage = error?.response?.data?.message || error?.message || "Failed to reject leaves";
-            toast.error("Bulk Rejection Failed", { description: errorMessage });
-        }
-    });
+  const bulkRejectMutation = useMutation({
+    mutationFn: async ({ leaveIds }: { leaveIds: string[] }) => {
+      await Promise.all(leaveIds.map((id) => rejectLeave(id)));
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(`${variables.leaveIds.length} leave request(s) cancelled`);
+      setSelectedLeaveIds([]);
+      setShowBulkConfirm(null);
+      queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
+    },
+    onError: (error: unknown) => {
+      toast.error("Bulk Rejection Failed", {
+        description: getErrorMessage(error, "Failed to reject leaves"),
+      });
+    },
+  });
 
-    const overrideMutation = useMutation({
-        mutationFn: (payload: {
-            id: string;
-            data: {
-                startDate?: string;
-                endDate?: string;
-                reason?: string;
-                overrideReason: string;
-            };
-        }) => overrideLeaveAsManager(payload.id, payload.data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
-            toast.success("Leave updated successfully", {
-                description: "The leave details have been overridden with the new information.",
-            });
-            setEditingLeave(null);
-            setEditFormData({ startDate: "", endDate: "", reason: "", overrideReason: "" });
-        },
-        onError: (error: any) => {
-            const errorMessage = error?.response?.data?.message || error?.message || "Failed to override leave";
-            toast.error("Override Failed", { description: errorMessage });
-        }
-    });
+  const overrideMutation = useMutation({
+    mutationFn: (payload: {
+      id: string;
+      data: {
+        startDate?: string;
+        endDate?: string;
+        reason?: string;
+        overrideReason: string;
+      };
+    }) => overrideLeaveAsManager(payload.id, payload.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave", "manager", "pending"] });
+      toast.success("Leave updated successfully", {
+        description: "The leave details have been overridden with the new information.",
+      });
+      setEditingLeave(null);
+      setEditFormData({ startDate: "", endDate: "", reason: "", overrideReason: "" });
+    },
+    onError: (error: unknown) => {
+      toast.error("Override Failed", {
+        description: getErrorMessage(error, "Failed to override leave"),
+      });
+    },
+  });
 
-    const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            const allIds = leavesInPending.map(leave => leave.id);
-            setSelectedLeaveIds(allIds);
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = leavesInPending.map((leave) => leave.id);
+      setSelectedLeaveIds(allIds);
+    } else {
+      setSelectedLeaveIds([]);
+    }
+  };
+
+  const handleSelectLeave = (leaveId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedLeaveIds((prev) => [...prev, leaveId]);
+    } else {
+      setSelectedLeaveIds((prev) => prev.filter((id) => id !== leaveId));
+    }
+  };
+
+  const handleBulkApprove = () => {
+    bulkApproveMutation.mutate(selectedLeaveIds);
+  };
+
+  const handleBulkReject = () => {
+    bulkRejectMutation.mutate({
+      leaveIds: selectedLeaveIds,
+    });
+  };
+
+  const handleApprove = async (id: string) => {
+    try {
+      await approveMutation.mutateAsync(id);
+      toast.success("Leave approved successfully", {
+        description:
+          "Status changed to PROCESSING. The leave will now move to HR for final approval.",
+      });
+      setSelectedLeave(null);
+    } catch (error: unknown) {
+      const e = error as ApiErrorShape;
+      const errorString = getErrorMessage(error, "Failed to approve leave");
+
+      if (e?.response?.status === 403) {
+        if (errorString.toLowerCase().includes("reporting manager")) {
+          toast.error("Not Authorized", {
+            description:
+              "You are not the assigned reporting manager for this employee. Only the assigned reporting manager can approve this request.",
+          });
         } else {
-            setSelectedLeaveIds([]);
+          toast.error("Permission Denied", {
+            description: errorString,
+          });
         }
-    };
-
-    const handleSelectLeave = (leaveId: string, checked: boolean) => {
-        if (checked) {
-            setSelectedLeaveIds(prev => [...prev, leaveId]);
+      } else if (e?.response?.status === 400) {
+        if (errorString.toLowerCase().includes("reporting manager")) {
+          toast.error("No Reporting Manager", {
+            description:
+              "This employee does not have a reporting manager assigned. Please contact HR to assign a reporting manager first.",
+          });
         } else {
-            setSelectedLeaveIds(prev => prev.filter(id => id !== leaveId));
+          toast.error("Invalid Request", {
+            description: errorString,
+          });
         }
-    };
-
-    const handleBulkApprove = () => {
-        bulkApproveMutation.mutate(selectedLeaveIds);
-    };
-
-    const handleBulkReject = () => {
-        bulkRejectMutation.mutate({
-            leaveIds: selectedLeaveIds
+      } else {
+        toast.error("Approval Failed", {
+          description: errorString,
         });
-    };
+      }
+    }
+  };
 
-    const handleApprove = async (id: string) => {
-        try {
-            await approveMutation.mutateAsync(id);
-            toast.success("Leave approved successfully", {
-                description: "Status changed to PROCESSING. The leave will now move to HR for final approval."
-            });
-            setSelectedLeave(null);
-        } catch (error: any) {
-            const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve leave";
-            const errorString = typeof errorMessage === 'string' ? errorMessage : String(errorMessage);
+  const handleReject = async (id: string) => {
+    try {
+      await rejectMutation.mutateAsync(id);
+      toast.success("Leave request cancelled successfully");
+      setSelectedLeave(null);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to reject leave"));
+    }
+  };
 
-            // Check for specific error types
-            if (error?.response?.status === 403) {
-                if (errorString.toLowerCase().includes("reporting manager")) {
-                    toast.error("Not Authorized", {
-                        description: "You are not the assigned reporting manager for this employee. Only the assigned reporting manager can approve this request."
-                    });
-                } else {
-                    toast.error("Permission Denied", {
-                        description: errorString
-                    });
-                }
-            } else if (error?.response?.status === 400) {
-                if (errorString.toLowerCase().includes("reporting manager")) {
-                    toast.error("No Reporting Manager", {
-                        description: "This employee does not have a reporting manager assigned. Please contact HR to assign a reporting manager first."
-                    });
-                } else {
-                    toast.error("Invalid Request", {
-                        description: errorString
-                    });
-                }
-            } else {
-                toast.error("Approval Failed", {
-                    description: errorString
-                });
-            }
-        }
-    };
+  const handleOpenEdit = (leave: EditableManagerLeave) => {
+    setEditingLeave(leave);
+    setEditFormData({
+      startDate: leave.startDate.split("T")[0],
+      endDate: leave.endDate.split("T")[0],
+      reason: leave.reason,
+      overrideReason: leave.overrideReason || "",
+    });
+  };
 
-    const handleReject = async (id: string) => {
-        try {
-            await rejectMutation.mutateAsync(id);
-            toast.success("Leave rejected successfully");
-            setSelectedLeave(null);
-        } catch (error: any) {
-            const errorMessage = error?.response?.data?.message || error?.message || "Failed to reject leave";
-            const errorString = typeof errorMessage === 'string' ? errorMessage : String(errorMessage);
-            toast.error(errorString);
-        }
-    };
-
-    const handleOpenEdit = (leave: any) => {
-        setEditingLeave(leave);
-        setEditFormData({
-            startDate: leave.startDate.split("T")[0],
-            endDate: leave.endDate.split("T")[0],
-            reason: leave.reason,
-            overrideReason: leave.overrideReason || "",
-        });
-    };
-
-    const handleSaveEdit = async () => {
-        if (!editingLeave || !editFormData.overrideReason.trim()) {
-            toast.error("Override reason is required");
-            return;
-        }
-
-        overrideMutation.mutate({
-            id: editingLeave.id,
-            data: {
-                startDate: editFormData.startDate,
-                endDate: editFormData.endDate,
-                reason: editFormData.reason,
-                overrideReason: editFormData.overrideReason,
-            },
-        });
-    };
-
-    if (isLoading) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Pending Approvals</CardTitle>
-                    <CardDescription>
-                        Leave requests from your team members awaiting your approval (Step 1)
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-center py-8">
-                        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                    </div>
-                </CardContent>
-            </Card>
-        );
+  const handleSaveEdit = async () => {
+    if (!editingLeave || !editFormData.overrideReason.trim()) {
+      toast.error("Override reason is required");
+      return;
     }
 
-    const leavesInPending = pendingLeaves?.filter((leave) => leave.status === "PENDING") || [];
+    overrideMutation.mutate({
+      id: editingLeave.id,
+      data: {
+        startDate: editFormData.startDate,
+        endDate: editFormData.endDate,
+        reason: editFormData.reason,
+        overrideReason: editFormData.overrideReason,
+      },
+    });
+  };
 
+  if (isLoading) {
     return (
-        <>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Pending Approvals</CardTitle>
-                    <CardDescription>
-                        Leave requests from your direct reports with{" "}
-                        <Badge variant="secondary">PENDING</Badge> status awaiting your approval (Step 1).
-                        After you approve, they will move to HR for final approval.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {leavesInPending.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <AlertCircle className="mb-4 size-12 text-muted-foreground" />
-                            <h3 className="mb-2 text-lg font-semibold">No pending approvals</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Leave requests from your team members will appear here
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {/* Bulk Actions */}
-                            {selectedLeaveIds.length > 0 && (
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-3">
-                                    <div className="flex items-center gap-2">
-                                        <CheckSquare className="size-5 text-blue-600" />
-                                        <span className="text-sm font-medium">
-                                            {selectedLeaveIds.length} selected
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="border-green-600 text-green-600 hover:bg-green-50"
-                                            onClick={() => setShowBulkConfirm({ action: "approve" })}
-                                            disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
-                                        >
-                                            <Check className="mr-1 size-4" />
-                                            Approve Selected
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="border-red-600 text-red-600 hover:bg-red-50"
-                                            onClick={() => setShowBulkConfirm({ action: "reject" })}
-                                            disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
-                                        >
-                                            <X className="mr-1 size-4" />
-                                            Reject Selected
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Approvals</CardTitle>
+          <CardDescription>
+            Leave requests from your team members awaiting your approval (Step 1)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="text-muted-foreground size-6 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-                            <div className="rounded-md border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-12">
-                                                <Checkbox
-                                                    checked={
-                                                        selectedLeaveIds.length === leavesInPending.length &&
-                                                        leavesInPending.length > 0
-                                                    }
-                                                    onCheckedChange={handleSelectAll}
-                                                />
-                                            </TableHead>
-                                            <TableHead>Employee</TableHead>
-                                            <TableHead>Leave Type</TableHead>
-                                            <TableHead>Balance</TableHead>
-                                            <TableHead>Dates</TableHead>
-                                            <TableHead>Duration</TableHead>
-                                            <TableHead>Reason</TableHead>
-                                            <TableHead>Applied On</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {leavesInPending.map((leave) => {
-                                            const startDate = new Date(leave.startDate);
-                                            const endDate = new Date(leave.endDate);
-                                            const duration = Math.ceil(
-                                                (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-                                            ) + 1;
-                                            const employeeName = leave?.employee
-                                                ? `${leave?.employee?.firstName} ${leave?.employee?.lastName}`
-                                                : "Unknown";
-                                            const balance = null;
-                                            const hasInsufficientBalance = balance !== null && duration > balance;
+  const leavesInPending = pendingLeaves?.filter((leave) => leave.status === "PENDING") || [];
 
-                                            return (
-                                                <TableRow key={leave.id}>
-                                                    <TableCell>
-                                                        <Checkbox
-                                                            checked={selectedLeaveIds.includes(leave.id)}
-                                                            onCheckedChange={(checked: boolean) =>
-                                                                handleSelectLeave(leave.id, checked as boolean)
-                                                            }
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="font-medium">
-                                                        <div className="flex items-center gap-2">
-                                                            <User className="size-4 text-muted-foreground" />
-                                                            {employeeName}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline">{leave.leaveType?.name || "N/A"}</Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {balance !== null && typeof balance === 'number' ? (
-                                                            <div className="flex flex-col">
-                                                                <span className={hasInsufficientBalance ? "font-semibold text-red-600" : "font-medium"}>
-                                                                    {balance} days
-                                                                </span>
-                                                                {hasInsufficientBalance && (
-                                                                    <span className="text-xs text-red-500 mt-0.5">
-                                                                        Insufficient
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-muted-foreground text-sm">—</span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="text-sm">
-                                                            <div>{formatDate(leave.startDate)}</div>
-                                                            <div className="text-muted-foreground">
-                                                                to {formatDate(leave.endDate)}
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="secondary">
-                                                            {duration} {duration === 1 ? "day" : "days"}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="max-w-xs">
-                                                        <p className="truncate text-sm">{leave.reason}</p>
-                                                    </TableCell>
-                                                    <TableCell className="text-sm text-muted-foreground">
-                                                        {formatDate(leave.createdAt)}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            {leave.user?.id && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="text-muted-foreground hover:text-foreground"
-                                                                    onClick={() => setViewHistoryFor({
-                                                                        userId: leave.user.id,
-                                                                        employeeName
-                                                                    })}
-                                                                    title="View leave history"
-                                                                >
-                                                                    <History className="size-4" />
-                                                                </Button>
-                                                            )}
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="border-blue-600 text-blue-600 hover:bg-blue-50"
-                                                                onClick={() => handleOpenEdit(leave)}
-                                                                disabled={
-                                                                    approveMutation.isPending ||
-                                                                    rejectMutation.isPending ||
-                                                                    overrideMutation.isPending ||
-                                                                    bulkApproveMutation.isPending ||
-                                                                    bulkRejectMutation.isPending
-                                                                }
-                                                            >
-                                                                <Edit className="mr-1 size-4" />
-                                                                Edit
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="border-green-600 text-green-600 hover:bg-green-50"
-                                                                onClick={() => setSelectedLeave({ id: leave.id, action: "approve", employeeName })}
-                                                                disabled={approveMutation.isPending || rejectMutation.isPending}
-                                                            >
-                                                                <Check className="mr-1 size-4" />
-                                                                Approve
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="border-red-600 text-red-600 hover:bg-red-50"
-                                                                onClick={() => setSelectedLeave({ id: leave.id, action: "reject", employeeName })}
-                                                                disabled={approveMutation.isPending || rejectMutation.isPending}
-                                                            >
-                                                                <X className="mr-1 size-4" />
-                                                                Reject
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Edit Dialog */}
-            {editingLeave && (
-                <Dialog open={!!editingLeave} onOpenChange={(open) => !open && setEditingLeave(null)}>
-                    <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>Edit Leave Details</DialogTitle>
-                            <DialogDescription>
-                                Modify the leave dates and reason. Override reason is mandatory.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Start Date</label>
-                                    <Input
-                                        type="date"
-                                        value={editFormData.startDate}
-                                        onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">End Date</label>
-                                    <Input
-                                        type="date"
-                                        value={editFormData.endDate}
-                                        onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Reason</label>
-                                <Textarea
-                                    value={editFormData.reason}
-                                    onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
-                                    placeholder="Leave reason"
-                                    rows={3}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-red-600">Override Reason *</label>
-                                <Textarea
-                                    value={editFormData.overrideReason}
-                                    onChange={(e) => setEditFormData({ ...editFormData, overrideReason: e.target.value })}
-                                    placeholder="Why are you making these changes? (Required)"
-                                    rows={3}
-                                    className="border-red-200"
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setEditingLeave(null)}>
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={handleSaveEdit}
-                                disabled={overrideMutation.isPending}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                {overrideMutation.isPending ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
-                                ) : null}
-                                Save Changes
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
-
-            {/* Bulk Confirmation Dialog */}
-            {showBulkConfirm && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-                    <div className="bg-background p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-                        <h2 className="text-lg font-semibold mb-2">
-                            {showBulkConfirm.action === "approve"
-                                ? "Bulk Approve Leave Requests"
-                                : "Bulk Reject Leave Requests"}
-                        </h2>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            {showBulkConfirm.action === "approve" ? (
-                                <>
-                                    You are approving <strong>{selectedLeaveIds.length}</strong> leave requests.
-                                    All selected leaves will be moved to HR for final approval.
-                                </>
-                            ) : (
-                                <>
-                                    You are rejecting <strong>{selectedLeaveIds.length}</strong> leave requests.
-                                    All selected employees will be notified. This action cannot be undone.
-                                </>
-                            )}
-                        </p>
-
-                        <div className="mb-4 rounded-lg border p-3 bg-muted/30">
-                            <p className="text-sm font-medium mb-2">Selected Leave Requests:</p>
-                            <ul className="text-sm space-y-1 max-h-50 overflow-y-auto">
-                                {leavesInPending
-                                    .filter(leave => selectedLeaveIds.includes(leave.id))
-                                    .map(leave => {
-                                        const employeeName = leave.user?.employee
-                                            ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
-                                            : "Unknown";
-                                        return (
-                                            <li key={leave.id} className="flex items-center gap-2">
-                                                <Check className="size-3 text-muted-foreground" />
-                                                <span>
-                                                    {employeeName} - {leave.leaveType?.name} (
-                                                    {formatDate(leave.startDate)} to {formatDate(leave.endDate)})
-                                                </span>
-                                            </li>
-                                        );
-                                    })}
-                            </ul>
-                        </div>
-
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setShowBulkConfirm(null)}>
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    if (showBulkConfirm.action === "approve") {
-                                        handleBulkApprove();
-                                    } else {
-                                        handleBulkReject();
-                                    }
-                                }}
-                                className={
-                                    showBulkConfirm.action === "approve"
-                                        ? "bg-green-600 hover:bg-green-700"
-                                        : "bg-red-600 hover:bg-red-700"
-                                }
-                                disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
-                            >
-                                {bulkApproveMutation.isPending || bulkRejectMutation.isPending ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
-                                ) : null}
-                                Confirm{" "}
-                                {showBulkConfirm.action === "approve" ? "Approval" : "Rejection"}
-                            </Button>
-                        </div>
-                    </div>
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Approvals</CardTitle>
+          <CardDescription>
+            Leave requests from your direct reports with <Badge variant="secondary">PENDING</Badge>{" "}
+            status awaiting your approval (Step 1). Approve to forward to HR, or cancel to decline
+            the request.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {leavesInPending.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <AlertCircle className="text-muted-foreground mb-4 size-12" />
+              <h3 className="mb-2 text-lg font-semibold">No pending approvals</h3>
+              <p className="text-muted-foreground text-sm">
+                Leave requests from your team members will appear here
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Bulk Actions */}
+              {selectedLeaveIds.length > 0 && (
+                <div className="bg-muted/50 flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="size-5 text-blue-600" />
+                    <span className="text-sm font-medium">{selectedLeaveIds.length} selected</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-green-600 text-green-600 hover:bg-green-50"
+                      onClick={() => setShowBulkConfirm({ action: "approve" })}
+                      disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
+                    >
+                      <Check className="mr-1 size-4" />
+                      Approve Selected
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-600 text-red-600 hover:bg-red-50"
+                      onClick={() => setShowBulkConfirm({ action: "reject" })}
+                      disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
+                    >
+                      <X className="mr-1 size-4" />
+                      Cancel Selected
+                    </Button>
+                  </div>
                 </div>
-            )}
+              )}
 
-            {/* Confirmation Dialog */}
-            {selectedLeave && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-                    <div className="bg-background p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-                        <h2 className="text-lg font-semibold mb-2">
-                            {selectedLeave.action === "approve" ? "Approve Leave Request" : "Reject Leave Request"}
-                        </h2>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            {selectedLeave.action === "approve" ? (
-                                <>
-                                    You are approving <strong>{selectedLeave.employeeName}</strong>'s leave request.
-                                    After your approval (Step 1), this leave will be forwarded to HR for final approval (Step 2).
-                                    The employee's leave balance will be deducted only after HR approval.
-                                </>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={
+                            selectedLeaveIds.length === leavesInPending.length &&
+                            leavesInPending.length > 0
+                          }
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </TableHead>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Leave Type</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Dates</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Applied On</TableHead>
+                      <TableHead className="bg-background sticky right-0 min-w-[220px] text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
+                        Actions
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leavesInPending.map((leave) => {
+                      const startDate = new Date(leave.startDate);
+                      const endDate = new Date(leave.endDate);
+                      const duration =
+                        Math.ceil(
+                          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+                        ) + 1;
+                      const employeeName = leave?.employee
+                        ? `${leave?.employee?.firstName} ${leave?.employee?.lastName}`
+                        : "Unknown";
+                      const balance = null;
+                      const hasInsufficientBalance = balance !== null && duration > balance;
+
+                      return (
+                        <TableRow key={leave.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedLeaveIds.includes(leave.id)}
+                              onCheckedChange={(checked: boolean) =>
+                                handleSelectLeave(leave.id, checked as boolean)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <User className="text-muted-foreground size-4" />
+                              {employeeName}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{leave.leaveType?.name || "N/A"}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {balance !== null && typeof balance === "number" ? (
+                              <div className="flex flex-col">
+                                <span
+                                  className={
+                                    hasInsufficientBalance
+                                      ? "font-semibold text-red-600"
+                                      : "font-medium"
+                                  }
+                                >
+                                  {balance} days
+                                </span>
+                                {hasInsufficientBalance && (
+                                  <span className="mt-0.5 text-xs text-red-500">Insufficient</span>
+                                )}
+                              </div>
                             ) : (
-                                <>
-                                    You are rejecting <strong>{selectedLeave.employeeName}</strong>'s leave request.
-                                    The employee will be notified of the rejection. This action cannot be undone.
-                                </>
+                              <span className="text-muted-foreground text-sm">—</span>
                             )}
-                        </p>
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setSelectedLeave(null)}>
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    if (selectedLeave.action === "approve") {
-                                        handleApprove(selectedLeave.id);
-                                    } else {
-                                        handleReject(selectedLeave.id);
-                                    }
-                                }}
-                                className={
-                                    selectedLeave.action === "approve"
-                                        ? "bg-green-600 hover:bg-green-700"
-                                        : "bg-red-600 hover:bg-red-700"
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{formatDate(leave.startDate)}</div>
+                              <div className="text-muted-foreground">
+                                to {formatDate(leave.endDate)}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {duration} {duration === 1 ? "day" : "days"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <p className="truncate text-sm">{leave.reason}</p>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {formatDate(leave.createdAt)}
+                          </TableCell>
+                          <TableCell className="bg-background sticky right-0 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
+                            <div className="flex items-center justify-end gap-1">
+                              {leave.user?.id && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-muted-foreground hover:text-foreground"
+                                  onClick={() =>
+                                    setViewHistoryFor({
+                                      userId: leave.user.id,
+                                      employeeName,
+                                    })
+                                  }
+                                  title="View leave history"
+                                >
+                                  <History className="size-4" />
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1 border-blue-300 text-blue-600 hover:bg-blue-50"
+                                onClick={() => handleOpenEdit(leave)}
+                                disabled={
+                                  approveMutation.isPending ||
+                                  rejectMutation.isPending ||
+                                  overrideMutation.isPending ||
+                                  bulkApproveMutation.isPending ||
+                                  bulkRejectMutation.isPending
+                                }
+                              >
+                                <Edit className="size-3.5" />
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1 border-red-300 text-red-600 hover:bg-red-50"
+                                onClick={() =>
+                                  setSelectedLeave({ id: leave.id, action: "reject", employeeName })
                                 }
                                 disabled={approveMutation.isPending || rejectMutation.isPending}
-                            >
-                                {approveMutation.isPending || rejectMutation.isPending ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
-                                ) : null}
-                                Confirm {selectedLeave.action === "approve" ? "Approval" : "Rejection"}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                              >
+                                <X className="size-3.5" />
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1 border-emerald-300 text-emerald-600 hover:bg-emerald-50"
+                                onClick={() =>
+                                  setSelectedLeave({
+                                    id: leave.id,
+                                    action: "approve",
+                                    employeeName,
+                                  })
+                                }
+                                disabled={approveMutation.isPending || rejectMutation.isPending}
+                              >
+                                <Check className="size-3.5" />
+                                Approve
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-            {/* Leave History Dialog */}
-            {viewHistoryFor && (
-                <EmployeeLeaveHistoryDialog
-                    open={!!viewHistoryFor}
-                    onOpenChange={(open) => !open && setViewHistoryFor(null)}
-                    userId={viewHistoryFor.userId}
-                    employeeName={viewHistoryFor.employeeName}
+      {/* Edit Dialog */}
+      {editingLeave && (
+        <Dialog open={!!editingLeave} onOpenChange={(open) => !open && setEditingLeave(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Leave Details</DialogTitle>
+              <DialogDescription>
+                Modify the leave dates and reason. Override reason is mandatory.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Start Date</label>
+                  <Input
+                    type="date"
+                    value={editFormData.startDate}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, startDate: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">End Date</label>
+                  <Input
+                    type="date"
+                    value={editFormData.endDate}
+                    onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Reason</label>
+                <Textarea
+                  value={editFormData.reason}
+                  onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
+                  placeholder="Leave reason"
+                  rows={3}
                 />
-            )}
-        </>
-    );
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-red-600">
+                  Override Reason *
+                </label>
+                <Textarea
+                  value={editFormData.overrideReason}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, overrideReason: e.target.value })
+                  }
+                  placeholder="Why are you making these changes? (Required)"
+                  rows={3}
+                  className="border-red-200"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingLeave(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={overrideMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {overrideMutation.isPending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : null}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Bulk Confirmation Dialog */}
+      {showBulkConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="bg-background mx-4 max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg p-6 shadow-lg">
+            <h2 className="mb-2 text-lg font-semibold">
+              {showBulkConfirm.action === "approve"
+                ? "Bulk Approve Leave Requests"
+                : "Bulk Cancel Leave Requests"}
+            </h2>
+            <p className="text-muted-foreground mb-4 text-sm">
+              {showBulkConfirm.action === "approve" ? (
+                <>
+                  You are approving <strong>{selectedLeaveIds.length}</strong> leave requests. All
+                  selected leaves will be moved to HR for final approval.
+                </>
+              ) : (
+                <>
+                  You are cancelling <strong>{selectedLeaveIds.length}</strong> leave requests. All
+                  selected employees will be notified. This action cannot be undone.
+                </>
+              )}
+            </p>
+
+            <div className="bg-muted/30 mb-4 rounded-lg border p-3">
+              <p className="mb-2 text-sm font-medium">Selected Leave Requests:</p>
+              <ul className="max-h-50 space-y-1 overflow-y-auto text-sm">
+                {leavesInPending
+                  .filter((leave) => selectedLeaveIds.includes(leave.id))
+                  .map((leave) => {
+                    const employeeName = leave.user?.employee
+                      ? `${leave.user.employee.firstName} ${leave.user.employee.lastName}`
+                      : "Unknown";
+                    return (
+                      <li key={leave.id} className="flex items-center gap-2">
+                        <Check className="text-muted-foreground size-3" />
+                        <span>
+                          {employeeName} - {leave.leaveType?.name} ({formatDate(leave.startDate)} to{" "}
+                          {formatDate(leave.endDate)})
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowBulkConfirm(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (showBulkConfirm.action === "approve") {
+                    handleBulkApprove();
+                  } else {
+                    handleBulkReject();
+                  }
+                }}
+                className={
+                  showBulkConfirm.action === "approve"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-red-600 hover:bg-red-700"
+                }
+                disabled={bulkApproveMutation.isPending || bulkRejectMutation.isPending}
+              >
+                {bulkApproveMutation.isPending || bulkRejectMutation.isPending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : null}
+                Confirm {showBulkConfirm.action === "approve" ? "Approval" : "Cancellation"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {selectedLeave && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="bg-background mx-4 w-full max-w-md rounded-lg p-6 shadow-lg">
+            <h2 className="mb-2 text-lg font-semibold">
+              {selectedLeave.action === "approve"
+                ? "Approve Leave Request"
+                : "Cancel Leave Request"}
+            </h2>
+            <p className="text-muted-foreground mb-4 text-sm">
+              {selectedLeave.action === "approve" ? (
+                <>
+                  You are approving <strong>{selectedLeave.employeeName}</strong>&apos;s leave
+                  request. After your approval (Step 1), this leave will be forwarded to HR for
+                  final approval (Step 2). The employee&apos;s leave balance will be deducted only
+                  after HR approval.
+                </>
+              ) : (
+                <>
+                  You are cancelling <strong>{selectedLeave.employeeName}</strong>&apos;s leave
+                  request. The employee will be notified. This action cannot be undone.
+                </>
+              )}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSelectedLeave(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedLeave.action === "approve") {
+                    handleApprove(selectedLeave.id);
+                  } else {
+                    handleReject(selectedLeave.id);
+                  }
+                }}
+                className={
+                  selectedLeave.action === "approve"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-red-600 hover:bg-red-700"
+                }
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+              >
+                {approveMutation.isPending || rejectMutation.isPending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : null}
+                Confirm {selectedLeave.action === "approve" ? "Approval" : "Cancellation"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave History Dialog */}
+      {viewHistoryFor && (
+        <EmployeeLeaveHistoryDialog
+          open={!!viewHistoryFor}
+          onOpenChange={(open) => !open && setViewHistoryFor(null)}
+          userId={viewHistoryFor.userId}
+          employeeName={viewHistoryFor.employeeName}
+        />
+      )}
+    </>
+  );
 }
